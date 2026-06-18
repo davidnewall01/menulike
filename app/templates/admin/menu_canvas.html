@@ -12,7 +12,15 @@
     {% include "admin/_menu_edit_form.html" %}
 </div>
 
-<div class="divider">Menu contents</div>
+<div class="flex items-center justify-between">
+    <div class="divider flex-1">Menu contents</div>
+    {% if menu.sections %}
+    <div class="flex gap-1 ml-4 shrink-0">
+        <button type="button" onclick="toggleAll(false)" class="btn btn-ghost btn-xs">Collapse all</button>
+        <button type="button" onclick="toggleAll(true)" class="btn btn-ghost btn-xs">Expand all</button>
+    </div>
+    {% endif %}
+</div>
 
 {# Build a flat list of all subsections for the move-item selects #}
 {% set all_subsections = [] %}
@@ -27,58 +35,66 @@
 <div class="card bg-base-100 shadow mb-4">
     <div class="card-body">
         {% set menu_id = menu.menu_id %}
+        {% set section_item_count = namespace(n=0) %}
+        {% for _sub in section.subsections %}{% set section_item_count.n = section_item_count.n + _sub.items | length %}{% endfor %}
+        {% set section_item_count = section_item_count.n %}
         {% include "admin/_section_header.html" %}
 
-        <details class="mb-2">
-            <summary class="btn btn-ghost btn-xs">+ Add subsection</summary>
-            <form method="post" action="/admin/subsection" class="border border-dashed border-base-300 rounded-lg p-3 mt-1 space-y-2">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                <input type="hidden" name="section_id" value="{{ section.section_id }}">
-                <input type="hidden" name="menu_id" value="{{ menu.menu_id }}">
-                <div class="form-control">
-                    <input type="text" name="name" class="input input-bordered input-sm w-full" placeholder="Subsection name (blank = headingless)">
-                </div>
-                <div class="form-control">
-                    <input type="text" name="description" class="input input-bordered input-sm w-full" placeholder="Description">
-                </div>
-                <button type="submit" class="btn btn-primary btn-xs">Add subsection</button>
-            </form>
-        </details>
-
-        {% for subsection in section.subsections %}
-        <div class="ml-2 mt-3 border-l-2 border-base-200 pl-3">
-            {% include "admin/_subsection_header.html" %}
-
-            {% for item in subsection.items %}
-            {% include "admin/_item_row.html" %}
-            {% endfor %}
-
-            <details class="mt-2">
-                <summary class="btn btn-ghost btn-xs">+ Add item</summary>
-                <form method="post" action="/admin/item" class="border border-dashed border-base-300 rounded-lg p-3 mt-1 space-y-2">
+        <div id="section-body-{{ section.section_id }}">
+            <details class="mb-2">
+                <summary class="btn btn-ghost btn-xs">+ Add subsection</summary>
+                <form method="post" action="/admin/subsection" class="border border-dashed border-base-300 rounded-lg p-3 mt-1 space-y-2">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="hidden" name="subsection_id" value="{{ subsection.subsection_id }}">
+                    <input type="hidden" name="section_id" value="{{ section.section_id }}">
                     <input type="hidden" name="menu_id" value="{{ menu.menu_id }}">
                     <div class="form-control">
-                        <input type="text" name="name" required class="input input-bordered input-sm w-full" placeholder="Item name *">
+                        <input type="text" name="name" class="input input-bordered input-sm w-full" placeholder="Subsection name (blank = headingless)">
                     </div>
                     <div class="form-control">
                         <input type="text" name="description" class="input input-bordered input-sm w-full" placeholder="Description">
                     </div>
-                    <div class="form-control">
-                        <input type="text" name="dietary_tags" class="input input-bordered input-sm w-full" placeholder="Dietary tags (comma-separated)">
-                    </div>
-                    <div class="form-control">
-                        <label class="label cursor-pointer justify-start gap-2 py-0">
-                            <input type="checkbox" name="featured" value="on" class="checkbox checkbox-sm">
-                            <span class="label-text text-xs">Featured</span>
-                        </label>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-xs">Add item</button>
+                    <button type="submit" class="btn btn-primary btn-xs">Add subsection</button>
                 </form>
             </details>
+
+            {% for subsection in section.subsections %}
+            <div class="ml-2 mt-3 border-l-2 border-base-200 pl-3">
+                {% set subsection_item_count = subsection.items | length %}
+                {% include "admin/_subsection_header.html" %}
+
+                <div id="subsection-body-{{ subsection.subsection_id }}">
+                    {% for item in subsection.items %}
+                    {% include "admin/_item_row.html" %}
+                    {% endfor %}
+
+                    <details class="mt-2">
+                        <summary class="btn btn-ghost btn-xs">+ Add item</summary>
+                        <form method="post" action="/admin/item" class="border border-dashed border-base-300 rounded-lg p-3 mt-1 space-y-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="subsection_id" value="{{ subsection.subsection_id }}">
+                            <input type="hidden" name="menu_id" value="{{ menu.menu_id }}">
+                            <div class="form-control">
+                                <input type="text" name="name" required class="input input-bordered input-sm w-full" placeholder="Item name *">
+                            </div>
+                            <div class="form-control">
+                                <input type="text" name="description" class="input input-bordered input-sm w-full" placeholder="Description">
+                            </div>
+                            <div class="form-control">
+                                <input type="text" name="dietary_tags" class="input input-bordered input-sm w-full" placeholder="Dietary tags (comma-separated)">
+                            </div>
+                            <div class="form-control">
+                                <label class="label cursor-pointer justify-start gap-2 py-0">
+                                    <input type="checkbox" name="featured" value="on" class="checkbox checkbox-sm">
+                                    <span class="label-text text-xs">Featured</span>
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-xs">Add item</button>
+                        </form>
+                    </details>
+                </div>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
 </div>
 {% endfor %}

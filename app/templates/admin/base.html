@@ -38,6 +38,33 @@
                 window.location.reload();
             }
         });
+
+        /* Collapse/expand — delegated so it survives HTMX swaps */
+        document.addEventListener("click", function (e) {
+            var toggle = e.target.closest("[data-collapse]");
+            if (!toggle) return;
+            e.preventDefault();
+            var target = document.getElementById(toggle.getAttribute("data-collapse"));
+            if (!target) return;
+            var isHidden = target.classList.toggle("hidden");
+            var chevron = toggle.querySelector(".chevron");
+            if (chevron) chevron.textContent = isHidden ? "\u25b8" : "\u25be";
+            var summary = toggle.parentElement.querySelector(".collapse-summary");
+            if (summary) summary.classList.toggle("hidden", !isHidden);
+        });
+
+        function toggleAll(expand) {
+            document.querySelectorAll("[data-collapse]").forEach(function (toggle) {
+                var target = document.getElementById(toggle.getAttribute("data-collapse"));
+                if (!target) return;
+                if (expand) target.classList.remove("hidden");
+                else target.classList.add("hidden");
+                var chevron = toggle.querySelector(".chevron");
+                if (chevron) chevron.textContent = expand ? "\u25be" : "\u25b8";
+                var summary = toggle.parentElement.querySelector(".collapse-summary");
+                if (summary) summary.classList.toggle("hidden", expand);
+            });
+        }
     </script>
 </body>
 </html>

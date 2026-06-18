@@ -1,16 +1,17 @@
+{% set single_price = item.variants[0].price if item.variants | length == 1 and not item.variants[0].label else none %}
 <div id="item-{{ item.menu_item_id }}" class="border border-base-200 rounded-lg p-3 mb-2">
-    <div class="flex justify-between items-start">
-        <div>
+    <div class="flex justify-between items-center">
+        <div class="flex items-center gap-1">
+            <button type="button" data-collapse="item-body-{{ item.menu_item_id }}" class="btn btn-ghost btn-xs px-1">
+                <span class="chevron">▾</span>
+            </button>
             <span class="font-semibold {% if item.featured %}text-warning{% endif %}">{{ item.name }}</span>
             {% if item.featured %}
-            <span class="badge badge-warning badge-sm ml-1">Featured</span>
+            <span class="badge badge-warning badge-sm">Featured</span>
             {% endif %}
-            {% if item.description %}
-            <p class="text-sm text-base-content/60 mt-0.5">{{ item.description }}</p>
-            {% endif %}
-            {% if item.dietary_tags %}
-            <span class="badge badge-outline badge-sm mt-1">{{ item.dietary_tags | join(", ") }}</span>
-            {% endif %}
+            <span class="collapse-summary hidden text-base-content/50 text-sm">
+                {% if single_price is not none %}· ${{ "%.2f" | format(single_price) }}{% endif %}
+            </span>
         </div>
         <div class="flex gap-1 ml-2 shrink-0">
             <button class="btn btn-ghost btn-xs"
@@ -26,34 +27,43 @@
         </div>
     </div>
 
-    <div class="ml-4 mt-2">
-        {% for variant in item.variants %}
-        {% include "admin/_variant_row.html" %}
-        {% endfor %}
-
-        <form method="post" action="/admin/variant" class="flex items-center gap-2 mt-1 pt-1">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="item_id" value="{{ item.menu_item_id }}">
-            <input type="hidden" name="menu_id" value="{{ menu_id }}">
-            <input type="text" name="label" class="input input-bordered input-xs w-24" placeholder="Label">
-            <input type="text" name="price" required class="input input-bordered input-xs w-20" placeholder="Price *">
-            <button type="submit" class="btn btn-ghost btn-xs">+ Variant</button>
-        </form>
-
-        {% if all_subsections is defined and all_subsections | length > 1 %}
-        <form method="post" action="/admin/item/{{ item.menu_item_id }}/move" class="flex items-center gap-2 mt-1 pt-1 border-t border-base-200">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="menu_id" value="{{ menu_id }}">
-            <span class="text-xs text-base-content/60">Move to:</span>
-            <select name="target_subsection_id" class="select select-bordered select-xs">
-                {% for sub in all_subsections %}
-                {% if sub.id != item.subsection_id %}
-                <option value="{{ sub.id }}">{{ sub.label }}</option>
-                {% endif %}
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-ghost btn-xs">Move</button>
-        </form>
+    <div id="item-body-{{ item.menu_item_id }}" class="ml-6 mt-1">
+        {% if item.description %}
+        <p class="text-sm text-base-content/60">{{ item.description }}</p>
         {% endif %}
+        {% if item.dietary_tags %}
+        <span class="badge badge-outline badge-sm mt-1">{{ item.dietary_tags | join(", ") }}</span>
+        {% endif %}
+
+        <div class="mt-2">
+            {% for variant in item.variants %}
+            {% include "admin/_variant_row.html" %}
+            {% endfor %}
+
+            <form method="post" action="/admin/variant" class="flex items-center gap-2 mt-1 pt-1">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="item_id" value="{{ item.menu_item_id }}">
+                <input type="hidden" name="menu_id" value="{{ menu_id }}">
+                <input type="text" name="label" class="input input-bordered input-xs w-24" placeholder="Label">
+                <input type="text" name="price" required class="input input-bordered input-xs w-20" placeholder="Price *">
+                <button type="submit" class="btn btn-ghost btn-xs">+ Variant</button>
+            </form>
+
+            {% if all_subsections is defined and all_subsections | length > 1 %}
+            <form method="post" action="/admin/item/{{ item.menu_item_id }}/move" class="flex items-center gap-2 mt-1 pt-1 border-t border-base-200">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="menu_id" value="{{ menu_id }}">
+                <span class="text-xs text-base-content/60">Move to:</span>
+                <select name="target_subsection_id" class="select select-bordered select-xs">
+                    {% for sub in all_subsections %}
+                    {% if sub.id != item.subsection_id %}
+                    <option value="{{ sub.id }}">{{ sub.label }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-ghost btn-xs">Move</button>
+            </form>
+            {% endif %}
+        </div>
     </div>
 </div>

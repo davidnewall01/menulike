@@ -1,9 +1,16 @@
+{% set item_count = section_item_count if section_item_count is defined else 0 %}
 <div id="section-header-{{ section.section_id }}" class="flex justify-between items-start mb-2">
-    <div>
-        <h3 class="card-title">{{ section.name }}</h3>
-        {% if section.description %}
-        <p class="text-base-content/60 text-sm">{{ section.description }}</p>
-        {% endif %}
+    <div class="flex items-center gap-1">
+        <button type="button" data-collapse="section-body-{{ section.section_id }}" class="btn btn-ghost btn-xs px-1">
+            <span class="chevron">▾</span>
+        </button>
+        <div>
+            <h3 class="card-title inline">{{ section.name }}</h3>
+            {% if section.description %}
+            <p class="text-base-content/60 text-sm">{{ section.description }}</p>
+            {% endif %}
+        </div>
+        <span class="collapse-summary hidden text-base-content/50 text-sm ml-1">· {{ item_count }} dish{{ "es" if item_count != 1 else "" }}</span>
     </div>
     <div class="flex gap-1 shrink-0">
         <button class="btn btn-ghost btn-xs"
