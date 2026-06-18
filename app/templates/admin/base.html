@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>{% block title %}Admin{% endblock %} — menulike</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body class="min-h-screen bg-base-200">
+    <div class="navbar bg-base-100 shadow-sm">
+        <div class="flex-1">
+            <a href="/admin/" class="btn btn-ghost text-xl">menulike</a>
+        </div>
+        <div class="flex-none">
+            <ul class="menu menu-horizontal px-1">
+                <li><a href="/admin/">Dashboard</a></li>
+                <li><a href="/admin/details">Details</a></li>
+                <li class="disabled"><a class="opacity-40 cursor-not-allowed">Menu</a></li>
+                <li class="disabled"><a class="opacity-40 cursor-not-allowed">Hours</a></li>
+                <li class="disabled"><a class="opacity-40 cursor-not-allowed">Photos</a></li>
+            </ul>
+            <form method="post" action="/admin/logout">
+                <button type="submit" class="btn btn-ghost btn-sm">Sign out</button>
+            </form>
+        </div>
+    </div>
+    <main class="container mx-auto max-w-3xl p-6">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

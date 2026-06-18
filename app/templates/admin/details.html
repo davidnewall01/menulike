@@ -1,0 +1,16 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Details{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Restaurant Details</h1>
+{% if not site %}
+<div class="alert alert-info">
+    <span>Internal admin — select a site to edit (coming with multi-tenant admin).</span>
+</div>
+{% else %}
+<div id="details-form-container">
+    {% include "admin/_details_form.html" %}
+</div>
+{% endif %}
+{% endblock %}

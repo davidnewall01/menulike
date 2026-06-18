@@ -1,0 +1,113 @@
+{% if saved %}
+<div class="alert alert-success mb-4">
+    <span>Details saved.</span>
+</div>
+{% endif %}
+{% if errors %}
+<div class="alert alert-error mb-4">
+    <ul class="list-disc list-inside">
+        {% for err in errors %}
+        <li>{{ err }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+<form hx-post="/admin/details" hx-target="#details-form-container" hx-swap="innerHTML">
+    <div class="card bg-base-100 shadow">
+        <div class="card-body space-y-4">
+
+            <h2 class="card-title text-lg">Identity</h2>
+            <div class="form-control w-full">
+                <label class="label" for="restaurant_name"><span class="label-text">Restaurant name *</span></label>
+                <input type="text" id="restaurant_name" name="restaurant_name" value="{{ site.restaurant_name }}" required class="input input-bordered w-full">
+            </div>
+            <div class="form-control w-full">
+                <label class="label" for="tagline"><span class="label-text">Tagline</span></label>
+                <input type="text" id="tagline" name="tagline" value="{{ site.tagline or '' }}" class="input input-bordered w-full">
+            </div>
+
+            <div class="divider"></div>
+            <h2 class="card-title text-lg">Hero</h2>
+            <div class="form-control w-full">
+                <label class="label" for="hero_heading"><span class="label-text">Heading</span></label>
+                <input type="text" id="hero_heading" name="hero_heading" value="{{ site.hero_heading or '' }}" class="input input-bordered w-full">
+            </div>
+            <div class="form-control w-full">
+                <label class="label" for="hero_subheading"><span class="label-text">Subheading</span></label>
+                <input type="text" id="hero_subheading" name="hero_subheading" value="{{ site.hero_subheading or '' }}" class="input input-bordered w-full">
+            </div>
+
+            <div class="divider"></div>
+            <h2 class="card-title text-lg">About</h2>
+            <div class="form-control w-full">
+                <label class="label" for="about_story"><span class="label-text">Story</span></label>
+                <textarea id="about_story" name="about_story" rows="4" class="textarea textarea-bordered w-full">{{ site.about_story or '' }}</textarea>
+            </div>
+
+            <div class="divider"></div>
+            <h2 class="card-title text-lg">Address</h2>
+            <div class="form-control w-full">
+                <label class="label" for="address_street"><span class="label-text">Street</span></label>
+                <input type="text" id="address_street" name="address_street" value="{{ site.address_street or '' }}" class="input input-bordered w-full">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label" for="address_suburb"><span class="label-text">Suburb</span></label>
+                    <input type="text" id="address_suburb" name="address_suburb" value="{{ site.address_suburb or '' }}" class="input input-bordered w-full">
+                </div>
+                <div class="form-control">
+                    <label class="label" for="address_state"><span class="label-text">State</span></label>
+                    <input type="text" id="address_state" name="address_state" value="{{ site.address_state or '' }}" class="input input-bordered w-full">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label" for="address_postcode"><span class="label-text">Postcode</span></label>
+                    <input type="text" id="address_postcode" name="address_postcode" value="{{ site.address_postcode or '' }}" class="input input-bordered w-full">
+                </div>
+                <div class="form-control">
+                    <label class="label" for="address_country"><span class="label-text">Country</span></label>
+                    <input type="text" id="address_country" name="address_country" value="{{ site.address_country or '' }}" class="input input-bordered w-full">
+                </div>
+            </div>
+
+            <div class="divider"></div>
+            <h2 class="card-title text-lg">Contact</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label" for="phone"><span class="label-text">Phone</span></label>
+                    <input type="text" id="phone" name="phone" value="{{ site.phone or '' }}" class="input input-bordered w-full">
+                </div>
+                <div class="form-control">
+                    <label class="label" for="email"><span class="label-text">Email</span></label>
+                    <input type="text" id="email" name="email" value="{{ site.email or '' }}" class="input input-bordered w-full">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label" for="booking_url"><span class="label-text">Booking URL</span></label>
+                    <input type="text" id="booking_url" name="booking_url" value="{{ site.booking_url or '' }}" class="input input-bordered w-full">
+                </div>
+                <div class="form-control">
+                    <label class="label" for="order_url"><span class="label-text">Order URL</span></label>
+                    <input type="text" id="order_url" name="order_url" value="{{ site.order_url or '' }}" class="input input-bordered w-full">
+                </div>
+            </div>
+
+            <div class="divider"></div>
+            <h2 class="card-title text-lg">SEO</h2>
+            <div class="form-control w-full">
+                <label class="label" for="meta_title"><span class="label-text">Meta title</span></label>
+                <input type="text" id="meta_title" name="meta_title" value="{{ site.meta_title or '' }}" class="input input-bordered w-full">
+            </div>
+            <div class="form-control w-full">
+                <label class="label" for="meta_description"><span class="label-text">Meta description</span></label>
+                <textarea id="meta_description" name="meta_description" rows="2" class="textarea textarea-bordered w-full">{{ site.meta_description or '' }}</textarea>
+            </div>
+
+            <div class="card-actions justify-end pt-4">
+                <button type="submit" class="btn btn-primary">Save details</button>
+            </div>
+        </div>
+    </div>
+</form>

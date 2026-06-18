@@ -1,0 +1,128 @@
+"""Details editing tests — write stack isolation and scoping."""
+
+import pytest
+
+from tests.conftest import make_owner, make_site
+
+
+class TestDetailsEditing:
+    """Owner edits their site's details via the write stack;
+    a second site in the DB is never touched."""
+
+    async def _login(self, client, email, password):
+        resp = await client.post(
+            "/admin/login",
+            data={"email": email, "password": password},
+            follow_redirects=False,
+        )
+        return resp.cookies["session"]
+
+    async def test_owner_edits_own_site_only(self, db_session, client):
+        site_a = await make_site(db_session, slug="alpha", name="Alpha Original")
+        site_b = await make_site(db_session, slug="beta", name="Beta Original")
+        await make_owner(db_session, site_a, email="a@test.dev", password="pass")
+
+        cookie = await self._login(client, "a@test.dev", "pass")
+
+        # Edit site A's details
+        resp = await client.post(
+            "/admin/details",
+            data={
+                "restaurant_name": "Alpha Updated",
+                "tagline": "New tagline",
+                "phone": "0400 000 000",
+            },
+            cookies={"session": cookie},
+        )
+        assert resp.status_code == 200
+        assert "Details saved" in resp.text
+
+        # Refresh both sites from the DB
+        await db_session.refresh(site_a)
+        await db_session.refresh(site_b)
+
+        # Site A was updated
+        assert site_a.restaurant_name == "Alpha Updated"
+        assert site_a.tagline == "New tagline"
+        assert site_a.phone == "0400 000 000"
+
+        # Site B is untouched
+        assert site_b.restaurant_name == "Beta Original"
+        assert site_b.tagline is None
+
+    async def test_no_site_id_accepted_from_form(self, db_session, client):
+        """Even if a site_id field is injected into the form, it's ignored —
+        the target is always auth_ctx.scoped_site_id."""
+        site_a = await make_site(db_session, slug="alpha2", name="Alpha Due")
+        site_b = await make_site(db_session, slug="beta2", name="Beta Due")
+        await make_owner(db_session, site_a, email="a2@test.dev", password="pass")
+
+        cookie = await self._login(client, "a2@test.dev", "pass")
+
+        # Inject site_b's id in the form data
+        resp = await client.post(
+            "/admin/details",
+            data={
+                "restaurant_name": "Alpha Edited",
+                "site_id": str(site_b.site_id),
+            },
+            cookies={"session": cookie},
+        )
+        assert resp.status_code == 200
+
+        await db_session.refresh(site_a)
+        await db_session.refresh(site_b)
+
+        # A was edited, B untouched
+        assert site_a.restaurant_name == "Alpha Edited"
+        assert site_b.restaurant_name == "Beta Due"
+
+    async def test_get_details_shows_current_values(self, db_session, client):
+        site = await make_site(
+            db_session, slug="preload", name="Preloaded",
+            tagline="Existing tagline", phone="1234",
+        )
+        await make_owner(db_session, site, email="p@test.dev", password="pass")
+
+        cookie = await self._login(client, "p@test.dev", "pass")
+
+        resp = await client.get("/admin/details", cookies={"session": cookie})
+        assert resp.status_code == 200
+        assert 'value="Preloaded"' in resp.text
+        assert 'value="Existing tagline"' in resp.text
+        assert 'value="1234"' in resp.text
+
+    async def test_empty_optional_fields_become_none(self, db_session, client):
+        site = await make_site(
+            db_session, slug="blanks", name="Blanks",
+            tagline="Old tagline", phone="9999",
+        )
+        await make_owner(db_session, site, email="b@test.dev", password="pass")
+
+        cookie = await self._login(client, "b@test.dev", "pass")
+
+        # Submit with empty optional fields
+        resp = await client.post(
+            "/admin/details",
+            data={"restaurant_name": "Blanks", "tagline": "", "phone": ""},
+            cookies={"session": cookie},
+        )
+        assert resp.status_code == 200
+
+        await db_session.refresh(site)
+        assert site.tagline is None
+        assert site.phone is None
+
+    async def test_missing_restaurant_name_returns_error(self, db_session, client):
+        site = await make_site(db_session, slug="valfail", name="ValFail")
+        await make_owner(db_session, site, email="v@test.dev", password="pass")
+
+        cookie = await self._login(client, "v@test.dev", "pass")
+
+        resp = await client.post(
+            "/admin/details",
+            data={"restaurant_name": ""},
+            cookies={"session": cookie},
+        )
+        assert resp.status_code == 200
+        assert "restaurant_name" in resp.text
