@@ -18,11 +18,12 @@
             <ul class="menu menu-horizontal px-1">
                 <li><a href="/admin/">Dashboard</a></li>
                 <li><a href="/admin/details">Details</a></li>
-                <li class="disabled"><a class="opacity-40 cursor-not-allowed">Menu</a></li>
+                <li><a href="/admin/menu">Menu</a></li>
                 <li class="disabled"><a class="opacity-40 cursor-not-allowed">Hours</a></li>
                 <li class="disabled"><a class="opacity-40 cursor-not-allowed">Photos</a></li>
             </ul>
             <form method="post" action="/admin/logout">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="btn btn-ghost btn-sm">Sign out</button>
             </form>
         </div>
@@ -30,5 +31,13 @@
     <main class="container mx-auto max-w-3xl p-6">
         {% block content %}{% endblock %}
     </main>
+    <script>
+        document.body.addEventListener("htmx:responseError", function (e) {
+            if (e.detail.xhr && e.detail.xhr.status === 403
+                && e.detail.xhr.getResponseHeader("X-CSRF-Fail") === "1") {
+                window.location.reload();
+            }
+        });
+    </script>
 </body>
 </html>

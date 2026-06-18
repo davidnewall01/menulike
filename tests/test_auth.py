@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.conftest import make_owner, make_site
+from tests.conftest import csrf_token_for, make_owner, make_site
 
 
 class TestLogin:
@@ -73,7 +73,7 @@ class TestProtectedRoute:
 class TestLogout:
     async def test_logout_clears_cookie(self, db_session, client):
         site = await make_site(db_session)
-        await make_owner(db_session, site, email="o@test.dev", password="pass")
+        owner = await make_owner(db_session, site, email="o@test.dev", password="pass")
 
         # Login
         login_resp = await client.post(
@@ -82,10 +82,12 @@ class TestLogout:
             follow_redirects=False,
         )
         cookie = login_resp.cookies["session"]
+        token = csrf_token_for(owner)
 
         # Logout
         resp = await client.post(
             "/admin/logout",
+            data={"csrf_token": token},
             cookies={"session": cookie},
             follow_redirects=False,
         )

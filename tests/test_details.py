@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.conftest import make_owner, make_site
+from tests.conftest import csrf_token_for, make_owner, make_site
 
 
 class TestDetailsEditing:
@@ -20,9 +20,10 @@ class TestDetailsEditing:
     async def test_owner_edits_own_site_only(self, db_session, client):
         site_a = await make_site(db_session, slug="alpha", name="Alpha Original")
         site_b = await make_site(db_session, slug="beta", name="Beta Original")
-        await make_owner(db_session, site_a, email="a@test.dev", password="pass")
+        owner = await make_owner(db_session, site_a, email="a@test.dev", password="pass")
 
         cookie = await self._login(client, "a@test.dev", "pass")
+        token = csrf_token_for(owner)
 
         # Edit site A's details
         resp = await client.post(
@@ -31,6 +32,7 @@ class TestDetailsEditing:
                 "restaurant_name": "Alpha Updated",
                 "tagline": "New tagline",
                 "phone": "0400 000 000",
+                "csrf_token": token,
             },
             cookies={"session": cookie},
         )
@@ -55,9 +57,10 @@ class TestDetailsEditing:
         the target is always auth_ctx.scoped_site_id."""
         site_a = await make_site(db_session, slug="alpha2", name="Alpha Due")
         site_b = await make_site(db_session, slug="beta2", name="Beta Due")
-        await make_owner(db_session, site_a, email="a2@test.dev", password="pass")
+        owner = await make_owner(db_session, site_a, email="a2@test.dev", password="pass")
 
         cookie = await self._login(client, "a2@test.dev", "pass")
+        token = csrf_token_for(owner)
 
         # Inject site_b's id in the form data
         resp = await client.post(
@@ -65,6 +68,7 @@ class TestDetailsEditing:
             data={
                 "restaurant_name": "Alpha Edited",
                 "site_id": str(site_b.site_id),
+                "csrf_token": token,
             },
             cookies={"session": cookie},
         )
@@ -97,14 +101,15 @@ class TestDetailsEditing:
             db_session, slug="blanks", name="Blanks",
             tagline="Old tagline", phone="9999",
         )
-        await make_owner(db_session, site, email="b@test.dev", password="pass")
+        owner = await make_owner(db_session, site, email="b@test.dev", password="pass")
 
         cookie = await self._login(client, "b@test.dev", "pass")
+        token = csrf_token_for(owner)
 
         # Submit with empty optional fields
         resp = await client.post(
             "/admin/details",
-            data={"restaurant_name": "Blanks", "tagline": "", "phone": ""},
+            data={"restaurant_name": "Blanks", "tagline": "", "phone": "", "csrf_token": token},
             cookies={"session": cookie},
         )
         assert resp.status_code == 200
@@ -113,16 +118,69 @@ class TestDetailsEditing:
         assert site.tagline is None
         assert site.phone is None
 
-    async def test_missing_restaurant_name_returns_error(self, db_session, client):
+    async def test_empty_restaurant_name_rejected(self, db_session, client):
+        """Empty or whitespace-only restaurant_name must trigger a validation
+        error and must NOT persist to the DB."""
         site = await make_site(db_session, slug="valfail", name="ValFail")
-        await make_owner(db_session, site, email="v@test.dev", password="pass")
+        owner = await make_owner(db_session, site, email="v@test.dev", password="pass")
 
         cookie = await self._login(client, "v@test.dev", "pass")
+        token = csrf_token_for(owner)
 
+        # Empty string
         resp = await client.post(
             "/admin/details",
-            data={"restaurant_name": ""},
+            data={"restaurant_name": "", "csrf_token": token},
             cookies={"session": cookie},
         )
         assert resp.status_code == 200
-        assert "restaurant_name" in resp.text
+        assert "Restaurant name is required" in resp.text
+        assert "Details saved" not in resp.text
+
+        # Whitespace only
+        resp = await client.post(
+            "/admin/details",
+            data={"restaurant_name": "   ", "csrf_token": token},
+            cookies={"session": cookie},
+        )
+        assert resp.status_code == 200
+        assert "Restaurant name is required" in resp.text
+        assert "Details saved" not in resp.text
+
+        # Verify original name is untouched
+        await db_session.refresh(site)
+        assert site.restaurant_name == "ValFail"
+
+    async def test_javascript_url_rejected(self, db_session, client):
+        """javascript: scheme in booking/order URLs must be rejected."""
+        site = await make_site(db_session, slug="urltest", name="URL Test")
+        owner = await make_owner(db_session, site, email="u@test.dev", password="pass")
+
+        cookie = await self._login(client, "u@test.dev", "pass")
+        token = csrf_token_for(owner)
+
+        resp = await client.post(
+            "/admin/details",
+            data={
+                "restaurant_name": "URL Test",
+                "booking_url": "javascript:alert(1)",
+                "csrf_token": token,
+            },
+            cookies={"session": cookie},
+        )
+        assert resp.status_code == 200
+        assert "not allowed" in resp.text
+        assert "Details saved" not in resp.text
+
+        # Valid https URL should work
+        resp = await client.post(
+            "/admin/details",
+            data={
+                "restaurant_name": "URL Test",
+                "booking_url": "https://book.example.com",
+                "csrf_token": token,
+            },
+            cookies={"session": cookie},
+        )
+        assert resp.status_code == 200
+        assert "Details saved" in resp.text

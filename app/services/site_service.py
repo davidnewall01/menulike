@@ -1,6 +1,5 @@
 """Site queries and mutations."""
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -9,6 +8,7 @@ from app.auth.context import AuthContext
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
 from app.models.site import Site
 from app.schemas.site import SiteDetailsForm
+from app.services.exceptions import NoSiteInScope, SiteNotFound
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ async def get_owner_site(db: AsyncSession, auth_ctx: AuthContext) -> Site | None
     )
     site = result.scalar_one_or_none()
     if site is None:
-        raise HTTPException(status_code=400, detail="Scoped site not found")
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
     return site
 
 
@@ -77,16 +77,14 @@ async def update_site_details(
     accepts a site_id from the caller. Flushes but does NOT commit.
     """
     if auth_ctx.scoped_site_id is None:
-        raise HTTPException(
-            status_code=400, detail="No site in scope — cannot update"
-        )
+        raise NoSiteInScope()
 
     result = await db.execute(
         select(Site).where(Site.site_id == auth_ctx.scoped_site_id)
     )
     site = result.scalar_one_or_none()
     if site is None:
-        raise HTTPException(status_code=400, detail="Scoped site not found")
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
 
     for field in _DETAIL_FIELDS:
         setattr(site, field, getattr(form, field))

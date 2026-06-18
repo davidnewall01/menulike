@@ -44,8 +44,8 @@ def upgrade() -> None:
         sa.Column("meta_title", sa.String, nullable=True),
         sa.Column("meta_description", sa.String, nullable=True),
         sa.Column("settings", JSONB, nullable=False, server_default="{}"),
-        sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_site_slug", "site", ["slug"], unique=True)
 
@@ -63,8 +63,8 @@ def upgrade() -> None:
         sa.Column("description", sa.Text, nullable=True),
         sa.Column("availability_note", sa.String, nullable=True),
         sa.Column("position", sa.Integer, nullable=False),
-        sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_menus_site_id", "menus", ["site_id"])
 
@@ -81,8 +81,8 @@ def upgrade() -> None:
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.Text, nullable=True),
         sa.Column("position", sa.Integer, nullable=False),
-        sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_sections_menu_id", "sections", ["menu_id"])
 
@@ -98,8 +98,8 @@ def upgrade() -> None:
         ),
         sa.Column("name", sa.String, nullable=True),
         sa.Column("position", sa.Integer, nullable=False),
-        sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_subsections_section_id", "subsections", ["section_id"])
 
@@ -118,8 +118,8 @@ def upgrade() -> None:
         sa.Column("dietary_tags", JSONB, nullable=False, server_default="[]"),
         sa.Column("featured", sa.Boolean, nullable=False, server_default="false"),
         sa.Column("position", sa.Integer, nullable=False),
-        sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_menu_items_subsection_id", "menu_items", ["subsection_id"])
 
@@ -136,8 +136,8 @@ def upgrade() -> None:
         sa.Column("label", sa.String, nullable=True),
         sa.Column("price", sa.Numeric(10, 2), nullable=False),
         sa.Column("position", sa.Integer, nullable=False),
-        sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_menu_item_variants_menu_item_id", "menu_item_variants", ["menu_item_id"])
 

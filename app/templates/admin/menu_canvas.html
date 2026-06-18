@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ menu.name }}{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-2 mb-4">
+    <a href="/admin/menu" class="btn btn-ghost btn-sm">← Menus</a>
+    <h1 class="text-2xl font-bold">{{ menu.name }}</h1>
+</div>
+
+<div id="menu-edit-container" class="mb-6">
+    {% include "admin/_menu_edit_form.html" %}
+</div>
+
+<div class="divider">Menu contents (read-only)</div>
+
+{% if not menu.sections %}
+<div class="alert alert-info">
+    <span>This menu has no sections yet. Section editing is coming soon.</span>
+</div>
+{% else %}
+{% for section in menu.sections %}
+<div class="card bg-base-100 shadow mb-4">
+    <div class="card-body">
+        <h3 class="card-title">{{ section.name }}</h3>
+        {% if section.description %}
+        <p class="text-base-content/60">{{ section.description }}</p>
+        {% endif %}
+
+        {% for subsection in section.subsections %}
+        <div class="ml-4 mt-3">
+            {% if subsection.name %}
+            <h4 class="font-semibold text-base-content/80">{{ subsection.name }}</h4>
+            {% endif %}
+
+            {% for item in subsection.items %}
+            <div class="flex justify-between items-baseline py-1 border-b border-base-200 last:border-0">
+                <div>
+                    <span class="{% if item.featured %}text-warning font-semibold{% endif %}">{{ item.name }}</span>
+                    {% if item.description %}
+                    <span class="text-sm text-base-content/60 ml-1">— {{ item.description }}</span>
+                    {% endif %}
+                    {% if item.dietary_tags %}
+                    <span class="badge badge-outline badge-sm ml-1">{{ item.dietary_tags | join(", ") }}</span>
+                    {% endif %}
+                </div>
+                <div class="text-sm whitespace-nowrap ml-4">
+                    {% if item.variants | length == 1 and not item.variants[0].label %}
+                    ${{ "%.2f" | format(item.variants[0].price) }}
+                    {% else %}
+                    {% for v in item.variants %}
+                    {{ v.label }}: ${{ "%.2f" | format(v.price) }}{% if not loop.last %} · {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

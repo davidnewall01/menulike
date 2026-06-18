@@ -17,7 +17,7 @@ A generic `id` on Base would defeat the named-PK pattern, so we don't add one.
 
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -28,7 +28,9 @@ class Base(DeclarativeBase):
 class TimestampMixin:
     """Adds DB-managed created_at / updated_at to a model."""
 
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now()
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

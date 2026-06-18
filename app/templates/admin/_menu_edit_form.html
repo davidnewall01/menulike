@@ -1,0 +1,52 @@
+{% if saved %}
+<div class="alert alert-success mb-4">
+    <span>Menu updated.</span>
+</div>
+{% endif %}
+{% if deleted %}
+<div class="alert alert-success mb-4">
+    <span>Menu deleted. Redirecting…</span>
+</div>
+<script>setTimeout(function(){ window.location = "/admin/menu"; }, 800);</script>
+{% endif %}
+{% if errors %}
+<div class="alert alert-error mb-4">
+    <ul class="list-disc list-inside">
+        {% for err in errors %}
+        <li>{{ err }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if not deleted %}
+<div class="card bg-base-100 shadow">
+    <div class="card-body space-y-3">
+        <form hx-post="/admin/menu/{{ menu.menu_id }}" hx-target="#menu-edit-container" hx-swap="innerHTML">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="_action" value="update">
+            <div class="form-control w-full">
+                <label class="label" for="menu-name"><span class="label-text">Name *</span></label>
+                <input type="text" id="menu-name" name="name" value="{{ menu.name }}" required class="input input-bordered w-full">
+            </div>
+            <div class="form-control w-full">
+                <label class="label" for="menu-desc"><span class="label-text">Description</span></label>
+                <input type="text" id="menu-desc" name="description" value="{{ menu.description or '' }}" class="input input-bordered w-full">
+            </div>
+            <div class="form-control w-full">
+                <label class="label" for="menu-avail"><span class="label-text">Availability note</span></label>
+                <input type="text" id="menu-avail" name="availability_note" value="{{ menu.availability_note or '' }}" class="input input-bordered w-full">
+            </div>
+            <div class="flex justify-between items-center pt-4">
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+        <div class="divider my-1"></div>
+        <form hx-post="/admin/menu/{{ menu.menu_id }}" hx-target="#menu-edit-container" hx-swap="innerHTML"
+              hx-confirm="Delete this menu and all its sections/items? This cannot be undone.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="_action" value="delete">
+            <button type="submit" class="btn btn-error btn-outline btn-sm">Delete menu</button>
+        </form>
+    </div>
+</div>
+{% endif %}

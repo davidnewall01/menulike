@@ -20,10 +20,13 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.auth.context import AuthContext
 from app.core.config import settings
+from app.core.csrf import generate_csrf_token
 from app.core.security import hash_password
 from app.db.session import _to_async_url, get_db
 from app.main import app
+from app.models.menu import Menu
 from app.models.site import Site
 from app.models.user import User
 
@@ -121,3 +124,34 @@ async def make_owner(
     db_session.add(user)
     await db_session.flush()
     return user
+
+
+async def make_menu(
+    db_session: AsyncSession,
+    site: Site,
+    name: str = "Test Menu",
+    position: int = 10,
+    **overrides,
+) -> Menu:
+    """Insert a menu into the test transaction."""
+    fields = dict(
+        site_id=site.site_id,
+        name=name,
+        position=position,
+    )
+    fields.update(overrides)
+    menu = Menu(**fields)
+    db_session.add(menu)
+    await db_session.flush()
+    return menu
+
+
+def csrf_token_for(user: User) -> str:
+    """Generate a valid CSRF token bound to the given user's identity."""
+    ctx = AuthContext(
+        user_id=user.user_id,
+        email=user.email,
+        role=user.role,
+        site_id=user.site_id,
+    )
+    return generate_csrf_token(ctx)

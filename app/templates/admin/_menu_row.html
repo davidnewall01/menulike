@@ -1,0 +1,14 @@
+<div class="card bg-base-100 shadow" id="menu-row-{{ menu.menu_id }}">
+    <div class="card-body py-3 flex-row items-center justify-between">
+        <div>
+            <a href="/admin/menu/{{ menu.menu_id }}" class="font-semibold text-lg link link-hover">{{ menu.name }}</a>
+            {% if menu.availability_note %}
+            <span class="text-sm text-base-content/60 ml-2">{{ menu.availability_note }}</span>
+            {% endif %}
+            {% if menu.description %}
+            <p class="text-sm text-base-content/60 mt-0.5">{{ menu.description }}</p>
+            {% endif %}
+        </div>
+        <a href="/admin/menu/{{ menu.menu_id }}" class="btn btn-ghost btn-sm">Edit</a>
+    </div>
+</div>

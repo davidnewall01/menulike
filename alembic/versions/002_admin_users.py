@@ -32,8 +32,8 @@ def upgrade() -> None:
             sa.ForeignKey("site.site_id", ondelete="CASCADE"),
             nullable=True,
         ),
-        sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_users_email", "users", ["email"], unique=True)
     op.create_index("ix_users_site_id", "users", ["site_id"])

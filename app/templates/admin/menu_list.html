@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Menus{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Menus</h1>
+
+{% if not menus and not is_internal_admin %}
+<div class="alert alert-info mb-4">
+    <span>No menus yet. Create your first menu below.</span>
+</div>
+{% elif is_internal_admin %}
+<div class="alert alert-info mb-4">
+    <span>Internal admin — select a site to manage menus (coming with multi-tenant admin).</span>
+</div>
+{% endif %}
+
+{% if not is_internal_admin %}
+<div id="menu-list" class="space-y-2 mb-6">
+    {% for menu in menus %}
+    {% include "admin/_menu_row.html" %}
+    {% endfor %}
+</div>
+
+<div class="card bg-base-100 shadow">
+    <div class="card-body">
+        <h2 class="card-title text-lg">New menu</h2>
+        <form method="post" action="/admin/menu" class="flex flex-col gap-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="form-control w-full">
+                <label class="label" for="new-menu-name"><span class="label-text">Name *</span></label>
+                <input type="text" id="new-menu-name" name="name" required class="input input-bordered w-full" placeholder="e.g. Dinner, Drinks">
+            </div>
+            <div class="form-control w-full">
+                <label class="label" for="new-menu-desc"><span class="label-text">Description</span></label>
+                <input type="text" id="new-menu-desc" name="description" class="input input-bordered w-full">
+            </div>
+            <div class="form-control w-full">
+                <label class="label" for="new-menu-avail"><span class="label-text">Availability note</span></label>
+                <input type="text" id="new-menu-avail" name="availability_note" class="input input-bordered w-full" placeholder="e.g. Served from 5:30 pm">
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="btn btn-primary">Create menu</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

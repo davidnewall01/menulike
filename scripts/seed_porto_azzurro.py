@@ -2,19 +2,26 @@
 
 Idempotent: if a site with slug "portoazzurro" exists, it is deleted (cascade
 clears the tree) before inserting fresh. Re-running always gives the same state.
+Refuses to run unless ENVIRONMENT=development.
 
 Usage:
     python -m scripts.seed_porto_azzurro
 """
 
 import asyncio
+import sys
 from decimal import Decimal
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
+from app.core.config import settings  # noqa: E402
 from app.db.session import AsyncSessionLocal  # noqa: E402
+
+if settings.ENVIRONMENT != "development":
+    print(f"FATAL: seed scripts are dev-only (ENVIRONMENT={settings.ENVIRONMENT})")
+    sys.exit(1)
 from app.models.menu import (  # noqa: E402
     Menu,
     MenuItem,

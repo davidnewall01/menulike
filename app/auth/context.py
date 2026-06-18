@@ -7,6 +7,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class AuthContext:
     user_id: uuid.UUID
+    email: str
     role: str
     site_id: uuid.UUID | None
 
@@ -20,5 +21,8 @@ class AuthContext:
         return self.site_id
 
     def can(self, action: str) -> bool:
-        """Capability stub — always True for now. Real catalogue deferred."""
-        return True
+        """Capability check — NOT YET IMPLEMENTED. Raises to fail closed."""
+        raise NotImplementedError(
+            "Capability catalogue not yet built. "
+            "Do not call .can() until it is wired up."
+        )

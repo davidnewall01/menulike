@@ -2,12 +2,12 @@
 
 import uuid
 
-from fastapi import Cookie, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
+from app.core.csrf import generate_csrf_token, validate_csrf_token
 from app.core.security import decode_session
 from app.db.session import get_db
 from app.models.user import User
@@ -40,6 +40,7 @@ async def get_auth_context(
 
     return AuthContext(
         user_id=user.user_id,
+        email=user.email,
         role=user.role,
         site_id=user.site_id,
     )
@@ -47,6 +48,26 @@ async def get_auth_context(
 
 def require_auth(auth: AuthContext = Depends(get_auth_context)) -> AuthContext:
     """Dependency alias — makes intent explicit at the route level."""
+    return auth
+
+
+async def require_csrf(
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+) -> AuthContext:
+    """Validate the CSRF token on an authenticated state-changing POST.
+
+    Reads csrf_token from the form body. Returns the AuthContext on success;
+    raises 403 on missing, invalid, or session-mismatched token.
+    """
+    form = await request.form()
+    token = form.get("csrf_token")
+    if not validate_csrf_token(token, auth):
+        raise HTTPException(
+            status_code=403,
+            detail="CSRF validation failed",
+            headers={"X-CSRF-Fail": "1"},
+        )
     return auth
 
 

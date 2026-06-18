@@ -13,6 +13,7 @@
 </div>
 {% endif %}
 <form hx-post="/admin/details" hx-target="#details-form-container" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="card bg-base-100 shadow">
         <div class="card-body space-y-4">
 

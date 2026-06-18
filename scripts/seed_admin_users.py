@@ -1,12 +1,14 @@
 """Seed admin users for local development.
 
 Idempotent: deletes existing users by email before inserting fresh.
+Refuses to run unless ENVIRONMENT=development.
 
 Usage:
     python -m scripts.seed_admin_users
 """
 
 import asyncio
+import sys
 
 from dotenv import load_dotenv
 
@@ -14,10 +16,15 @@ load_dotenv()
 
 from sqlalchemy import select  # noqa: E402
 
+from app.core.config import settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.db.session import AsyncSessionLocal  # noqa: E402
 from app.models.site import Site  # noqa: E402
-from app.models.user import User  # noqa: E402
+from app.models.user import User, UserRole  # noqa: E402
+
+if settings.ENVIRONMENT != "development":
+    print(f"FATAL: seed scripts are dev-only (ENVIRONMENT={settings.ENVIRONMENT})")
+    sys.exit(1)
 
 USERS = [
     {
@@ -62,6 +69,13 @@ async def main() -> None:
                     )
                     return
                 site_id = site.site_id
+
+            # Validate role against the enum
+            try:
+                UserRole(spec["role"])
+            except ValueError:
+                print(f"ERROR: Invalid role '{spec['role']}'. Must be one of {[r.value for r in UserRole]}")
+                return
 
             user = User(
                 email=spec["email"],
