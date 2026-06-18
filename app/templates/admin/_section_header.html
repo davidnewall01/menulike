@@ -1,0 +1,21 @@
+<div id="section-header-{{ section.section_id }}" class="flex justify-between items-start mb-2">
+    <div>
+        <h3 class="card-title">{{ section.name }}</h3>
+        {% if section.description %}
+        <p class="text-base-content/60 text-sm">{{ section.description }}</p>
+        {% endif %}
+    </div>
+    <div class="flex gap-1 shrink-0">
+        <button class="btn btn-ghost btn-xs"
+                hx-get="/admin/section/{{ section.section_id }}/edit?menu_id={{ menu_id }}"
+                hx-target="#section-header-{{ section.section_id }}"
+                hx-swap="outerHTML">Edit</button>
+        <form method="post" action="/admin/section/{{ section.section_id }}" class="inline"
+              onsubmit="return confirm('Delete this section and all its contents?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="_action" value="delete">
+            <input type="hidden" name="menu_id" value="{{ menu_id }}">
+            <button type="submit" class="btn btn-ghost btn-xs text-error">Del</button>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,30 @@
+<div id="subsection-header-{{ subsection.subsection_id }}" class="bg-base-200 rounded-lg p-3 mb-2">
+    {% if errors %}
+    <div class="alert alert-error alert-sm mb-2">
+        <ul class="list-disc list-inside text-sm">
+            {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    <form hx-post="/admin/subsection/{{ subsection.subsection_id }}"
+          hx-target="#subsection-header-{{ subsection.subsection_id }}"
+          hx-swap="outerHTML"
+          class="flex flex-col gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="_action" value="update">
+        <input type="hidden" name="menu_id" value="{{ menu_id }}">
+        <div class="form-control">
+            <label class="label py-0"><span class="label-text text-xs">Subsection name (blank = headingless)</span></label>
+            <input type="text" name="name" value="{{ subsection.name or '' }}" class="input input-bordered input-sm w-full" placeholder="Leave blank for no heading">
+        </div>
+        <div class="form-control">
+            <label class="label py-0"><span class="label-text text-xs">Description</span></label>
+            <input type="text" name="description" value="{{ subsection.description or '' }}" class="input input-bordered input-sm w-full">
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="btn btn-primary btn-xs">Save</button>
+            <button type="button" class="btn btn-ghost btn-xs"
+                    onclick="location.reload()">Cancel</button>
+        </div>
+    </form>
+</div>

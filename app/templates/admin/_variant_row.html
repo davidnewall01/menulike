@@ -1,0 +1,20 @@
+<div id="variant-{{ variant.menu_item_variant_id }}" class="flex items-center justify-between py-1 border-b border-base-200 last:border-0 text-sm">
+    <div>
+        {% if variant.label %}
+        <span class="text-base-content/80">{{ variant.label }}:</span>
+        {% endif %}
+        <span>${{ "%.2f" | format(variant.price) }}</span>
+    </div>
+    <div class="flex gap-1">
+        <button class="btn btn-ghost btn-xs"
+                hx-get="/admin/variant/{{ variant.menu_item_variant_id }}/edit"
+                hx-target="#variant-{{ variant.menu_item_variant_id }}"
+                hx-swap="outerHTML">Edit</button>
+        <button class="btn btn-ghost btn-xs text-error"
+                hx-post="/admin/variant/{{ variant.menu_item_variant_id }}"
+                hx-target="#variant-{{ variant.menu_item_variant_id }}"
+                hx-swap="outerHTML"
+                hx-vals='{"_action": "delete", "csrf_token": "{{ csrf_token }}"}'
+                hx-confirm="Delete this variant?">Del</button>
+    </div>
+</div>

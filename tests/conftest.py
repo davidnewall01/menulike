@@ -26,7 +26,7 @@ from app.core.csrf import generate_csrf_token
 from app.core.security import hash_password
 from app.db.session import _to_async_url, get_db
 from app.main import app
-from app.models.menu import Menu
+from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
 from app.models.site import Site
 from app.models.user import User
 
@@ -144,6 +144,78 @@ async def make_menu(
     db_session.add(menu)
     await db_session.flush()
     return menu
+
+
+async def make_section(
+    db_session: AsyncSession,
+    menu: Menu,
+    name: str = "Test Section",
+    position: int = 10,
+) -> Section:
+    section = Section(
+        menu_id=menu.menu_id,
+        name=name,
+        position=position,
+    )
+    db_session.add(section)
+    await db_session.flush()
+    return section
+
+
+async def make_subsection(
+    db_session: AsyncSession,
+    section: Section,
+    name: str | None = None,
+    position: int = 10,
+) -> Subsection:
+    subsection = Subsection(
+        section_id=section.section_id,
+        name=name,
+        position=position,
+    )
+    db_session.add(subsection)
+    await db_session.flush()
+    return subsection
+
+
+async def make_item(
+    db_session: AsyncSession,
+    subsection: Subsection,
+    name: str = "Test Item",
+    position: int = 10,
+    **overrides,
+) -> MenuItem:
+    fields = dict(
+        subsection_id=subsection.subsection_id,
+        name=name,
+        position=position,
+        dietary_tags=[],
+        featured=False,
+    )
+    fields.update(overrides)
+    item = MenuItem(**fields)
+    db_session.add(item)
+    await db_session.flush()
+    return item
+
+
+async def make_variant(
+    db_session: AsyncSession,
+    item: MenuItem,
+    price: str = "10.00",
+    label: str | None = None,
+    position: int = 10,
+) -> MenuItemVariant:
+    from decimal import Decimal
+    variant = MenuItemVariant(
+        menu_item_id=item.menu_item_id,
+        label=label,
+        price=Decimal(price),
+        position=position,
+    )
+    db_session.add(variant)
+    await db_session.flush()
+    return variant
 
 
 def csrf_token_for(user: User) -> str:

@@ -15,3 +15,19 @@ class NoSiteInScope(Exception):
 
 class MenuNotFound(Exception):
     """The menu_id didn't resolve within the owner's scoped site."""
+
+
+class SectionNotFound(Exception):
+    """The section_id didn't resolve within the owner's scoped site."""
+
+
+class SubsectionNotFound(Exception):
+    """The subsection_id didn't resolve within the owner's scoped site."""
+
+
+class ItemNotFound(Exception):
+    """The item_id didn't resolve within the owner's scoped site."""
+
+
+class VariantNotFound(Exception):
+    """The variant_id didn't resolve within the owner's scoped site."""

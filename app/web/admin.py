@@ -1,4 +1,4 @@
-"""Admin routes — login/logout, dashboard, details editing, menu CRUD."""
+"""Admin routes — login/logout, dashboard, details, menu/section/subsection/item/variant CRUD."""
 
 import uuid
 from pathlib import Path
@@ -17,10 +17,18 @@ from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
-from app.schemas.menu import MenuForm
+from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.schemas.site import SiteDetailsForm
 from app.services import auth_service, menu_service, site_service
-from app.services.exceptions import MenuNotFound, NoSiteInScope, SiteNotFound
+from app.services.exceptions import (
+    ItemNotFound,
+    MenuNotFound,
+    NoSiteInScope,
+    SectionNotFound,
+    SiteNotFound,
+    SubsectionNotFound,
+    VariantNotFound,
+)
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 
@@ -292,3 +300,423 @@ async def menu_update_or_delete(
         request, "admin/_menu_edit_form.html", auth,
         menu=menu, saved=True, errors=None, deleted=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Item CRUD
+# ---------------------------------------------------------------------------
+
+def _not_found(exc):
+    """Map domain not-found exceptions to HTTP status codes."""
+    if isinstance(exc, NoSiteInScope):
+        raise HTTPException(status_code=400, detail="No site in scope")
+    raise HTTPException(status_code=404, detail="Not found")
+
+
+@router.post("/item", response_class=HTMLResponse)
+async def item_create(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    subsection_id = form_data.get("subsection_id")
+    menu_id = form_data.get("menu_id")
+
+    try:
+        form = ItemForm(**dict(form_data))
+    except ValidationError:
+        return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+    try:
+        await menu_coordinator.create_item(db, auth, uuid.UUID(subsection_id), form)
+    except (NoSiteInScope, SubsectionNotFound) as exc:
+        _not_found(exc)
+
+    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+
+@router.get("/item/{item_id}", response_class=HTMLResponse)
+async def item_display(
+    request: Request,
+    item_id: uuid.UUID,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    menu_id: uuid.UUID | None = None,
+):
+    """Return the item display partial (for cancel-edit swap)."""
+    try:
+        item = await menu_service.get_owner_item_with_variants(db, auth, item_id)
+    except (NoSiteInScope, ItemNotFound) as exc:
+        _not_found(exc)
+
+    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id)
+
+
+@router.get("/item/{item_id}/edit", response_class=HTMLResponse)
+async def item_edit_form(
+    request: Request,
+    item_id: uuid.UUID,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    menu_id: uuid.UUID | None = None,
+):
+    """Return the item edit form partial."""
+    try:
+        item = await menu_service.get_owner_item_with_variants(db, auth, item_id)
+    except (NoSiteInScope, ItemNotFound) as exc:
+        _not_found(exc)
+
+    return _render(request, "admin/_item_edit_form.html", auth, item=item, menu_id=menu_id)
+
+
+@router.post("/item/{item_id}", response_class=HTMLResponse)
+async def item_update_or_delete(
+    request: Request,
+    item_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    action = form_data.get("_action", "update")
+
+    if action == "delete":
+        try:
+            await menu_coordinator.delete_item(db, auth, item_id)
+        except (NoSiteInScope, ItemNotFound) as exc:
+            _not_found(exc)
+        return Response(status_code=200)
+
+    try:
+        form = ItemForm(**dict(form_data))
+    except ValidationError as exc:
+        try:
+            item = await menu_service.get_owner_item_with_variants(db, auth, item_id)
+        except (NoSiteInScope, ItemNotFound) as exc2:
+            _not_found(exc2)
+        errors = [f"{e['loc'][-1]}: {e['msg']}" for e in exc.errors()]
+        return _render(
+            request, "admin/_item_edit_form.html", auth,
+            item=item, errors=errors,
+        )
+
+    try:
+        item = await menu_coordinator.update_item(db, auth, item_id, form)
+    except (NoSiteInScope, ItemNotFound) as exc:
+        _not_found(exc)
+
+    # Reload with variants for the display partial
+    item = await menu_service.get_owner_item_with_variants(db, auth, item_id)
+    menu_id = form_data.get("menu_id")
+    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id)
+
+
+# ---------------------------------------------------------------------------
+# Variant CRUD
+# ---------------------------------------------------------------------------
+
+@router.post("/variant", response_class=HTMLResponse)
+async def variant_create(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    item_id = form_data.get("item_id")
+    menu_id = form_data.get("menu_id")
+
+    try:
+        form = VariantForm(**dict(form_data))
+    except ValidationError:
+        return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+    try:
+        await menu_coordinator.create_variant(db, auth, uuid.UUID(item_id), form)
+    except (NoSiteInScope, ItemNotFound) as exc:
+        _not_found(exc)
+
+    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+
+@router.get("/variant/{variant_id}", response_class=HTMLResponse)
+async def variant_display(
+    request: Request,
+    variant_id: uuid.UUID,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the variant display partial (for cancel-edit swap)."""
+    try:
+        variant = await menu_service.get_owner_variant(db, auth, variant_id)
+    except (NoSiteInScope, VariantNotFound) as exc:
+        _not_found(exc)
+
+    return _render(request, "admin/_variant_row.html", auth, variant=variant)
+
+
+@router.get("/variant/{variant_id}/edit", response_class=HTMLResponse)
+async def variant_edit_form(
+    request: Request,
+    variant_id: uuid.UUID,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the variant edit form partial."""
+    try:
+        variant = await menu_service.get_owner_variant(db, auth, variant_id)
+    except (NoSiteInScope, VariantNotFound) as exc:
+        _not_found(exc)
+
+    return _render(request, "admin/_variant_edit_form.html", auth, variant=variant)
+
+
+@router.post("/variant/{variant_id}", response_class=HTMLResponse)
+async def variant_update_or_delete(
+    request: Request,
+    variant_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    action = form_data.get("_action", "update")
+
+    if action == "delete":
+        try:
+            await menu_coordinator.delete_variant(db, auth, variant_id)
+        except (NoSiteInScope, VariantNotFound) as exc:
+            _not_found(exc)
+        return Response(status_code=200)
+
+    try:
+        form = VariantForm(**dict(form_data))
+    except ValidationError as exc:
+        try:
+            variant = await menu_service.get_owner_variant(db, auth, variant_id)
+        except (NoSiteInScope, VariantNotFound) as exc2:
+            _not_found(exc2)
+        errors = [f"{e['loc'][-1]}: {e['msg']}" for e in exc.errors()]
+        return _render(
+            request, "admin/_variant_edit_form.html", auth,
+            variant=variant, errors=errors,
+        )
+
+    try:
+        variant = await menu_coordinator.update_variant(db, auth, variant_id, form)
+    except (NoSiteInScope, VariantNotFound) as exc:
+        _not_found(exc)
+
+    return _render(request, "admin/_variant_row.html", auth, variant=variant)
+
+
+# ---------------------------------------------------------------------------
+# Section CRUD
+# ---------------------------------------------------------------------------
+
+@router.post("/section", response_class=HTMLResponse)
+async def section_create(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    menu_id = form_data.get("menu_id")
+
+    try:
+        form = SectionForm(**dict(form_data))
+    except ValidationError:
+        return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+    try:
+        await menu_coordinator.create_section(db, auth, uuid.UUID(menu_id), form)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except MenuNotFound:
+        raise HTTPException(status_code=404, detail="Menu not found")
+
+    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+
+@router.get("/section/{section_id}/edit", response_class=HTMLResponse)
+async def section_edit_form(
+    request: Request,
+    section_id: uuid.UUID,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    menu_id: uuid.UUID | None = None,
+):
+    try:
+        section = await menu_service.get_owner_section(db, auth, section_id)
+    except (NoSiteInScope, SectionNotFound) as exc:
+        _not_found(exc)
+
+    return _render(
+        request, "admin/_section_edit_form.html", auth,
+        section=section, menu_id=menu_id,
+    )
+
+
+@router.post("/section/{section_id}", response_class=HTMLResponse)
+async def section_update_or_delete(
+    request: Request,
+    section_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    action = form_data.get("_action", "update")
+    menu_id = form_data.get("menu_id")
+
+    if action == "delete":
+        try:
+            await menu_coordinator.delete_section(db, auth, section_id)
+        except NoSiteInScope:
+            raise HTTPException(status_code=400, detail="No site in scope")
+        except SectionNotFound:
+            raise HTTPException(status_code=404, detail="Section not found")
+        return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+    try:
+        form = SectionForm(**dict(form_data))
+    except ValidationError as exc:
+        try:
+            section = await menu_service.get_owner_section(db, auth, section_id)
+        except (NoSiteInScope, SectionNotFound) as exc2:
+            _not_found(exc2)
+        errors = [f"{e['loc'][-1]}: {e['msg']}" for e in exc.errors()]
+        return _render(
+            request, "admin/_section_edit_form.html", auth,
+            section=section, menu_id=menu_id, errors=errors,
+        )
+
+    try:
+        section = await menu_coordinator.update_section(db, auth, section_id, form)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except SectionNotFound:
+        raise HTTPException(status_code=404, detail="Section not found")
+
+    return _render(
+        request, "admin/_section_header.html", auth,
+        section=section, menu_id=menu_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Subsection CRUD
+# ---------------------------------------------------------------------------
+
+@router.post("/subsection", response_class=HTMLResponse)
+async def subsection_create(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    menu_id = form_data.get("menu_id")
+    section_id = form_data.get("section_id")
+
+    try:
+        form = SubsectionForm(**dict(form_data))
+    except ValidationError:
+        return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+    try:
+        await menu_coordinator.create_subsection(db, auth, uuid.UUID(section_id), form)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except SectionNotFound:
+        raise HTTPException(status_code=404, detail="Section not found")
+
+    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+
+@router.get("/subsection/{subsection_id}/edit", response_class=HTMLResponse)
+async def subsection_edit_form(
+    request: Request,
+    subsection_id: uuid.UUID,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+    menu_id: uuid.UUID | None = None,
+):
+    try:
+        subsection = await menu_service.get_owner_subsection(db, auth, subsection_id)
+    except (NoSiteInScope, SubsectionNotFound) as exc:
+        _not_found(exc)
+
+    return _render(
+        request, "admin/_subsection_edit_form.html", auth,
+        subsection=subsection, menu_id=menu_id,
+    )
+
+
+@router.post("/subsection/{subsection_id}", response_class=HTMLResponse)
+async def subsection_update_or_delete(
+    request: Request,
+    subsection_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    action = form_data.get("_action", "update")
+    menu_id = form_data.get("menu_id")
+
+    if action == "delete":
+        try:
+            await menu_coordinator.delete_subsection(db, auth, subsection_id)
+        except NoSiteInScope:
+            raise HTTPException(status_code=400, detail="No site in scope")
+        except SubsectionNotFound:
+            raise HTTPException(status_code=404, detail="Subsection not found")
+        return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+    try:
+        form = SubsectionForm(**dict(form_data))
+    except ValidationError as exc:
+        try:
+            subsection = await menu_service.get_owner_subsection(db, auth, subsection_id)
+        except (NoSiteInScope, SubsectionNotFound) as exc2:
+            _not_found(exc2)
+        errors = [f"{e['loc'][-1]}: {e['msg']}" for e in exc.errors()]
+        return _render(
+            request, "admin/_subsection_edit_form.html", auth,
+            subsection=subsection, menu_id=menu_id, errors=errors,
+        )
+
+    try:
+        subsection = await menu_coordinator.update_subsection(db, auth, subsection_id, form)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except SubsectionNotFound:
+        raise HTTPException(status_code=404, detail="Subsection not found")
+
+    return _render(
+        request, "admin/_subsection_header.html", auth,
+        subsection=subsection, menu_id=menu_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Move item
+# ---------------------------------------------------------------------------
+
+@router.post("/item/{item_id}/move", response_class=HTMLResponse)
+async def item_move(
+    request: Request,
+    item_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    target_subsection_id = form_data.get("target_subsection_id")
+    menu_id = form_data.get("menu_id")
+
+    try:
+        await menu_coordinator.move_item(
+            db, auth, item_id, uuid.UUID(target_subsection_id)
+        )
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except (ItemNotFound, SubsectionNotFound):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)

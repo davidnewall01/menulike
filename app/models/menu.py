@@ -78,6 +78,7 @@ class Subsection(TimestampMixin, Base):
         index=True,
     )
     name: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Relationships

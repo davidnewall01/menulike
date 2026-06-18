@@ -1,0 +1,19 @@
+<div id="variant-{{ variant.menu_item_variant_id }}" class="flex items-center gap-2 py-1 border-b border-base-200 last:border-0 bg-base-200 rounded px-2">
+    {% if errors %}
+    <div class="text-error text-xs">{{ errors | join("; ") }}</div>
+    {% endif %}
+    <form class="flex items-center gap-2 flex-1"
+          hx-post="/admin/variant/{{ variant.menu_item_variant_id }}"
+          hx-target="#variant-{{ variant.menu_item_variant_id }}"
+          hx-swap="outerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="_action" value="update">
+        <input type="text" name="label" value="{{ variant.label or '' }}" placeholder="Label" class="input input-bordered input-xs w-24">
+        <input type="text" name="price" value="{{ '%.2f' | format(variant.price) }}" required class="input input-bordered input-xs w-20" placeholder="Price">
+        <button type="submit" class="btn btn-primary btn-xs">Save</button>
+        <button type="button" class="btn btn-ghost btn-xs"
+                hx-get="/admin/variant/{{ variant.menu_item_variant_id }}"
+                hx-target="#variant-{{ variant.menu_item_variant_id }}"
+                hx-swap="outerHTML">Cancel</button>
+    </form>
+</div>
