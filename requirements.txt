@@ -1,0 +1,36 @@
+# menulike — dependencies
+# Install into a venv, then `pip freeze > requirements.txt` to lock resolved versions.
+
+# --- Web ---
+fastapi
+uvicorn[standard]
+
+# --- Templating / forms ---
+jinja2
+python-multipart          # form parsing + file uploads (photos)
+
+# --- Database (async) + migrations ---
+sqlalchemy[asyncio]
+asyncpg                   # async Postgres driver (matches Tradelike)
+alembic
+
+# --- Config / env ---
+pydantic-settings         # centralized Settings (fresh — Tradelike uses scattered os.getenv)
+python-dotenv             # local-dev .env loading
+
+# --- Auth (JWT in HttpOnly cookie + password hashing) ---
+python-jose[cryptography] # matches Tradelike's JWT lib
+passlib[bcrypt]           # password hashing for internal-admin login
+
+# --- Storage (S3, async — matches Tradelike's StorageBackend) ---
+aioboto3
+
+# --- HTTP client (Approximated API, Resend — used from Phase 3) ---
+httpx
+
+# --- Rate limiting (optional; part of the ported middleware stack) ---
+slowapi
+
+# --- Dev / test ---
+pytest
+pytest-asyncio

@@ -1,0 +1,25 @@
+"""FastAPI application entrypoint."""
+
+from dotenv import load_dotenv
+
+# Load .env before any app imports read settings.
+load_dotenv()
+
+from contextlib import asynccontextmanager  # noqa: E402
+
+from fastapi import FastAPI  # noqa: E402
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup hooks go here in later phases.
+    yield
+    # Shutdown hooks go here in later phases.
+
+
+app = FastAPI(title="menulike", lifespan=lifespan)
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
