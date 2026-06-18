@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16
+    container_name: menulike-db
+    environment:
+      POSTGRES_USER: menulike
+      POSTGRES_PASSWORD: menulike
+      POSTGRES_DB: menulike
+    ports:
+      - "5433:5432"
+    volumes:
+      - menulike-pgdata:/var/lib/postgresql/data
+volumes:
+  menulike-pgdata:

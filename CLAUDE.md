@@ -181,6 +181,12 @@ is always relational, never JSONB.**
 ## Migrations
 
 - Write migrations **by hand**. Do **not** run `alembic revision --autogenerate`.
+- **Naming:** `NNN_descriptive_name.py` (e.g. `001_site_and_menu_tree.py`). The `revision` string
+  inside the file matches the prefix (`'001'`). `down_revision` references the previous number
+  (`'001'` → `'002'` chains as `down_revision = '001'`).
+- **Numbering freezes on push to staging.** While a migration is local-only, keep its number as
+  the next increment. Once pushed to `staging`, that number is sealed — never renumber. If two
+  developers collide, the later one renumbers before push.
 - After creating/editing a migration, rebuild the DB from scratch (drop, recreate,
   `alembic upgrade head`).
 - Consolidate a feature branch's migrations into one descriptive migration before merge.
