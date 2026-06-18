@@ -1,0 +1,57 @@
+{% extends "public/base.html" %}
+
+{% block content %}
+<header>
+    <h1>{{ site.restaurant_name }}</h1>
+    {% if site.tagline %}
+    <p class="tagline">{{ site.tagline }}</p>
+    {% endif %}
+</header>
+
+{% for menu in site.menus %}
+<div class="menu">
+    <h2 class="menu-name">{{ menu.name }}</h2>
+    {% if menu.availability_note %}
+    <p class="availability">{{ menu.availability_note }}</p>
+    {% endif %}
+
+    {% for section in menu.sections %}
+    <div class="section">
+        <h3>{{ section.name }}</h3>
+
+        {% for subsection in section.subsections %}
+        <div class="subsection">
+            {% if subsection.name %}
+            <h4>{{ subsection.name }}</h4>
+            {% endif %}
+
+            {% for item in subsection.items %}
+            <div class="item{% if item.featured %} featured{% endif %}">
+                <div class="item-header">
+                    <span class="item-name">{{ item.name }}</span>
+                    {% if item.variants | length == 1 and not item.variants[0].label %}
+                    <span class="price">${{ "%.2f" | format(item.variants[0].price) }}</span>
+                    {% endif %}
+                </div>
+                {% if item.description %}
+                <p class="item-description">{{ item.description }}</p>
+                {% endif %}
+                {% if item.dietary_tags %}
+                <span class="dietary">{{ item.dietary_tags | join(", ") }}</span>
+                {% endif %}
+                {% if item.variants | length > 1 or (item.variants | length == 1 and item.variants[0].label) %}
+                <div class="variants">
+                    {% for v in item.variants %}
+                    <span>{{ v.label }}: ${{ "%.2f" | format(v.price) }}</span>{% if not loop.last %} &middot; {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}
+{% endblock %}

@@ -35,6 +35,7 @@ class Menu(TimestampMixin, Base):
         back_populates="menu",
         cascade="all, delete-orphan",
         passive_deletes=True,
+        order_by="Section.position",
     )
 
 
@@ -60,6 +61,7 @@ class Section(TimestampMixin, Base):
         back_populates="section",
         cascade="all, delete-orphan",
         passive_deletes=True,
+        order_by="Subsection.position",
     )
 
 
@@ -84,6 +86,7 @@ class Subsection(TimestampMixin, Base):
         back_populates="subsection",
         cascade="all, delete-orphan",
         passive_deletes=True,
+        order_by="MenuItem.position",
     )
 
 
@@ -115,6 +118,7 @@ class MenuItem(TimestampMixin, Base):
         back_populates="menu_item",
         cascade="all, delete-orphan",
         passive_deletes=True,
+        order_by="MenuItemVariant.position",
     )
 
 

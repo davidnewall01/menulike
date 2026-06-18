@@ -60,4 +60,5 @@ class Site(TimestampMixin, Base):
         back_populates="site",
         cascade="all, delete-orphan",
         passive_deletes=True,
+        order_by="Menu.position",
     )

@@ -9,6 +9,9 @@ from contextlib import asynccontextmanager  # noqa: E402
 
 from fastapi import FastAPI  # noqa: E402
 
+from app.web.admin import router as admin_router  # noqa: E402
+from app.web.public import router as public_router  # noqa: E402
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,3 +26,7 @@ app = FastAPI(title="menulike", lifespan=lifespan)
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+app.include_router(admin_router)
+app.include_router(public_router)

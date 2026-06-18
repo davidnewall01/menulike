@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Admin</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; }
+        dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; }
+        dt { font-weight: 600; }
+    </style>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+    <dl>
+        <dt>Logged in as</dt>
+        <dd>{{ email }}</dd>
+        <dt>Role</dt>
+        <dd>{{ role }}</dd>
+        {% if site_name %}
+        <dt>Site</dt>
+        <dd>{{ site_name }}</dd>
+        {% elif is_internal_admin %}
+        <dt>Site</dt>
+        <dd><em>Internal admin — not scoped to a site</em></dd>
+        {% endif %}
+    </dl>
+    <form method="post" action="/admin/logout" style="margin-top: 1.5rem;">
+        <button type="submit">Sign out</button>
+    </form>
+</body>
+</html>
