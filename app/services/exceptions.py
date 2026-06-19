@@ -31,3 +31,15 @@ class ItemNotFound(Exception):
 
 class VariantNotFound(Exception):
     """The variant_id didn't resolve within the owner's scoped site."""
+
+
+class ReorderMismatch(Exception):
+    """The submitted id list is not an exact permutation of the parent's children."""
+
+
+class PhotoNotFound(Exception):
+    """The photo_id didn't resolve within the owner's scoped site."""
+
+
+class InvalidImage(Exception):
+    """The uploaded file is not an allowed image type or exceeds size limits."""

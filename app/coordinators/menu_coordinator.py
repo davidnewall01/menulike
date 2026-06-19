@@ -156,3 +156,39 @@ async def delete_variant(
 ) -> None:
     await menu_service.delete_variant(db, auth_ctx, variant_id)
     await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Reorder
+# ---------------------------------------------------------------------------
+
+async def reorder_sections(
+    db: AsyncSession, auth_ctx: AuthContext,
+    menu_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    await menu_service.reorder_sections(db, auth_ctx, menu_id, ordered_ids)
+    await db.commit()
+
+
+async def reorder_subsections(
+    db: AsyncSession, auth_ctx: AuthContext,
+    section_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    await menu_service.reorder_subsections(db, auth_ctx, section_id, ordered_ids)
+    await db.commit()
+
+
+async def reorder_items(
+    db: AsyncSession, auth_ctx: AuthContext,
+    subsection_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    await menu_service.reorder_items(db, auth_ctx, subsection_id, ordered_ids)
+    await db.commit()
+
+
+async def reorder_variants(
+    db: AsyncSession, auth_ctx: AuthContext,
+    item_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    await menu_service.reorder_variants(db, auth_ctx, item_id, ordered_ids)
+    await db.commit()

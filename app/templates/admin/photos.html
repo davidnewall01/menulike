@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Photos{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Photos</h1>
+
+{% if is_internal_admin %}
+<div class="alert alert-info mb-4">
+    <span>Internal admin — select a site to manage photos (coming with multi-tenant admin).</span>
+</div>
+{% else %}
+
+{% if error %}
+<div class="alert alert-error mb-4">
+    <span>{{ error }}</span>
+</div>
+{% endif %}
+
+<div class="card bg-base-100 shadow mb-6">
+    <div class="card-body">
+        <h2 class="card-title text-lg">Upload photo</h2>
+        <form method="post" action="/admin/photos" enctype="multipart/form-data" class="flex items-end gap-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="form-control flex-1">
+                <label class="label"><span class="label-text">Image (JPEG, PNG, or WebP, max 10 MB)</span></label>
+                <input type="file" name="file" accept="image/jpeg,image/png,image/webp" required class="file-input file-input-bordered w-full">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </div>
+</div>
+
+{% if not photos %}
+<div class="alert alert-info">
+    <span>No photos yet. Upload your first image above.</span>
+</div>
+{% else %}
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+    {% for photo in photos %}
+    {% include "admin/_photo_tile.html" %}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

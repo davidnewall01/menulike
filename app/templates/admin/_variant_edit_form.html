@@ -11,7 +11,7 @@
         <input type="text" name="label" value="{{ variant.label or '' }}" placeholder="Label" class="input input-bordered input-xs w-24">
         <input type="text" name="price" value="{{ '%.2f' | format(variant.price) }}" required class="input input-bordered input-xs w-20" placeholder="Price">
         <button type="submit" class="btn btn-primary btn-xs">Save</button>
-        <button type="button" class="btn btn-ghost btn-xs"
+        <button type="button" class="btn btn-outline btn-xs"
                 hx-get="/admin/variant/{{ variant.menu_item_variant_id }}"
                 hx-target="#variant-{{ variant.menu_item_variant_id }}"
                 hx-swap="outerHTML">Cancel</button>

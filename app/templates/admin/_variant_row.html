@@ -1,16 +1,17 @@
-<div id="variant-{{ variant.menu_item_variant_id }}" class="flex items-center justify-between py-1 border-b border-base-200 last:border-0 text-sm">
-    <div>
+<div id="variant-{{ variant.menu_item_variant_id }}" data-id="{{ variant.menu_item_variant_id }}" class="flex items-center justify-between py-1 border-b border-base-200 last:border-0 text-sm">
+    <div class="flex items-center gap-1">
+        <span class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60 select-none text-xs" title="Drag to reorder">⠿</span>
         {% if variant.label %}
         <span class="text-base-content/80">{{ variant.label }}:</span>
         {% endif %}
         <span>${{ "%.2f" | format(variant.price) }}</span>
     </div>
     <div class="flex gap-1">
-        <button class="btn btn-ghost btn-xs"
+        <button class="btn btn-outline btn-xs"
                 hx-get="/admin/variant/{{ variant.menu_item_variant_id }}/edit"
                 hx-target="#variant-{{ variant.menu_item_variant_id }}"
                 hx-swap="outerHTML">Edit</button>
-        <button class="btn btn-ghost btn-xs text-error"
+        <button class="btn btn-outline btn-error btn-xs"
                 hx-post="/admin/variant/{{ variant.menu_item_variant_id }}"
                 hx-target="#variant-{{ variant.menu_item_variant_id }}"
                 hx-swap="outerHTML"

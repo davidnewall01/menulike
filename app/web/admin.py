@@ -12,23 +12,28 @@ from starlette.responses import Response
 
 from app.auth.context import AuthContext
 from app.auth.deps import SESSION_COOKIE, require_auth, require_csrf
-from app.coordinators import menu_coordinator, site_coordinator
+from app.coordinators import menu_coordinator, photo_coordinator, site_coordinator
 from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.schemas.site import SiteDetailsForm
-from app.services import auth_service, menu_service, site_service
+from app.services import auth_service, menu_service, photo_service, site_service
+from app.services.storage import public_url as storage_public_url
 from app.services.exceptions import (
+    InvalidImage,
     ItemNotFound,
     MenuNotFound,
     NoSiteInScope,
+    PhotoNotFound,
+    ReorderMismatch,
     SectionNotFound,
     SiteNotFound,
     SubsectionNotFound,
     VariantNotFound,
 )
+from app.services.storage import StorageNotConfigured
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 
@@ -720,3 +725,224 @@ async def item_move(
         raise HTTPException(status_code=404, detail="Not found")
 
     return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Reorder (within a parent — 204 No Content, no re-render)
+# ---------------------------------------------------------------------------
+
+def _parse_ordered_ids(form_data) -> list[uuid.UUID]:
+    """Extract ordered ids from form data (repeated 'ordered_ids' field)."""
+    raw = form_data.getlist("ordered_ids")
+    return [uuid.UUID(i) for i in raw]
+
+
+@router.post("/menu/{menu_id}/reorder-sections")
+async def reorder_sections(
+    menu_id: uuid.UUID,
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    try:
+        ordered = _parse_ordered_ids(form_data)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid ids")
+
+    try:
+        await menu_coordinator.reorder_sections(db, auth, menu_id, ordered)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except MenuNotFound:
+        raise HTTPException(status_code=404, detail="Menu not found")
+    except ReorderMismatch:
+        raise HTTPException(status_code=400, detail="Id set mismatch")
+
+    return Response(status_code=204)
+
+
+@router.post("/section/{section_id}/reorder-subsections")
+async def reorder_subsections(
+    section_id: uuid.UUID,
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    try:
+        ordered = _parse_ordered_ids(form_data)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid ids")
+
+    try:
+        await menu_coordinator.reorder_subsections(db, auth, section_id, ordered)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except SectionNotFound:
+        raise HTTPException(status_code=404, detail="Section not found")
+    except ReorderMismatch:
+        raise HTTPException(status_code=400, detail="Id set mismatch")
+
+    return Response(status_code=204)
+
+
+@router.post("/subsection/{subsection_id}/reorder-items")
+async def reorder_items(
+    subsection_id: uuid.UUID,
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    try:
+        ordered = _parse_ordered_ids(form_data)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid ids")
+
+    try:
+        await menu_coordinator.reorder_items(db, auth, subsection_id, ordered)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except SubsectionNotFound:
+        raise HTTPException(status_code=404, detail="Subsection not found")
+    except ReorderMismatch:
+        raise HTTPException(status_code=400, detail="Id set mismatch")
+
+    return Response(status_code=204)
+
+
+@router.post("/item/{item_id}/reorder-variants")
+async def reorder_variants(
+    item_id: uuid.UUID,
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    try:
+        ordered = _parse_ordered_ids(form_data)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid ids")
+
+    try:
+        await menu_coordinator.reorder_variants(db, auth, item_id, ordered)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ItemNotFound:
+        raise HTTPException(status_code=404, detail="Item not found")
+    except ReorderMismatch:
+        raise HTTPException(status_code=400, detail="Id set mismatch")
+
+    return Response(status_code=204)
+
+
+# ---------------------------------------------------------------------------
+# Photos
+# ---------------------------------------------------------------------------
+
+@router.get("/photos", response_class=HTMLResponse)
+async def photos_page(
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    if auth.is_internal_admin:
+        return _render(
+            request, "admin/photos.html", auth,
+            photos=[], is_internal_admin=True, storage_url=None, error=None,
+        )
+
+    try:
+        photos = await photo_service.list_photos(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/photos.html", auth,
+        photos=photos, is_internal_admin=False,
+        storage_url=storage_public_url, error=None,
+    )
+
+
+@router.post("/photos", response_class=HTMLResponse)
+async def photos_upload(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    upload = form_data.get("file")
+
+    if not upload or not hasattr(upload, "read"):
+        return await _photos_with_error(request, auth, db, "No file selected.")
+
+    file_data = await upload.read()
+    filename = getattr(upload, "filename", None)
+    content_type = getattr(upload, "content_type", "application/octet-stream")
+
+    try:
+        await photo_coordinator.create_photo(db, auth, file_data, filename, content_type)
+    except InvalidImage as exc:
+        return await _photos_with_error(request, auth, db, str(exc))
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except StorageNotConfigured as exc:
+        return await _photos_with_error(request, auth, db, str(exc))
+
+    return RedirectResponse(url="/admin/photos", status_code=303)
+
+
+@router.post("/photos/{photo_id}/alt", response_class=HTMLResponse)
+async def photos_update_alt(
+    request: Request,
+    photo_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    alt_text = form_data.get("alt_text", "")
+
+    try:
+        photo = await photo_coordinator.update_photo_alt(db, auth, photo_id, alt_text)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    return _render(
+        request, "admin/_photo_tile.html", auth,
+        photo=photo, storage_url=storage_public_url, saved=True,
+    )
+
+
+@router.post("/photos/{photo_id}/delete", response_class=HTMLResponse)
+async def photos_delete(
+    request: Request,
+    photo_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await photo_coordinator.delete_photo(db, auth, photo_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    except StorageNotConfigured as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return Response(status_code=200)
+
+
+async def _photos_with_error(request, auth, db, error_msg):
+    """Re-render the photos page with an error message."""
+    try:
+        photos = await photo_service.list_photos(db, auth)
+    except NoSiteInScope:
+        photos = []
+    return _render(
+        request, "admin/photos.html", auth,
+        photos=photos, is_internal_admin=False,
+        storage_url=storage_public_url, error=error_msg,
+    )

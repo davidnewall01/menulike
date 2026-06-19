@@ -32,9 +32,14 @@ class Settings(BaseSettings):
     # production guard below.
     JWT_SECRET_KEY: str = DEV_JWT_SENTINEL
 
-    # S3 media storage (used from a later phase).
+    # S3 media storage. AWS creds + bucket are required for photo uploads but
+    # NOT for boot — the app runs fine without them for all non-photo work.
+    # A clear error fires at use-time if unconfigured (see storage.py).
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
     S3_BUCKET: str = ""
     S3_REGION: str = "ap-southeast-2"
+    S3_PUBLIC_BASE_URL: str = ""
 
     # Emit SQL to logs when true.
     DB_ECHO: bool = False

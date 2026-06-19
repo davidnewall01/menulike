@@ -7,7 +7,7 @@
 >
 > Status markers: ✅ decided · 🟡 leaning / provisional · ❓ open question · 🔭 roadmap (not v1)
 
-Last updated: 2026-06-18
+Last updated: 2026-06-19
 
 ---
 
@@ -81,7 +81,55 @@ These are the load-bearing ideas every other decision hangs off.
 
 ---
 
-## 3. Surfaces
+## 3. Templating architecture — theme · layout · content · blocks ✅
+
+Principle 1 (content vs presentation) splits the *presentation* side one level deeper. What we
+loosely call a "template" is really **four layers**, and keeping them separate is what lets
+templates stay coherent *and* flexible at once.
+
+1. **Theme** — *site-level, one choice.* The design language: type, palette, spacing scale,
+   component styling, overall feel. The **coherence guarantee** — pick it once and everything
+   inherits it. Implemented as design tokens (§5).
+2. **Layout** — *per-page, selectable.* Within a theme, how a given page-type arranges its
+   content (menu as text-columns vs photo-grid; home as full-bleed vs split hero; an events
+   page). Layouts render *in the theme*, so mixing them can't break the look — coherent by
+   construction.
+3. **Content** — the slot / role pool (§8). **Presentation-independent**, so it survives
+   theme/layout switches: change template, content persists; the new layout consumes what it
+   needs, gaps prompt, surplus lies dormant. (The non-destructive-switch payoff of the
+   content/presentation split.)
+4. **Blocks** — for *narrative* pages (Our Story; 🔭 Events): an ordered collection of
+   `{heading?, body, image_ref?}` units the owner composes. The **same bounded-collection
+   primitive as the menu** (explicit `position`, CRUD + reorder), generalised.
+
+**The "template per page" question, resolved.** *Can a client pick a different template for each
+page* (classic home, photofull menu, fun events page)? Yes — but the per-page thing they pick is
+a **layout**, under **one site theme**. One theme = coherence; per-page layouts = the genuine
+variation. That delivers the flexibility (photofull menu, events page) *without* the
+Frankenstein-site risk that "a full template per page" would invite. It's how Squarespace-class
+builders work — proven, not novel risk.
+
+**Structured vs narrative pages.**
+- **Structured pages** (home, menu, gallery, visit) — known data shapes; purpose-built layouts
+  fed by roles / menus.
+- **Narrative pages** (Our Story; 🔭 Events) — freeform owner content; the block primitive.
+- 🟡 **Scoping line:** *don't unify everything into blocks yet.* "Everything is a block — even a
+  menu-block, a hero-block" is a real, elegant end-state, but it's a page-builder engine, and
+  building that before customer #2 is over-rotation. Two mechanisms for now: fixed layouts for
+  structured pages, blocks for narrative ones.
+
+**PoC posture — fused now, separable in code.** Right now theme + layout are **fused** into one
+per-customer template (the flagship). No theme-picker, no layout-picker. The separation lives in
+the **code structure** (tokens vs templates, §5), so surfacing the split later is *config, not
+rewrite*.
+
+🔭 Deferred: the per-page **layout selector**, the multi-theme **library / marketplace**, and
+template **switching** UI. The seams (token/template split, presentation-independent content) go
+in now so these stay cheap later.
+
+---
+
+## 4. Surfaces
 
 Three distinct surfaces by audience — easy to conflate, important to separate.
 
@@ -101,13 +149,31 @@ Three distinct surfaces by audience — easy to conflate, important to separate.
 
 ---
 
-## 4. Tech stack 🟡
+## 5. Tech stack
 
-Carried over from existing patterns (assumed; confirm as we go). This product reuses the
-architectural style but is its own thing.
+Carried over from existing patterns; this product reuses the architectural style but is its own
+thing. The front-end approach for the public templates is now decided (✅, was 🟡).
 
 - **Backend:** FastAPI · SQLAlchemy (async) · PostgreSQL · Alembic (hand-written migrations)
-- **Frontend:** HTMX · Jinja2 · Tailwind + DaisyUI
+- **Admin frontend:** HTMX · Jinja2 · Tailwind + DaisyUI — the CRUD UI, where DaisyUI's
+  components earn their keep.
+- **Public site rendering ✅:** server-rendered **Jinja2 — no JS framework.** Restaurant sites
+  are content-heavy, SEO-critical, interactivity-light; SSR gives fast first paint, works
+  without JS, and reads Postgres **directly, with no API boundary.** A second stack (Astro/Next)
+  would double the toolchain and force an API layer — the wrong tax for a solo team, solving
+  problems we don't have.
+- **Public styling ✅:** **hand-authored CSS driven by design tokens** (CSS custom properties).
+  Per-tenant theming is *runtime* — each site sets its own token values, so tokens drive
+  everything: swap the token set and the whole site re-themes. Maximum craft (design quality *is*
+  the product), native theming, no build pipeline. **DaisyUI is *not* used on the public side** —
+  it reads generic; public is bespoke.
+- **Public interactivity ✅:** **Alpine.js** for the few declarative bits (mobile menu,
+  scroll-spy, lightbox). No framework.
+- **Template code structure ✅:** `themes/` (token sets — the *theme* layer) · `layouts/`
+  (per-page Jinja, referencing tokens only, never hardcoded colour — the *layout* layer) ·
+  `_partials/` (shared: nav, footer, dish, block, gallery). Public render route: resolve site by
+  `Host` → load theme tokens + content → render the page's layout. Physically separate folders =
+  the theme/layout seam (§3) is real in code even while fused in the product.
 - **Hosting:** Railway (staging + production)
 - **Media:** AWS S3 (ap-southeast-2)
 - **Email:** Resend
@@ -120,7 +186,7 @@ capability-based auth; settings JSONB with `SETTINGS_DEFAULTS`.
 
 ---
 
-## 5. Hosting & custom domains ✅
+## 6. Hosting & custom domains ✅
 
 **The model:** the app resolves the tenant from the request `Host` header → looks up the
 domain → loads that tenant's content + template config → renders. App logic is trivial; the
@@ -158,7 +224,7 @@ screenshots + copy-paste values → live "connected ✓" verification. Videos la
 
 ---
 
-## 6. Media / photos ✅
+## 7. Media / photos ✅
 
 - **Stored, not embedded.** Binaries → S3 (existing bucket pattern, `*_key` reference in DB
   with metadata). Never DB blobs. Never base64 in HTML.
@@ -173,9 +239,13 @@ screenshots + copy-paste values → live "connected ✓" verification. Videos la
 - **Focal point** solves cross-template cropping (same source → wide banner here, square tile
   there). Store an (x,y) focal point; render via CSS `object-position` or an image-CDN URL param.
 
+> **Build status (2026-06-19):** the photo-library foundation is built and browser-verified —
+> upload → S3 → per-site library (view / alt / delete), format-agnostic (JPEG/PNG/WebP). Roles,
+> focal point, tags, and derivative sizing are *not yet* built (deferred per above).
+
 ---
 
-## 7. Content model — slot inventory
+## 8. Content model — slot inventory
 
 The "content pool": the union of every slot any v1 template might ask for. *(shape, cardinality,
 required/optional.)* Presentation config (template, theme, section order) is **not** here — it's
@@ -195,7 +265,7 @@ the Design surface.
 - `about_story` — rich text, single, optional
 - `about_image` — image ref, 0..1, optional
 
-**Menu** — nested entity, see §8
+**Menu** — nested entity, see §9
 
 **Photos** (the library; everything else references in)
 - `photos` — image list; each: `s3_key`, `focal_point`, `tags` (food/interior/exterior),
@@ -223,12 +293,16 @@ the Design surface.
 - "Featured / signature dishes" = a `featured` flag on `menu_item`, **not** a parallel content set.
 - Required set is tiny (name, ≥1 feature image, menu, address); everything else degrades
   gracefully — which is what makes templates swappable.
+- **Narrative content is block-composed (§3).** About/Our Story and 🔭 Events are an ordered list
+  of content blocks (`{heading?, body, image_ref?}`) — the same primitive as the menu. The single
+  `about_story` + `about_image` above is the **degenerate one-block case**; the block model
+  generalises it for richer stories and for Events later.
 
 🔭 Deferred slots: `events`, `reviews`/testimonials, marketing capture, ordering.
 
 ---
 
-## 8. Menu schema ✅ (the deep entity)
+## 9. Menu schema ✅ (the deep entity)
 
 **Hierarchy: four fixed levels, no recursion.**
 
@@ -241,7 +315,7 @@ Menu        → Dinner, Drinks, ...
 ```
 
 - **Multiple menus per restaurant is v1 core**, not later (almost every restaurant has food +
-  drinks at minimum).
+  drinks at minimum). *(Confirmed against Porto's demo: Eat and Drink are simply two menus.)*
 - **Subsection is uniform but optionally unnamed** — a flat section (e.g. "Pizza") is one
   nameless subsection rendered without a heading. Avoids the "items have two possible parents"
   problem; the renderer always walks the same tree.
@@ -276,16 +350,27 @@ menu_item_variants(id, item_id, label?, price, position)
   underneath, table-like on top. Wrapper levels (unnamed subsection) auto-created and hidden
   until a named group is wanted.
 
+> **Build status (2026-06-19):** menu tooling is functionally complete — CRUD at every level,
+> reparent (move-item), drag-reorder within a parent, expand/collapse. This is the reusable
+> bounded-collection primitive the block model (§3) generalises from.
+
 ---
 
-## 9. Open questions / next ❓
+## 10. Open questions / next ❓
 
 - [ ] Validate the 4-level menu model against the **Drinks** menu (wine → Red/White/Sparkling).
 - [ ] Detail the remaining content entities (hours, location, about) to the same depth as the menu.
 - [ ] Decide `variants` storage: child table vs JSONB.
-- [x] ~~Pick the custom-hostname provider~~ → **Approximated** (decided 2026-06-18; see §5).
+- [x] ~~Pick the custom-hostname provider~~ → **Approximated** (decided 2026-06-18; see §6).
 - [ ] Pick the image CDN (and when to switch from Pillow).
-- [ ] Move from content model → **services layer** (the next phase after schema).
+- [x] ~~Front-end approach for the public templates~~ → **SSR Jinja + hand-authored CSS design
+  tokens + Alpine.js; no JS framework, no DaisyUI on public; `themes/`·`layouts/`·`_partials/`
+  structure** (decided 2026-06-19; see §3, §5).
+- [ ] **Name the flagship template.** *(in progress 2026-06-19)*
+- [ ] **Design the content-block primitive** — narrative pages (Our Story now, Events later); §3.
+- [ ] **Build the flagship template** (the "build 1 for real" of principle 7), co-designed with
+  the site-level slots it needs: hero (`feature_images`), `gallery`, `opening_hours`, plus the
+  Our Story narrative page.
 - [ ] Wireframe the 2 non-flagship templates for slot discovery (Photofull, Modern).
 - [x] ~~Confirm whether this lives in its own repo / stack instance~~ → **own standalone repo** (decided).
 
@@ -293,8 +378,22 @@ menu_item_variants(id, item_id, label?, price, position)
 
 ## Changelog
 
+- **2026-06-19** — **Templating architecture added (§3).** The "template" splits into four
+  layers — **theme** (site-level, one), **layout** (per-page, selectable, renders *in* the theme),
+  **content** (presentation-independent roles/slots), **blocks** (narrative pages). Resolves
+  "template per page" as *per-page layout under one site theme* — flexibility without Frankenstein
+  sites. Structured vs narrative pages distinguished; "everything is a block" deferred as
+  over-build. Theme + layout **fused for the PoC**, kept separable in code.
+- **2026-06-19** — **Front-end approach decided (§5, was 🟡).** Public sites render **SSR Jinja +
+  hand-authored CSS design tokens + Alpine.js** — no JS framework, no DaisyUI on public. Code
+  structure `themes/` · `layouts/` · `_partials/` makes the theme/layout seam real in code. Admin
+  keeps HTMX · Jinja · Tailwind + DaisyUI. (Astro/Next considered and rejected: doubles the stack
+  and forces an API boundary for a solo team.)
+- **2026-06-19** — Content model: **narrative content recorded as block-composed (§8);**
+  `about_story`/`about_image` noted as the degenerate single-block case. Build-status notes added
+  to §7 (photo library) and §9 (menu tooling) reflecting what's now shipped.
 - **2026-06-18** — Custom-domain provider **decided: Approximated** (✅, was 🟡). Clean apex for
-  every customer + human support outweighs the ~$20/mo over Cloudflare for SaaS. §5 updated;
+  every customer + human support outweighs the ~$20/mo over Cloudflare for SaaS. §6 updated;
   Cloudflare recorded as considered-and-rejected.
 - **2026-06-18** — Initial document. Captured: positioning & v1 scope; architecture principles;
   three surfaces; hosting & custom-domain approach (subdomain-first → custom-hostname provider);

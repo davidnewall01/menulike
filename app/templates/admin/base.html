@@ -4,10 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
+    {% if csrf_token is defined and csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {% endif %}
     <title>{% block title %}Admin{% endblock %} — menulike</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 </head>
 <body class="min-h-screen bg-base-200">
     <div class="navbar bg-base-100 shadow-sm">
@@ -20,7 +24,7 @@
                 <li><a href="/admin/details">Details</a></li>
                 <li><a href="/admin/menu">Menu</a></li>
                 <li class="disabled"><a class="opacity-40 cursor-not-allowed">Hours</a></li>
-                <li class="disabled"><a class="opacity-40 cursor-not-allowed">Photos</a></li>
+                <li><a href="/admin/photos">Photos</a></li>
             </ul>
             <form method="post" action="/admin/logout">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -65,6 +69,41 @@
                 if (summary) summary.classList.toggle("hidden", expand);
             });
         }
+
+        /* Drag-to-reorder — Sortable.js, one instance per [data-sortable] container.
+           Each container is independent (no shared group = no cross-container drag).
+           The handle option confines drag-start to .drag-handle so it never conflicts
+           with Edit/Del/Move/chevron. Re-init on htmx:afterSwap (idempotent). */
+        function initSortables() {
+            document.querySelectorAll("[data-sortable]").forEach(function (el) {
+                if (el._sortable) return;
+                var url = el.getAttribute("data-reorder-url");
+                if (!url) return;
+                el._sortable = new Sortable(el, {
+                    handle: ".drag-handle",
+                    draggable: "[data-id]",
+                    animation: 150,
+                    ghostClass: "opacity-40",
+                    onEnd: function () {
+                        var ids = [];
+                        el.querySelectorAll(":scope > [data-id]").forEach(function (child) {
+                            ids.push(child.getAttribute("data-id"));
+                        });
+                        var meta = document.querySelector('meta[name="csrf-token"]');
+                        if (!meta) return;
+                        var body = new URLSearchParams();
+                        body.append("csrf_token", meta.content);
+                        ids.forEach(function (id) { body.append("ordered_ids", id); });
+                        fetch(url, { method: "POST", body: body, credentials: "same-origin" })
+                            .then(function (resp) {
+                                if (!resp.ok) window.location.reload();
+                            });
+                    }
+                });
+            });
+        }
+        document.addEventListener("DOMContentLoaded", initSortables);
+        document.body.addEventListener("htmx:afterSwap", initSortables);
     </script>
 </body>
 </html>

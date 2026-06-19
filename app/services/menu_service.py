@@ -13,6 +13,7 @@ from app.services.exceptions import (
     ItemNotFound,
     MenuNotFound,
     NoSiteInScope,
+    ReorderMismatch,
     SectionNotFound,
     SubsectionNotFound,
     VariantNotFound,
@@ -500,3 +501,79 @@ async def delete_variant(
     variant = await get_owner_variant(db, auth_ctx, variant_id)
     await db.delete(variant)
     await db.flush()
+
+
+# ---------------------------------------------------------------------------
+# Reorder (within a parent — flush only)
+# ---------------------------------------------------------------------------
+
+async def _reorder_children(db, parent_col, parent_id, pk_col, model, ordered_ids):
+    """Generic reorder: verify ordered_ids is an exact permutation of the
+    parent's current children, then renumber positions. Flush only."""
+    result = await db.execute(
+        select(pk_col).where(parent_col == parent_id)
+    )
+    current_ids = set(result.scalars().all())
+
+    submitted = [uuid.UUID(str(i)) for i in ordered_ids]
+    if set(submitted) != current_ids or len(submitted) != len(current_ids):
+        raise ReorderMismatch(
+            f"Submitted ids don't match parent's children: "
+            f"expected {current_ids}, got {set(submitted)}"
+        )
+
+    result = await db.execute(
+        select(model).where(parent_col == parent_id)
+    )
+    children = {getattr(c, pk_col.key): c for c in result.scalars().all()}
+    for idx, child_id in enumerate(submitted):
+        children[child_id].position = (idx + 1) * 10
+    await db.flush()
+
+
+async def reorder_sections(
+    db: AsyncSession, auth_ctx: AuthContext,
+    menu_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    """Reorder sections within a menu. Scoped-load the parent first."""
+    await get_owner_menu(db, auth_ctx, menu_id)
+    await _reorder_children(
+        db, Section.menu_id, menu_id,
+        Section.section_id, Section, ordered_ids,
+    )
+
+
+async def reorder_subsections(
+    db: AsyncSession, auth_ctx: AuthContext,
+    section_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    """Reorder subsections within a section. Scoped-load the parent first."""
+    await get_owner_section(db, auth_ctx, section_id)
+    await _reorder_children(
+        db, Subsection.section_id, section_id,
+        Subsection.subsection_id, Subsection, ordered_ids,
+    )
+
+
+async def reorder_items(
+    db: AsyncSession, auth_ctx: AuthContext,
+    subsection_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    """Reorder items within a subsection. Scoped-load the parent first."""
+    await get_owner_subsection(db, auth_ctx, subsection_id)
+    await _reorder_children(
+        db, MenuItem.subsection_id, subsection_id,
+        MenuItem.menu_item_id, MenuItem, ordered_ids,
+    )
+
+
+async def reorder_variants(
+    db: AsyncSession, auth_ctx: AuthContext,
+    item_id: uuid.UUID, ordered_ids: list[uuid.UUID]
+) -> None:
+    """Reorder variants within an item. Scoped-load the parent first."""
+    await get_owner_item(db, auth_ctx, item_id)
+    await _reorder_children(
+        db, MenuItemVariant.menu_item_id, item_id,
+        MenuItemVariant.menu_item_variant_id, MenuItemVariant, ordered_ids,
+    )

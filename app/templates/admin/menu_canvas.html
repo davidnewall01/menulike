@@ -16,8 +16,8 @@
     <div class="divider flex-1">Menu contents</div>
     {% if menu.sections %}
     <div class="flex gap-1 ml-4 shrink-0">
-        <button type="button" onclick="toggleAll(false)" class="btn btn-ghost btn-xs">Collapse all</button>
-        <button type="button" onclick="toggleAll(true)" class="btn btn-ghost btn-xs">Expand all</button>
+        <button type="button" onclick="toggleAll(false)" class="btn btn-outline btn-xs">Collapse all</button>
+        <button type="button" onclick="toggleAll(true)" class="btn btn-outline btn-xs">Expand all</button>
     </div>
     {% endif %}
 </div>
@@ -26,13 +26,14 @@
 {% set all_subsections = [] %}
 {% for section in menu.sections %}
     {% for subsection in section.subsections %}
-        {% set label = section.name ~ " > " ~ (subsection.name if subsection.name else "(no heading)") %}
+        {% set label = section.name ~ " › " ~ (subsection.name if subsection.name else "(unnamed)") %}
         {% set _ = all_subsections.append({"id": subsection.subsection_id, "label": label}) %}
     {% endfor %}
 {% endfor %}
 
+<div data-sortable data-reorder-url="/admin/menu/{{ menu.menu_id }}/reorder-sections">
 {% for section in menu.sections %}
-<div class="card bg-base-100 shadow mb-4">
+<div class="card bg-base-100 shadow mb-4" data-id="{{ section.section_id }}">
     <div class="card-body">
         {% set menu_id = menu.menu_id %}
         {% set section_item_count = namespace(n=0) %}
@@ -41,34 +42,21 @@
         {% include "admin/_section_header.html" %}
 
         <div id="section-body-{{ section.section_id }}">
-            <details class="mb-2">
-                <summary class="btn btn-ghost btn-xs">+ Add subsection</summary>
-                <form method="post" action="/admin/subsection" class="border border-dashed border-base-300 rounded-lg p-3 mt-1 space-y-2">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="hidden" name="section_id" value="{{ section.section_id }}">
-                    <input type="hidden" name="menu_id" value="{{ menu.menu_id }}">
-                    <div class="form-control">
-                        <input type="text" name="name" class="input input-bordered input-sm w-full" placeholder="Subsection name (blank = headingless)">
-                    </div>
-                    <div class="form-control">
-                        <input type="text" name="description" class="input input-bordered input-sm w-full" placeholder="Description">
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-xs">Add subsection</button>
-                </form>
-            </details>
-
+            <div data-sortable data-reorder-url="/admin/section/{{ section.section_id }}/reorder-subsections">
             {% for subsection in section.subsections %}
-            <div class="ml-2 mt-3 border-l-2 border-base-200 pl-3">
+            <div class="ml-2 mt-3 border-l-2 border-base-200 pl-3" data-id="{{ subsection.subsection_id }}">
                 {% set subsection_item_count = subsection.items | length %}
                 {% include "admin/_subsection_header.html" %}
 
                 <div id="subsection-body-{{ subsection.subsection_id }}">
+                    <div data-sortable data-reorder-url="/admin/subsection/{{ subsection.subsection_id }}/reorder-items">
                     {% for item in subsection.items %}
                     {% include "admin/_item_row.html" %}
                     {% endfor %}
+                    </div>
 
                     <details class="mt-2">
-                        <summary class="btn btn-ghost btn-xs">+ Add item</summary>
+                        <summary class="btn btn-outline btn-xs list-none [&::-webkit-details-marker]:hidden">+ Add item</summary>
                         <form method="post" action="/admin/item" class="border border-dashed border-base-300 rounded-lg p-3 mt-1 space-y-2">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                             <input type="hidden" name="subsection_id" value="{{ subsection.subsection_id }}">
@@ -94,10 +82,28 @@
                 </div>
             </div>
             {% endfor %}
+            </div>
+
+            <details class="mb-2 mt-2">
+                <summary class="btn btn-outline btn-xs list-none [&::-webkit-details-marker]:hidden">+ Add subsection</summary>
+                <form method="post" action="/admin/subsection" class="border border-dashed border-base-300 rounded-lg p-3 mt-1 space-y-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="section_id" value="{{ section.section_id }}">
+                    <input type="hidden" name="menu_id" value="{{ menu.menu_id }}">
+                    <div class="form-control">
+                        <input type="text" name="name" class="input input-bordered input-sm w-full" placeholder="Subsection name (blank = unnamed)">
+                    </div>
+                    <div class="form-control">
+                        <input type="text" name="description" class="input input-bordered input-sm w-full" placeholder="Description">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-xs">Add subsection</button>
+                </form>
+            </details>
         </div>
     </div>
 </div>
 {% endfor %}
+</div>
 
 {% if not menu.sections %}
 <div class="alert alert-info">
@@ -106,7 +112,7 @@
 {% endif %}
 
 <details class="mt-4">
-    <summary class="btn btn-ghost btn-sm">+ Add section</summary>
+    <summary class="btn btn-primary btn-sm list-none [&::-webkit-details-marker]:hidden">+ Add section</summary>
     <div class="card bg-base-100 shadow mt-2">
         <div class="card-body">
             <form method="post" action="/admin/section" class="space-y-2">

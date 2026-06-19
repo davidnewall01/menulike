@@ -36,7 +36,7 @@
         </div>
         <div class="flex gap-2 mt-2">
             <button type="submit" class="btn btn-primary btn-xs">Save</button>
-            <button type="button" class="btn btn-ghost btn-xs"
+            <button type="button" class="btn btn-outline btn-xs"
                     hx-get="/admin/item/{{ item.menu_item_id }}?menu_id={{ menu_id }}"
                     hx-target="#item-{{ item.menu_item_id }}"
                     hx-swap="outerHTML">Cancel</button>

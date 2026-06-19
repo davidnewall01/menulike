@@ -14,8 +14,8 @@
         <input type="hidden" name="_action" value="update">
         <input type="hidden" name="menu_id" value="{{ menu_id }}">
         <div class="form-control">
-            <label class="label py-0"><span class="label-text text-xs">Subsection name (blank = headingless)</span></label>
-            <input type="text" name="name" value="{{ subsection.name or '' }}" class="input input-bordered input-sm w-full" placeholder="Leave blank for no heading">
+            <label class="label py-0"><span class="label-text text-xs">Subsection name (blank = unnamed)</span></label>
+            <input type="text" name="name" value="{{ subsection.name or '' }}" class="input input-bordered input-sm w-full" placeholder="Leave blank for unnamed subsection">
         </div>
         <div class="form-control">
             <label class="label py-0"><span class="label-text text-xs">Description</span></label>
@@ -23,7 +23,7 @@
         </div>
         <div class="flex gap-2">
             <button type="submit" class="btn btn-primary btn-xs">Save</button>
-            <button type="button" class="btn btn-ghost btn-xs"
+            <button type="button" class="btn btn-outline btn-xs"
                     onclick="location.reload()">Cancel</button>
         </div>
     </form>
