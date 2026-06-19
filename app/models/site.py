@@ -24,6 +24,9 @@ class Site(TimestampMixin, Base):
         String, nullable=False, unique=True, index=True
     )
     restaurant_name: Mapped[str] = mapped_column(String, nullable=False)
+    template: Mapped[str] = mapped_column(
+        String, nullable=False, server_default="linen"
+    )
     tagline: Mapped[str | None] = mapped_column(String, nullable=True)
     hero_heading: Mapped[str | None] = mapped_column(String, nullable=True)
     hero_subheading: Mapped[str | None] = mapped_column(String, nullable=True)

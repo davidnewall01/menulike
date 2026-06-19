@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.models.site import Site
 from app.services import image_role_service
 from app.services.storage import public_url as storage_public_url
+from app.web.template_resolver import page_path, resolve_template
 from app.web.tenancy import resolve_tenant
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
@@ -25,9 +26,10 @@ async def home(
     site: Site = Depends(resolve_tenant),
     db: AsyncSession = Depends(get_db),
 ):
+    template = resolve_template(site.template)
     role_images = await image_role_service.load_role_images(db, site.site_id)
     return templates.TemplateResponse(
-        "public/layouts/home.html",
+        page_path(template, "home"),
         {
             "request": request,
             "site": site,
