@@ -11,6 +11,7 @@ from app.db.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from app.models.menu import Menu
     from app.models.photo import Photo
+    from app.models.site_image_role import SiteImageRole
 
 
 class Site(TimestampMixin, Base):
@@ -64,6 +65,11 @@ class Site(TimestampMixin, Base):
         order_by="Menu.position",
     )
     photos: Mapped[list["Photo"]] = relationship(
+        back_populates="site",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    image_roles: Mapped[list["SiteImageRole"]] = relationship(
         back_populates="site",
         cascade="all, delete-orphan",
         passive_deletes=True,

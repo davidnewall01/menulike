@@ -12,17 +12,18 @@ from starlette.responses import Response
 
 from app.auth.context import AuthContext
 from app.auth.deps import SESSION_COOKIE, require_auth, require_csrf
-from app.coordinators import menu_coordinator, photo_coordinator, site_coordinator
+from app.coordinators import image_role_coordinator, menu_coordinator, photo_coordinator, site_coordinator
 from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.schemas.site import SiteDetailsForm
-from app.services import auth_service, menu_service, photo_service, site_service
+from app.services import auth_service, image_role_service, menu_service, photo_service, site_service
 from app.services.storage import public_url as storage_public_url
 from app.services.exceptions import (
     InvalidImage,
+    InvalidRole,
     ItemNotFound,
     MenuNotFound,
     NoSiteInScope,
@@ -945,4 +946,116 @@ async def _photos_with_error(request, auth, db, error_msg):
         request, "admin/photos.html", auth,
         photos=photos, is_internal_admin=False,
         storage_url=storage_public_url, error=error_msg,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Appearance (image role assignments)
+# ---------------------------------------------------------------------------
+
+def _roles_by_key(roles):
+    """Convert list of SiteImageRole into {role_key: assignment}."""
+    return {r.role: r for r in roles}
+
+
+@router.get("/appearance", response_class=HTMLResponse)
+async def appearance_page(
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    if auth.is_internal_admin:
+        return _render(
+            request, "admin/appearance.html", auth,
+            roles={}, is_internal_admin=True, storage_url=None,
+        )
+
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/appearance.html", auth,
+        roles=_roles_by_key(roles), is_internal_admin=False,
+        storage_url=storage_public_url,
+    )
+
+
+@router.get("/appearance/picker", response_class=HTMLResponse)
+async def appearance_picker(
+    request: Request,
+    role: str,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return a photo-picker grid partial for the given role."""
+    try:
+        photos = await photo_service.list_photos(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/_appearance_picker.html", auth,
+        photos=photos, role=role, storage_url=storage_public_url,
+    )
+
+
+@router.post("/appearance/assign", response_class=HTMLResponse)
+async def appearance_assign(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    role = form_data.get("role", "")
+    photo_id_str = form_data.get("photo_id", "")
+
+    try:
+        photo_id = uuid.UUID(photo_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    try:
+        await image_role_coordinator.assign(db, auth, role, photo_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except InvalidRole:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    # Re-render the slot partial for this role
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/_appearance_slot.html", auth,
+        role_key=role, assignment=_roles_by_key(roles).get(role),
+        storage_url=storage_public_url,
+    )
+
+
+@router.post("/appearance/clear", response_class=HTMLResponse)
+async def appearance_clear(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    role = form_data.get("role", "")
+
+    try:
+        await image_role_coordinator.clear(db, auth, role)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except InvalidRole:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    return _render(
+        request, "admin/_appearance_slot.html", auth,
+        role_key=role, assignment=None,
+        storage_url=storage_public_url,
     )

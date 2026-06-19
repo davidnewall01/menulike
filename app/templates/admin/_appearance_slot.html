@@ -1,0 +1,32 @@
+{% if assignment %}
+<div class="flex items-center gap-4">
+    <img src="{{ storage_url(assignment.photo.s3_key) }}"
+         alt="{{ assignment.photo.alt_text or '' }}"
+         class="rounded-lg w-32 h-24 object-cover border">
+    <div class="flex flex-col gap-2">
+        <span class="text-sm text-base-content/60">{{ assignment.photo.original_filename or "assigned" }}</span>
+        <div class="flex gap-2">
+            <button class="btn btn-outline btn-xs"
+                    hx-get="/admin/appearance/picker?role={{ role_key }}"
+                    hx-target="#slot-{{ role_key }}"
+                    hx-swap="innerHTML">Change</button>
+            <button class="btn btn-outline btn-error btn-xs"
+                    hx-post="/admin/appearance/clear"
+                    hx-target="#slot-{{ role_key }}"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}", "role": "{{ role_key }}"}'
+                    hx-confirm="Remove this image?">Remove</button>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="flex items-center gap-4">
+    <div class="rounded-lg w-32 h-24 bg-base-300 flex items-center justify-center text-base-content/30 text-sm border border-dashed">
+        None
+    </div>
+    <button class="btn btn-outline btn-sm"
+            hx-get="/admin/appearance/picker?role={{ role_key }}"
+            hx-target="#slot-{{ role_key }}"
+            hx-swap="innerHTML">Choose from library</button>
+</div>
+{% endif %}

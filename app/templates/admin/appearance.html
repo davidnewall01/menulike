@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block title %}Appearance{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Appearance</h1>
+
+{% if is_internal_admin %}
+<div class="alert alert-info">Internal admin — select a site to manage appearance.</div>
+{% else %}
+
+<div class="space-y-6">
+    <div>
+        <h2 class="text-lg font-semibold mb-2">Hero Image</h2>
+        <p class="text-sm text-base-content/60 mb-3">The full-bleed background photo on your home page.</p>
+        {% set role_key = "feature_images" %}
+        {% set assignment = roles.get("feature_images") %}
+        <div id="slot-feature_images">
+            {% include "admin/_appearance_slot.html" %}
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+        <h2 class="text-lg font-semibold mb-2">Logo</h2>
+        <p class="text-sm text-base-content/60 mb-3">Your restaurant logo — displayed in the header and hero. Upload a white/transparent version for best results.</p>
+        {% set role_key = "logo" %}
+        {% set assignment = roles.get("logo") %}
+        <div id="slot-logo">
+            {% include "admin/_appearance_slot.html" %}
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}

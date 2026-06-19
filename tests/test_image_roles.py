@@ -1,0 +1,317 @@
+"""Image role assignment tests — service-level, scoping, IDOR, reassign."""
+
+import uuid
+
+import pytest
+from sqlalchemy import select
+
+from app.auth.context import AuthContext
+from app.models.photo import Photo
+from app.models.site_image_role import SiteImageRole
+from app.services import image_role_service
+from app.services.exceptions import InvalidRole, PhotoNotFound, NoSiteInScope
+from tests.conftest import make_owner, make_site
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+async def _make_photo(db_session, site, filename="test.jpg") -> Photo:
+    """Insert a photo row directly (no S3)."""
+    photo = Photo(
+        site_id=site.site_id,
+        s3_key=f"sites/{site.site_id}/photos/{uuid.uuid4()}.jpg",
+        original_filename=filename,
+        content_type="image/jpeg",
+        width=100,
+        height=80,
+    )
+    db_session.add(photo)
+    await db_session.flush()
+    return photo
+
+
+def _auth(user) -> AuthContext:
+    return AuthContext(
+        user_id=user.user_id,
+        email=user.email,
+        role=user.role,
+        site_id=user.site_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Assign happy path
+# ---------------------------------------------------------------------------
+
+class TestAssign:
+
+    async def test_assign_hero(self, db_session):
+        site = await make_site(db_session, slug="role-assign")
+        owner = await make_owner(db_session, site)
+        photo = await _make_photo(db_session, site)
+        auth = _auth(owner)
+
+        assignment = await image_role_service.assign(db_session, auth, "feature_images", photo.photo_id)
+        assert assignment.role == "feature_images"
+        assert assignment.photo_id == photo.photo_id
+        assert assignment.site_id == site.site_id
+        assert assignment.position == 0
+
+    async def test_assign_logo(self, db_session):
+        site = await make_site(db_session, slug="role-logo")
+        owner = await make_owner(db_session, site)
+        photo = await _make_photo(db_session, site)
+        auth = _auth(owner)
+
+        assignment = await image_role_service.assign(db_session, auth, "logo", photo.photo_id)
+        assert assignment.role == "logo"
+        assert assignment.photo_id == photo.photo_id
+
+
+# ---------------------------------------------------------------------------
+# Reassign — must replace cleanly, leaving exactly one row
+# ---------------------------------------------------------------------------
+
+class TestReassign:
+
+    async def test_reassign_replaces_existing(self, db_session):
+        """Reassigning a role replaces the old row — exactly one row remains."""
+        site = await make_site(db_session, slug="role-reassign")
+        owner = await make_owner(db_session, site)
+        photo_a = await _make_photo(db_session, site, "a.jpg")
+        photo_b = await _make_photo(db_session, site, "b.jpg")
+        auth = _auth(owner)
+
+        await image_role_service.assign(db_session, auth, "feature_images", photo_a.photo_id)
+        await image_role_service.assign(db_session, auth, "feature_images", photo_b.photo_id)
+
+        result = await db_session.execute(
+            select(SiteImageRole).where(
+                SiteImageRole.site_id == site.site_id,
+                SiteImageRole.role == "feature_images",
+            )
+        )
+        rows = list(result.scalars().all())
+        assert len(rows) == 1
+        assert rows[0].photo_id == photo_b.photo_id
+
+    async def test_reassign_twice_leaves_one_row(self, db_session):
+        """Three successive assigns → exactly one row, pointing to the last photo."""
+        site = await make_site(db_session, slug="role-reassign-3x")
+        owner = await make_owner(db_session, site)
+        photos = [await _make_photo(db_session, site, f"{i}.jpg") for i in range(3)]
+        auth = _auth(owner)
+
+        for p in photos:
+            await image_role_service.assign(db_session, auth, "logo", p.photo_id)
+
+        result = await db_session.execute(
+            select(SiteImageRole).where(
+                SiteImageRole.site_id == site.site_id,
+                SiteImageRole.role == "logo",
+            )
+        )
+        rows = list(result.scalars().all())
+        assert len(rows) == 1
+        assert rows[0].photo_id == photos[-1].photo_id
+
+
+# ---------------------------------------------------------------------------
+# Clear
+# ---------------------------------------------------------------------------
+
+class TestClear:
+
+    async def test_clear_removes_assignment(self, db_session):
+        site = await make_site(db_session, slug="role-clear")
+        owner = await make_owner(db_session, site)
+        photo = await _make_photo(db_session, site)
+        auth = _auth(owner)
+
+        await image_role_service.assign(db_session, auth, "feature_images", photo.photo_id)
+        await image_role_service.clear(db_session, auth, "feature_images")
+
+        result = await db_session.execute(
+            select(SiteImageRole).where(
+                SiteImageRole.site_id == site.site_id,
+                SiteImageRole.role == "feature_images",
+            )
+        )
+        assert result.scalar_one_or_none() is None
+
+    async def test_clear_nonexistent_role_is_noop(self, db_session):
+        """Clearing a role with no assignment doesn't error."""
+        site = await make_site(db_session, slug="role-clear-noop")
+        owner = await make_owner(db_session, site)
+        auth = _auth(owner)
+
+        # Should not raise
+        await image_role_service.clear(db_session, auth, "logo")
+
+
+# ---------------------------------------------------------------------------
+# List
+# ---------------------------------------------------------------------------
+
+class TestListRoles:
+
+    async def test_list_returns_assignments(self, db_session):
+        site = await make_site(db_session, slug="role-list")
+        owner = await make_owner(db_session, site)
+        photo_h = await _make_photo(db_session, site, "hero.jpg")
+        photo_l = await _make_photo(db_session, site, "logo.png")
+        auth = _auth(owner)
+
+        await image_role_service.assign(db_session, auth, "feature_images", photo_h.photo_id)
+        await image_role_service.assign(db_session, auth, "logo", photo_l.photo_id)
+
+        roles = await image_role_service.list_roles(db_session, auth)
+        assert len(roles) == 2
+        role_names = {r.role for r in roles}
+        assert role_names == {"feature_images", "logo"}
+
+    async def test_list_empty_site(self, db_session):
+        site = await make_site(db_session, slug="role-list-empty")
+        owner = await make_owner(db_session, site)
+        auth = _auth(owner)
+
+        roles = await image_role_service.list_roles(db_session, auth)
+        assert roles == []
+
+
+# ---------------------------------------------------------------------------
+# Public loader
+# ---------------------------------------------------------------------------
+
+class TestLoadRoleImages:
+
+    async def test_load_returns_photo_dict(self, db_session):
+        site = await make_site(db_session, slug="role-load")
+        owner = await make_owner(db_session, site)
+        photo = await _make_photo(db_session, site)
+        auth = _auth(owner)
+
+        await image_role_service.assign(db_session, auth, "feature_images", photo.photo_id)
+
+        images = await image_role_service.load_role_images(db_session, site.site_id)
+        assert "feature_images" in images
+        assert len(images["feature_images"]) == 1
+        assert images["feature_images"][0].photo_id == photo.photo_id
+
+    async def test_load_empty_site(self, db_session):
+        site = await make_site(db_session, slug="role-load-empty")
+
+        images = await image_role_service.load_role_images(db_session, site.site_id)
+        assert images == {}
+
+
+# ---------------------------------------------------------------------------
+# IDOR — foreign photo / foreign site
+# ---------------------------------------------------------------------------
+
+class TestIDOR:
+
+    async def test_assign_foreign_photo_rejected(self, db_session):
+        """Owner A cannot assign a photo belonging to site B."""
+        site_a = await make_site(db_session, slug="role-idor-a")
+        site_b = await make_site(db_session, slug="role-idor-b")
+        owner_a = await make_owner(db_session, site_a)
+        photo_b = await _make_photo(db_session, site_b)
+        auth_a = _auth(owner_a)
+
+        with pytest.raises(PhotoNotFound):
+            await image_role_service.assign(db_session, auth_a, "feature_images", photo_b.photo_id)
+
+        # No assignment should exist
+        result = await db_session.execute(
+            select(SiteImageRole).where(SiteImageRole.site_id == site_a.site_id)
+        )
+        assert result.scalar_one_or_none() is None
+
+    async def test_clear_only_affects_own_site(self, db_session):
+        """Clearing a role on site A does not touch site B's assignments."""
+        site_a = await make_site(db_session, slug="role-idor-clear-a")
+        site_b = await make_site(db_session, slug="role-idor-clear-b")
+        owner_a = await make_owner(db_session, site_a)
+        owner_b = await make_owner(db_session, site_b)
+        photo_b = await _make_photo(db_session, site_b)
+        auth_a = _auth(owner_a)
+        auth_b = _auth(owner_b)
+
+        await image_role_service.assign(db_session, auth_b, "feature_images", photo_b.photo_id)
+        await image_role_service.clear(db_session, auth_a, "feature_images")
+
+        # B's assignment should still exist
+        result = await db_session.execute(
+            select(SiteImageRole).where(
+                SiteImageRole.site_id == site_b.site_id,
+                SiteImageRole.role == "feature_images",
+            )
+        )
+        assert result.scalar_one_or_none() is not None
+
+    async def test_list_only_returns_own_site(self, db_session):
+        """List roles for site A does not include site B's assignments."""
+        site_a = await make_site(db_session, slug="role-idor-list-a")
+        site_b = await make_site(db_session, slug="role-idor-list-b")
+        owner_a = await make_owner(db_session, site_a)
+        owner_b = await make_owner(db_session, site_b)
+        photo_b = await _make_photo(db_session, site_b)
+        auth_a = _auth(owner_a)
+        auth_b = _auth(owner_b)
+
+        await image_role_service.assign(db_session, auth_b, "feature_images", photo_b.photo_id)
+
+        roles_a = await image_role_service.list_roles(db_session, auth_a)
+        assert roles_a == []
+
+
+# ---------------------------------------------------------------------------
+# Unknown role key
+# ---------------------------------------------------------------------------
+
+class TestInvalidRole:
+
+    async def test_assign_unknown_role_rejected(self, db_session):
+        site = await make_site(db_session, slug="role-bad-key")
+        owner = await make_owner(db_session, site)
+        photo = await _make_photo(db_session, site)
+        auth = _auth(owner)
+
+        with pytest.raises(InvalidRole):
+            await image_role_service.assign(db_session, auth, "gallery", photo.photo_id)
+
+    async def test_clear_unknown_role_rejected(self, db_session):
+        site = await make_site(db_session, slug="role-bad-clear")
+        owner = await make_owner(db_session, site)
+        auth = _auth(owner)
+
+        with pytest.raises(InvalidRole):
+            await image_role_service.clear(db_session, auth, "about_image")
+
+
+# ---------------------------------------------------------------------------
+# No site in scope
+# ---------------------------------------------------------------------------
+
+class TestNoScope:
+
+    async def test_assign_no_scope_raises(self, db_session):
+        auth = AuthContext(user_id=uuid.uuid4(), email="a@b.c", role="internal_admin", site_id=None)
+
+        with pytest.raises(NoSiteInScope):
+            await image_role_service.assign(db_session, auth, "logo", uuid.uuid4())
+
+    async def test_list_no_scope_raises(self, db_session):
+        auth = AuthContext(user_id=uuid.uuid4(), email="a@b.c", role="internal_admin", site_id=None)
+
+        with pytest.raises(NoSiteInScope):
+            await image_role_service.list_roles(db_session, auth)
+
+    async def test_clear_no_scope_raises(self, db_session):
+        auth = AuthContext(user_id=uuid.uuid4(), email="a@b.c", role="internal_admin", site_id=None)
+
+        with pytest.raises(NoSiteInScope):
+            await image_role_service.clear(db_session, auth, "logo")

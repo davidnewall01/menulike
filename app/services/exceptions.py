@@ -43,3 +43,7 @@ class PhotoNotFound(Exception):
 
 class InvalidImage(Exception):
     """The uploaded file is not an allowed image type or exceeds size limits."""
+
+
+class InvalidRole(Exception):
+    """The role key is not in the allowed set."""

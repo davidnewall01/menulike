@@ -1,0 +1,38 @@
+{% extends "public/layouts/base.html" %}
+
+{% block body_attrs %} class="home"{% endblock %}
+
+{% block content %}
+{% set hero_photo = role_images.get("feature_images", [])[0] if role_images.get("feature_images") else none %}
+{% set logo_photo = role_images.get("logo", [])[0] if role_images.get("logo") else none %}
+
+<section class="hero">
+  {% if hero_photo %}
+  <div class="hero__bg" style="background-image:url('{{ storage_url(hero_photo.s3_key) }}')"></div>
+  {% else %}
+  <div class="hero__bg" style="background:linear-gradient(135deg, var(--ink) 0%, #1a3a4a 50%, var(--azure) 100%)"></div>
+  {% endif %}
+  <div class="hero__ov"></div>
+  <div class="hero__in">
+    {% if logo_photo %}
+    <img src="{{ storage_url(logo_photo.s3_key) }}" alt="{{ site.restaurant_name }}" class="hero__logo">
+    {% else %}
+    <h1 class="hero__wordmark">{{ site.restaurant_name }}</h1>
+    {% endif %}
+    {% if site.tagline %}
+    <p class="hero__tag">{{ site.tagline }}</p>
+    {% endif %}
+    <div class="hero__nav">
+      <a href="/menu">Eat</a>
+      <a href="/menu">Drink</a>
+      <a href="#visit">Visit</a>
+      <a href="#gallery">Gallery</a>
+    </div>
+    {% if site.booking_url %}
+    <div style="margin-top:36px">
+      <a href="{{ site.booking_url }}" class="btn btn--light">Book a Table</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

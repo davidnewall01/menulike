@@ -1,0 +1,28 @@
+<div class="space-y-3">
+    <div class="flex items-center justify-between">
+        <span class="text-sm font-medium">Choose a photo</span>
+        <button class="btn btn-ghost btn-xs"
+                hx-get="/admin/appearance"
+                hx-target="main"
+                hx-swap="innerHTML"
+                hx-select="main > *"
+                hx-push-url="false">Cancel</button>
+    </div>
+    {% if photos %}
+    <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        {% for photo in photos %}
+        <button class="rounded-lg overflow-hidden border hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary transition-all"
+                hx-post="/admin/appearance/assign"
+                hx-target="#slot-{{ role }}"
+                hx-swap="innerHTML"
+                hx-vals='{"csrf_token": "{{ csrf_token }}", "role": "{{ role }}", "photo_id": "{{ photo.photo_id }}"}'>
+            <img src="{{ storage_url(photo.s3_key) }}"
+                 alt="{{ photo.alt_text or '' }}"
+                 class="w-full h-20 object-cover">
+        </button>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-sm text-base-content/50">No photos in your library. <a href="/admin/photos" class="link">Upload some first.</a></div>
+    {% endif %}
+</div>
