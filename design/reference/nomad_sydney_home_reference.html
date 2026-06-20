@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOMAD Sydney</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ---- Third theme: "Olive" — sage panel, cream nav, serif ---- */
+  :root{
+    --sage:#b3b8a2;
+    --sage-2:#a6ac90;
+    --paper:#ffffff;
+    --ink:#272722;
+    --muted:#5c5c52;
+    --line:rgba(39,39,34,.55);
+    --serif:'Cormorant Garamond', Georgia, serif;
+    --sans:'Hanken Grotesk', system-ui, sans-serif;
+    --navh:76px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans); color:var(--ink); background:var(--paper)}
+
+  /* ---- Top nav: left group · centre wordmark · right group ---- */
+  .nav{
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+    gap:24px; padding:0 34px; height:var(--navh);
+  }
+  .nav__group{display:flex; gap:24px; font-size:.92rem}
+  .nav__group--right{justify-content:flex-end}
+  .nav__group a{color:var(--ink); text-decoration:none; white-space:nowrap}
+  .nav__group a:hover{opacity:.6}
+  .nav__brand{
+    font-family:var(--serif); font-weight:500;
+    font-size:1.7rem; letter-spacing:.55em; padding-left:.55em; text-align:center;
+  }
+
+  /* ---- Split: carousel-half | content-panel-half ---- */
+  .split{display:grid; grid-template-columns:1fr 1fr; min-height:calc(100vh - var(--navh))}
+
+  /* LEFT — manually-operated carousel == feature_images rendered as a LIST */
+  .carousel{position:relative; overflow:hidden; background:#1b1916}
+  .carousel__track{display:flex; height:100%; transition:transform .55s ease}
+  .slide{min-width:100%; height:100%; background-size:cover; background-position:center}
+  /* placeholder slides stand in for the carousel images */
+  .s1{background:linear-gradient(135deg,#3a3128,#1c1813)}
+  .s2{background:linear-gradient(135deg,#34302b,#191713)}
+  .s3{background:linear-gradient(135deg,#3d342a,#211b15)}
+  .carousel__btn{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:46px; height:46px; border:1px solid rgba(255,255,255,.6); border-radius:50%;
+    background:rgba(0,0,0,.25); color:#fff; font-size:1.4rem; line-height:1;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .carousel__btn:hover{background:rgba(0,0,0,.45)}
+  .carousel__btn--prev{left:18px}
+  .carousel__btn--next{right:18px}
+  .carousel__dots{position:absolute; bottom:20px; left:0; right:0; display:flex; justify-content:center; gap:10px}
+  .dot{width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,.45); cursor:pointer}
+  .dot.is-active{background:#fff}
+
+  /* RIGHT — sage panel: eyebrow + title + link collection (deferred content type) */
+  .panel{
+    background:var(--sage);
+    display:flex; flex-direction:column; align-items:center;
+    padding:44px 32px 56px; text-align:center; overflow-y:auto;
+  }
+  .panel__eyebrow{font-family:var(--serif); letter-spacing:.18em; font-size:1.35rem; color:var(--ink)}
+  .panel__title{font-family:var(--serif); font-weight:500; font-size:clamp(2.4rem,4.6vw,4rem); line-height:1; margin:.1em 0 1.6rem}
+
+  .links{display:flex; flex-direction:column; gap:1.5rem; width:min(430px,100%)}
+  .link-btn{
+    display:block; border:1px solid var(--line); background:transparent;
+    padding:.95rem 1rem; text-decoration:none; color:var(--ink);
+    font-family:var(--serif); font-size:1.15rem; letter-spacing:.05em; text-transform:uppercase;
+    transition:background .2s;
+  }
+  .link-btn:hover{background:rgba(255,255,255,.28)}
+
+  @media (max-width:860px){
+    .nav{grid-template-columns:1fr; justify-items:center; height:auto; padding:16px; gap:12px}
+    .nav__group{flex-wrap:wrap; justify-content:center; gap:14px}
+    .split{grid-template-columns:1fr}
+    .carousel{min-height:46vh}
+    .panel{padding:36px 22px 48px}
+  }
+</style>
+</head>
+<body>
+  <header class="nav">
+    <nav class="nav__group">
+      <a href="#">Location: Sydney</a>
+      <a href="#">Menu</a>
+      <a href="#">Drinks</a>
+      <a href="#">What's happening</a>
+    </nav>
+    <div class="nav__brand">NOMAD</div>
+    <nav class="nav__group nav__group--right">
+      <a href="#">Vouchers</a>
+      <a href="#">Reservations</a>
+      <a href="#">Events</a>
+      <a href="#">Careers</a>
+      <a href="#">Contact Us</a>
+    </nav>
+  </header>
+
+  <div class="split">
+    <!-- LEFT: carousel == feature_images as an ordered LIST (manual prev/next) -->
+    <div class="carousel">
+      <div class="carousel__track" id="track">
+        <div class="slide s1"></div>
+        <div class="slide s2"></div>
+        <div class="slide s3"></div>
+      </div>
+      <button class="carousel__btn carousel__btn--prev" id="prev" aria-label="Previous">&#8249;</button>
+      <button class="carousel__btn carousel__btn--next" id="next" aria-label="Next">&#8250;</button>
+      <div class="carousel__dots" id="dots"></div>
+    </div>
+
+    <!-- RIGHT: sage panel + link collection (the deferred "labelled links" content type) -->
+    <div class="panel">
+      <div class="panel__eyebrow">Welcome to</div>
+      <h1 class="panel__title">Nomad Sydney</h1>
+      <div class="links">
+        <a class="link-btn" href="#">Make a Reservation</a>
+        <a class="link-btn" href="#">Make a Group Reservation</a>
+        <a class="link-btn" href="#">Truffle Brunch</a>
+        <a class="link-btn" href="#">Chalou Wine Dinner</a>
+        <a class="link-btn" href="#">Mezze Lunch</a>
+        <a class="link-btn" href="#">Pre-Theatre Express Menu</a>
+        <a class="link-btn" href="#">Purchase a Gift Voucher</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Minimal manual carousel — stands in for the feature_images list rendering.
+    const track = document.getElementById('track');
+    const slides = track.children.length;
+    const dotsWrap = document.getElementById('dots');
+    let i = 0;
+    for (let d = 0; d < slides; d++) {
+      const dot = document.createElement('span');
+      dot.className = 'dot' + (d === 0 ? ' is-active' : '');
+      dot.addEventListener('click', () => go(d));
+      dotsWrap.appendChild(dot);
+    }
+    function go(n) {
+      i = (n + slides) % slides;
+      track.style.transform = 'translateX(' + (-i * 100) + '%)';
+      [...dotsWrap.children].forEach((d, k) => d.classList.toggle('is-active', k === i));
+    }
+    document.getElementById('prev').addEventListener('click', () => go(i - 1));
+    document.getElementById('next').addEventListener('click', () => go(i + 1));
+  </script>
+</body>
+</html>

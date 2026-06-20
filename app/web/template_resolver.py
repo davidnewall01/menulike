@@ -9,6 +9,22 @@ from pathlib import Path
 
 DEFAULT_TEMPLATE = "linen"
 
+# Curated allowlist — a template isn't "available" just because its folder exists.
+# Each entry is (value, display_label). set_template validates against this.
+AVAILABLE_TEMPLATES: list[tuple[str, str]] = [
+    ("linen", "Linen"),
+    ("slate", "Slate"),
+    ("olive", "Olive"),
+]
+
+# Per-template feature_images mode. "single" = one hero image (replace on assign).
+# "carousel" = ordered multi-image list (add/remove/reorder).
+FEATURE_IMAGE_MODE: dict[str, str] = {
+    "linen": "single",
+    "slate": "single",
+    "olive": "carousel",
+}
+
 _TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "public"
 
 

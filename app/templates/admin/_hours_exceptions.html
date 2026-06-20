@@ -1,0 +1,39 @@
+{% if exceptions %}
+<div class="space-y-2">
+    {% for exc in exceptions %}
+    <div class="card bg-base-100 shadow-sm p-3">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex-1">
+                <span class="font-semibold text-sm">
+                    {% if exc.start_date == exc.end_date %}
+                    {{ exc.start_date.strftime('%d %b %Y') }}
+                    {% else %}
+                    {{ exc.start_date.strftime('%d %b') }}–{{ exc.end_date.strftime('%d %b %Y') }}
+                    {% endif %}
+                </span>
+                {% if exc.label %}
+                <span class="text-sm text-base-content/60 ml-2">{{ exc.label }}</span>
+                {% endif %}
+                <div class="text-xs text-base-content/50 mt-1">
+                    {% if exc.is_closed %}
+                    Closed
+                    {% elif exc.special_hours %}
+                    {% for sh in exc.special_hours %}
+                    {{ sh.open }}–{{ sh.close }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            <button class="btn btn-outline btn-error btn-xs"
+                    hx-post="/admin/hours/exceptions/{{ exc.hours_exception_id }}/delete"
+                    hx-target="#exceptions-list"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}"}'
+                    hx-confirm="Delete this exception?">Delete</button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-base-content/40 italic">No exceptions set.</p>
+{% endif %}

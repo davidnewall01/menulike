@@ -1,0 +1,95 @@
+{% extends "public/linen/base.html" %}
+
+{% block content %}
+<div class="visit-page wrap">
+  <div class="visit-header">
+    <p class="eyebrow">Find Us</p>
+    <h1 class="visit-title">Visit</h1>
+  </div>
+
+  <div class="visit-cards">
+
+    {# --- Hours card --- #}
+    <div class="visit-card">
+      <h2 class="visit-card__title">Hours</h2>
+      {% set has_hours = hours_by_day | length > 0 %}
+      {% if has_hours %}
+      <dl class="hours-list">
+        {% for day_idx in range(7) %}
+        {% set ranges = hours_by_day.get(day_idx, []) %}
+        <div class="hours-row">
+          <dt>{{ day_names[day_idx] }}</dt>
+          <dd>
+            {% if ranges %}
+              {% for r in ranges %}
+              {{ r.open_time.strftime('%I:%M%p').lower().lstrip('0') }}–{{ r.close_time.strftime('%I:%M%p').lower().lstrip('0') }}{% if not loop.last %}<br>{% endif %}
+              {% endfor %}
+            {% else %}
+            Closed
+            {% endif %}
+          </dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% else %}
+      <p class="visit-card__empty">Hours not set</p>
+      {% endif %}
+
+      {% if hours_exceptions %}
+      <div class="hours-exceptions">
+        {% for exc in hours_exceptions %}
+        <div class="hours-exc">
+          <span class="hours-exc__dates">
+            {% if exc.start_date == exc.end_date %}
+            {{ exc.start_date.strftime('%d %b %Y') }}
+            {% else %}
+            {{ exc.start_date.strftime('%d %b') }}–{{ exc.end_date.strftime('%d %b %Y') }}
+            {% endif %}
+          </span>
+          {% if exc.label %}<span class="hours-exc__label">{{ exc.label }}</span>{% endif %}
+          <span class="hours-exc__status">
+            {% if exc.is_closed %}
+            Closed
+            {% elif exc.special_hours %}
+            {% for sh in exc.special_hours %}{{ sh.open }}–{{ sh.close }}{% if not loop.last %}, {% endif %}{% endfor %}
+            {% endif %}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {# --- Where card --- #}
+    <div class="visit-card">
+      <h2 class="visit-card__title">Where</h2>
+      {% if site.address_street %}
+      <p>{{ site.address_street }}</p>
+      {% if site.address_suburb %}
+      <p>{{ site.address_suburb }}{% if site.address_state %}, {{ site.address_state }}{% endif %}{% if site.address_postcode %} {{ site.address_postcode }}{% endif %}</p>
+      {% endif %}
+      {% else %}
+      <p class="visit-card__empty">Address not set</p>
+      {% endif %}
+    </div>
+
+    {# --- Reserve card --- #}
+    <div class="visit-card">
+      <h2 class="visit-card__title">Reserve</h2>
+      {% if site.phone %}
+      <p><a href="tel:{{ site.phone }}">{{ site.phone }}</a></p>
+      {% endif %}
+      {% if site.email %}
+      <p><a href="mailto:{{ site.email }}">{{ site.email }}</a></p>
+      {% endif %}
+      {% if site.booking_url %}
+      <p><a href="{{ site.booking_url }}" class="btn btn--ghost" style="margin-top:12px">Book a Table</a></p>
+      {% endif %}
+      {% if not site.phone and not site.email and not site.booking_url %}
+      <p class="visit-card__empty">Contact details not set</p>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

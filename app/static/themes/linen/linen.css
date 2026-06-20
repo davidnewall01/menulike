@@ -187,6 +187,149 @@ body.home .burger span { background: var(--cream); }
   letter-spacing: .14em; text-transform: uppercase;
 }
 
+/* === Menu page === */
+.menu-page { padding-top: calc(var(--navh) + 32px); padding-bottom: 48px; }
+.menu-title {
+  font-family: var(--serif); font-weight: 500;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  letter-spacing: .08em; text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.menu-avail {
+  font-family: var(--serif); font-style: italic;
+  color: var(--ink-3); font-size: .95rem; margin-bottom: 24px;
+}
+.menu-empty {
+  text-align: center; color: var(--ink-3);
+  font-family: var(--serif); font-size: 1.1rem;
+  padding: 80px 0;
+}
+.menu-head { margin-bottom: 24px; }
+
+/* Tabs */
+.menu-tabs {
+  display: flex; gap: 4px; border-bottom: 1px solid var(--line);
+  margin-bottom: 28px; padding-top: 8px;
+}
+.menu-tab {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: .78rem; font-weight: 600;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-3); padding: 10px 18px;
+  border-bottom: 2px solid transparent;
+  transition: color .2s, border-color .2s;
+}
+.menu-tab:hover { color: var(--ink); }
+.menu-tab--on { color: var(--ink); border-bottom-color: var(--azure); }
+
+/* Section */
+.m-section { margin-bottom: 36px; }
+.m-section__name {
+  font-family: var(--serif); font-weight: 500;
+  font-size: 1.4rem; letter-spacing: .06em;
+  text-transform: uppercase; margin-bottom: 4px;
+  border-bottom: 1px solid var(--line-2); padding-bottom: 6px;
+}
+.m-section__desc {
+  color: var(--ink-3); font-size: .88rem;
+  font-style: italic; margin-bottom: 16px;
+}
+
+/* Subsection */
+.m-sub { margin-bottom: 22px; }
+.m-sub__name {
+  font-family: var(--serif); font-weight: 500;
+  font-size: 1.1rem; letter-spacing: .04em;
+  color: var(--azure); margin-bottom: 8px;
+}
+.m-sub__desc {
+  color: var(--ink-3); font-size: .85rem;
+  font-style: italic; margin-bottom: 10px;
+}
+
+/* Item */
+.m-item { margin-bottom: 14px; }
+.m-item__head {
+  display: flex; justify-content: space-between;
+  align-items: baseline; gap: 12px;
+}
+.m-item__name {
+  font-family: var(--serif); font-weight: 500;
+  font-size: 1.05rem;
+}
+.m-item__price {
+  font-family: var(--sans); font-size: .88rem;
+  color: var(--ink-2); white-space: nowrap;
+}
+.m-item__desc {
+  color: var(--ink-3); font-size: .85rem;
+  margin-top: 2px;
+}
+.m-item__tags {
+  display: inline-block; font-size: .72rem;
+  color: var(--ink-3); letter-spacing: .06em;
+  text-transform: uppercase; margin-top: 2px;
+}
+.m-item__vars {
+  font-size: .88rem; color: var(--ink-2); margin-top: 3px;
+}
+.m-item--feat .m-item__name { color: var(--azure); }
+
+/* Alpine x-cloak */
+[x-cloak] { display: none !important; }
+
+/* === Visit page === */
+.visit-page { padding-top: calc(var(--navh) + 32px); padding-bottom: 48px; }
+.visit-header { text-align: center; margin-bottom: 40px; }
+.visit-title {
+  font-family: var(--serif); font-weight: 500;
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: .08em; text-transform: uppercase;
+  margin-top: 4px;
+}
+.visit-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 32px;
+}
+.visit-card {
+  border: 1px solid var(--line-2); border-radius: 2px;
+  padding: 28px 24px;
+}
+.visit-card__title {
+  font-family: var(--serif); font-weight: 500;
+  font-size: 1.3rem; letter-spacing: .06em;
+  text-transform: uppercase; margin-bottom: 16px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--line-2);
+}
+.visit-card p { font-size: .95rem; line-height: 1.6; margin-bottom: 4px; }
+.visit-card a { color: var(--azure); }
+.visit-card a:hover { text-decoration: underline; }
+.visit-card__empty { color: var(--ink-3); font-style: italic; font-size: .9rem; }
+
+/* Hours list */
+.hours-list { margin: 0; }
+.hours-row {
+  display: flex; justify-content: space-between;
+  padding: 6px 0; border-bottom: 1px solid var(--line-2);
+  font-size: .9rem;
+}
+.hours-row:last-child { border-bottom: none; }
+.hours-row dt { font-weight: 500; min-width: 100px; }
+.hours-row dd { text-align: right; color: var(--ink-2); }
+
+/* Hours exceptions */
+.hours-exceptions {
+  margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid var(--line-2);
+}
+.hours-exc {
+  display: flex; flex-wrap: wrap; gap: 4px 10px;
+  font-size: .85rem; padding: 4px 0;
+}
+.hours-exc__dates { font-weight: 500; }
+.hours-exc__label { color: var(--ink-3); }
+.hours-exc__status { color: var(--ink-2); }
+
 /* === Animations === */
 @keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {

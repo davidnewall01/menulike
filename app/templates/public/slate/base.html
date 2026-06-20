@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{{ site.meta_title or site.restaurant_name }}</title>
+  {% if site.meta_description %}
+  <meta name="description" content="{{ site.meta_description }}">
+  {% endif %}
+  {% include "public/slate/tokens.html" %}
+  <link rel="stylesheet" href="/static/themes/slate/slate.css">
+  {% block head %}{% endblock %}
+</head>
+<body{% block body_attrs %}{% endblock %}>
+  {% block content %}{% endblock %}
+  {% block footer %}{% endblock %}
+</body>
+</html>

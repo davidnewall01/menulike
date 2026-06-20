@@ -21,3 +21,11 @@ async def update_site_details(
     site = await site_service.update_site_details(db, auth_ctx, form)
     await db.commit()
     return site
+
+
+async def set_template(
+    db: AsyncSession, auth_ctx: AuthContext, template: str
+) -> Site:
+    site = await site_service.set_template(db, auth_ctx, template)
+    await db.commit()
+    return site

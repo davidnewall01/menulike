@@ -23,3 +23,28 @@ async def clear(
 ) -> None:
     await image_role_service.clear(db, auth_ctx, role)
     await db.commit()
+
+
+async def add_to_role(
+    db: AsyncSession, auth_ctx: AuthContext,
+    role: str, photo_id: uuid.UUID,
+) -> SiteImageRole:
+    assignment = await image_role_service.add_to_role(db, auth_ctx, role, photo_id)
+    await db.commit()
+    return assignment
+
+
+async def remove_from_role(
+    db: AsyncSession, auth_ctx: AuthContext,
+    role: str, photo_id: uuid.UUID,
+) -> None:
+    await image_role_service.remove_from_role(db, auth_ctx, role, photo_id)
+    await db.commit()
+
+
+async def reorder_role(
+    db: AsyncSession, auth_ctx: AuthContext,
+    role: str, ordered_photo_ids: list[uuid.UUID],
+) -> None:
+    await image_role_service.reorder_role(db, auth_ctx, role, ordered_photo_ids)
+    await db.commit()

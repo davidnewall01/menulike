@@ -315,3 +315,180 @@ class TestNoScope:
 
         with pytest.raises(NoSiteInScope):
             await image_role_service.clear(db_session, auth, "logo")
+
+
+# ---------------------------------------------------------------------------
+# Multi-image: add_to_role
+# ---------------------------------------------------------------------------
+
+class TestAddToRole:
+
+    async def test_add_appends_at_next_position(self, db_session):
+        site = await make_site(db_session, slug="multi-add")
+        owner = await make_owner(db_session, site)
+        photos = [await _make_photo(db_session, site, f"{i}.jpg") for i in range(3)]
+        auth = _auth(owner)
+
+        for p in photos:
+            await image_role_service.add_to_role(db_session, auth, "feature_images", p.photo_id)
+
+        result = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site.site_id, SiteImageRole.role == "feature_images")
+            .order_by(SiteImageRole.position)
+        )
+        rows = list(result.scalars().all())
+        assert len(rows) == 3
+        assert [r.photo_id for r in rows] == [p.photo_id for p in photos]
+        assert [r.position for r in rows] == [0, 1, 2]
+
+    async def test_add_foreign_photo_rejected(self, db_session):
+        """Adding a photo from another site raises PhotoNotFound."""
+        site_a = await make_site(db_session, slug="multi-add-idor-a")
+        site_b = await make_site(db_session, slug="multi-add-idor-b")
+        owner_a = await make_owner(db_session, site_a)
+        photo_b = await _make_photo(db_session, site_b)
+        auth_a = _auth(owner_a)
+
+        with pytest.raises(PhotoNotFound):
+            await image_role_service.add_to_role(db_session, auth_a, "feature_images", photo_b.photo_id)
+
+        # No row should exist
+        result = await db_session.execute(
+            select(SiteImageRole).where(SiteImageRole.site_id == site_a.site_id)
+        )
+        assert result.scalar_one_or_none() is None
+
+
+# ---------------------------------------------------------------------------
+# Multi-image: remove_from_role
+# ---------------------------------------------------------------------------
+
+class TestRemoveFromRole:
+
+    async def test_remove_specific_photo(self, db_session):
+        site = await make_site(db_session, slug="multi-rm")
+        owner = await make_owner(db_session, site)
+        photos = [await _make_photo(db_session, site, f"{i}.jpg") for i in range(3)]
+        auth = _auth(owner)
+
+        for p in photos:
+            await image_role_service.add_to_role(db_session, auth, "feature_images", p.photo_id)
+
+        # Remove the middle one
+        await image_role_service.remove_from_role(db_session, auth, "feature_images", photos[1].photo_id)
+
+        result = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site.site_id, SiteImageRole.role == "feature_images")
+            .order_by(SiteImageRole.position)
+        )
+        rows = list(result.scalars().all())
+        assert len(rows) == 2
+        assert [r.photo_id for r in rows] == [photos[0].photo_id, photos[2].photo_id]
+
+    async def test_remove_nonexistent_is_noop(self, db_session):
+        """Removing a photo_id not in the role doesn't error."""
+        site = await make_site(db_session, slug="multi-rm-noop")
+        owner = await make_owner(db_session, site)
+        photo = await _make_photo(db_session, site)
+        auth = _auth(owner)
+
+        await image_role_service.add_to_role(db_session, auth, "feature_images", photo.photo_id)
+
+        # Remove a random UUID that's not assigned
+        await image_role_service.remove_from_role(db_session, auth, "feature_images", uuid.uuid4())
+
+        result = await db_session.execute(
+            select(SiteImageRole).where(SiteImageRole.site_id == site.site_id)
+        )
+        assert result.scalar_one_or_none() is not None
+
+
+# ---------------------------------------------------------------------------
+# Multi-image: reorder_role
+# ---------------------------------------------------------------------------
+
+class TestReorderRole:
+
+    async def test_reorder_reverses(self, db_session):
+        site = await make_site(db_session, slug="multi-reorder")
+        owner = await make_owner(db_session, site)
+        photos = [await _make_photo(db_session, site, f"{i}.jpg") for i in range(3)]
+        auth = _auth(owner)
+
+        for p in photos:
+            await image_role_service.add_to_role(db_session, auth, "feature_images", p.photo_id)
+
+        # Reverse order
+        reversed_ids = [p.photo_id for p in reversed(photos)]
+        await image_role_service.reorder_role(db_session, auth, "feature_images", reversed_ids)
+
+        result = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site.site_id, SiteImageRole.role == "feature_images")
+            .order_by(SiteImageRole.position)
+        )
+        rows = list(result.scalars().all())
+        assert [r.photo_id for r in rows] == reversed_ids
+
+    async def test_reorder_preserves_set(self, db_session):
+        """Reorder with a subset keeps unmentioned members at the end."""
+        site = await make_site(db_session, slug="multi-reorder-subset")
+        owner = await make_owner(db_session, site)
+        photos = [await _make_photo(db_session, site, f"{i}.jpg") for i in range(3)]
+        auth = _auth(owner)
+
+        for p in photos:
+            await image_role_service.add_to_role(db_session, auth, "feature_images", p.photo_id)
+
+        # Submit only photos[2] — photos[0] and [1] should trail
+        await image_role_service.reorder_role(
+            db_session, auth, "feature_images", [photos[2].photo_id]
+        )
+
+        result = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site.site_id, SiteImageRole.role == "feature_images")
+            .order_by(SiteImageRole.position)
+        )
+        rows = list(result.scalars().all())
+        assert len(rows) == 3
+        assert rows[0].photo_id == photos[2].photo_id
+
+    async def test_reorder_foreign_id_ignored(self, db_session):
+        """A non-member photo_id in the reorder list is silently ignored."""
+        site_a = await make_site(db_session, slug="multi-reorder-foreign-a")
+        site_b = await make_site(db_session, slug="multi-reorder-foreign-b")
+        owner_a = await make_owner(db_session, site_a)
+        owner_b = await make_owner(db_session, site_b)
+        photo_a = await _make_photo(db_session, site_a, "a.jpg")
+        photo_b = await _make_photo(db_session, site_b, "b.jpg")
+        auth_a = _auth(owner_a)
+        auth_b = _auth(owner_b)
+
+        await image_role_service.add_to_role(db_session, auth_a, "feature_images", photo_a.photo_id)
+        await image_role_service.add_to_role(db_session, auth_b, "feature_images", photo_b.photo_id)
+
+        # Try to sneak B's photo into A's reorder — should be ignored
+        await image_role_service.reorder_role(
+            db_session, auth_a, "feature_images",
+            [photo_b.photo_id, photo_a.photo_id],
+        )
+
+        result = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site_a.site_id, SiteImageRole.role == "feature_images")
+            .order_by(SiteImageRole.position)
+        )
+        rows = list(result.scalars().all())
+        # Only photo_a should remain — photo_b was silently filtered out
+        assert len(rows) == 1
+        assert rows[0].photo_id == photo_a.photo_id
+
+        # B's assignment untouched
+        result_b = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site_b.site_id, SiteImageRole.role == "feature_images")
+        )
+        assert result_b.scalar_one_or_none() is not None

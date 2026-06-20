@@ -9,6 +9,31 @@
 
 <div class="space-y-6">
     <div>
+        <h2 class="text-lg font-semibold mb-2">Template</h2>
+        <p class="text-sm text-base-content/60 mb-3">Choose the layout and style for your public site.</p>
+        <form method="post" action="/admin/appearance/template" class="flex items-center gap-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <select name="template" class="select select-bordered select-sm">
+                {% for value, label in available_templates %}
+                <option value="{{ value }}" {% if value == current_template %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        </form>
+    </div>
+
+    <div class="divider"></div>
+
+    {% if feature_image_mode == "carousel" %}
+    <div>
+        <h2 class="text-lg font-semibold mb-2">Carousel Images</h2>
+        <p class="text-sm text-base-content/60 mb-3">Images cycle through in the carousel on your home page.</p>
+        <div id="slot-feature_images">
+            {% include "admin/_appearance_carousel.html" %}
+        </div>
+    </div>
+    {% else %}
+    <div>
         <h2 class="text-lg font-semibold mb-2">Hero Image</h2>
         <p class="text-sm text-base-content/60 mb-3">The full-bleed background photo on your home page.</p>
         {% set role_key = "feature_images" %}
@@ -17,6 +42,7 @@
             {% include "admin/_appearance_slot.html" %}
         </div>
     </div>
+    {% endif %}
 
     <div class="divider"></div>
 

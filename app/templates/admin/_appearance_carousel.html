@@ -1,0 +1,48 @@
+{% if feature_images_list %}
+<div class="space-y-2">
+    {% for item in feature_images_list %}
+    <div class="flex items-center gap-3 p-2 bg-base-100 rounded-lg border">
+        <img src="{{ storage_url(item.photo.s3_key) }}"
+             alt="{{ item.photo.alt_text or '' }}"
+             class="rounded w-20 h-14 object-cover">
+        <span class="text-sm text-base-content/60 flex-1">{{ item.photo.original_filename or "image" }}</span>
+        <div class="flex gap-1">
+            <button class="btn btn-ghost btn-xs"
+                    hx-post="/admin/appearance/feature-images/move"
+                    hx-target="#slot-feature_images"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}", "photo_id": "{{ item.photo_id }}", "direction": "up"}'
+                    title="Move up">&uarr;</button>
+            <button class="btn btn-ghost btn-xs"
+                    hx-post="/admin/appearance/feature-images/move"
+                    hx-target="#slot-feature_images"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}", "photo_id": "{{ item.photo_id }}", "direction": "down"}'
+                    title="Move down">&darr;</button>
+            <button class="btn btn-outline btn-error btn-xs"
+                    hx-post="/admin/appearance/feature-images/remove"
+                    hx-target="#slot-feature_images"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}", "photo_id": "{{ item.photo_id }}"}'
+                    hx-confirm="Remove this image from the carousel?">Remove</button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="mt-3">
+    <button class="btn btn-outline btn-sm"
+            hx-get="/admin/appearance/picker?role=feature_images&mode=carousel"
+            hx-target="#slot-feature_images"
+            hx-swap="innerHTML">Add image</button>
+</div>
+{% else %}
+<div class="flex items-center gap-4">
+    <div class="rounded-lg w-32 h-24 bg-base-300 flex items-center justify-center text-base-content/30 text-sm border border-dashed">
+        None
+    </div>
+    <button class="btn btn-outline btn-sm"
+            hx-get="/admin/appearance/picker?role=feature_images&mode=carousel"
+            hx-target="#slot-feature_images"
+            hx-swap="innerHTML">Add image</button>
+</div>
+{% endif %}

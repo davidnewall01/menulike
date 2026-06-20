@@ -1,5 +1,6 @@
 """Public site routes — rendered via Host-header tenant resolution."""
 
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
@@ -41,7 +42,36 @@ async def home(
 
 @router.get("/menu", response_class=HTMLResponse)
 async def menu(request: Request, site: Site = Depends(resolve_tenant)):
+    template = resolve_template(site.template)
     return templates.TemplateResponse(
-        "public/site.html",
+        page_path(template, "menu"),
         {"request": request, "site": site},
+    )
+
+
+_DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+@router.get("/visit", response_class=HTMLResponse)
+async def visit(request: Request, site: Site = Depends(resolve_tenant)):
+    template = resolve_template(site.template)
+    # Group eager-loaded regular_hours by day
+    hours_by_day: dict[int, list] = {}
+    for h in site.regular_hours:
+        hours_by_day.setdefault(h.day_of_week, []).append(h)
+    # Filter exceptions: active + upcoming only (end_date >= today)
+    today = date.today()
+    active_exceptions = [
+        exc for exc in site.hours_exceptions
+        if exc.end_date >= today
+    ]
+    return templates.TemplateResponse(
+        page_path(template, "visit"),
+        {
+            "request": request,
+            "site": site,
+            "hours_by_day": hours_by_day,
+            "day_names": _DAY_NAMES,
+            "hours_exceptions": active_exceptions,
+        },
     )

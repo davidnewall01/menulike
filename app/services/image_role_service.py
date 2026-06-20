@@ -93,6 +93,123 @@ async def clear(
 
 
 # ---------------------------------------------------------------------------
+# Multi-image writes (for carousel roles like feature_images)
+# ---------------------------------------------------------------------------
+
+async def add_to_role(
+    db: AsyncSession, auth_ctx: AuthContext,
+    role: str, photo_id: uuid.UUID,
+) -> SiteImageRole:
+    """Append a photo to a multi-image role at the next position.
+
+    IDOR gate via get_owner_photo. Does NOT replace existing — appends.
+    """
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+    if role not in ALLOWED_ROLES:
+        raise InvalidRole(f"Unknown role '{role}'. Allowed: {sorted(ALLOWED_ROLES)}")
+
+    await photo_service.get_owner_photo(db, auth_ctx, photo_id)
+
+    # Find max position for this role
+    result = await db.execute(
+        select(SiteImageRole.position)
+        .where(
+            SiteImageRole.site_id == auth_ctx.scoped_site_id,
+            SiteImageRole.role == role,
+        )
+        .order_by(SiteImageRole.position.desc())
+        .limit(1)
+    )
+    max_pos = result.scalar_one_or_none()
+    next_pos = (max_pos + 1) if max_pos is not None else 0
+
+    assignment = SiteImageRole(
+        site_id=auth_ctx.scoped_site_id,
+        role=role,
+        photo_id=photo_id,
+        position=next_pos,
+    )
+    db.add(assignment)
+    await db.flush()
+    return assignment
+
+
+async def remove_from_role(
+    db: AsyncSession, auth_ctx: AuthContext,
+    role: str, photo_id: uuid.UUID,
+) -> None:
+    """Remove a specific photo from a multi-image role. Position gaps are fine."""
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+    if role not in ALLOWED_ROLES:
+        raise InvalidRole(f"Unknown role '{role}'. Allowed: {sorted(ALLOWED_ROLES)}")
+
+    await db.execute(
+        delete(SiteImageRole).where(
+            SiteImageRole.site_id == auth_ctx.scoped_site_id,
+            SiteImageRole.role == role,
+            SiteImageRole.photo_id == photo_id,
+        )
+    )
+    await db.flush()
+
+
+async def reorder_role(
+    db: AsyncSession, auth_ctx: AuthContext,
+    role: str, ordered_photo_ids: list[uuid.UUID],
+) -> None:
+    """Reorder a multi-image role. Only existing members are accepted.
+
+    Any photo_id not currently in the role for this site is silently ignored —
+    reorder must never become a backdoor to attach a foreign/non-member photo.
+    """
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+    if role not in ALLOWED_ROLES:
+        raise InvalidRole(f"Unknown role '{role}'. Allowed: {sorted(ALLOWED_ROLES)}")
+
+    # Load current assignments
+    result = await db.execute(
+        select(SiteImageRole)
+        .where(
+            SiteImageRole.site_id == auth_ctx.scoped_site_id,
+            SiteImageRole.role == role,
+        )
+        .order_by(SiteImageRole.position)
+    )
+    current = list(result.scalars().all())
+    by_photo = {r.photo_id: r for r in current}
+
+    # Filter to only members — non-members silently ignored
+    valid_ids = [pid for pid in ordered_photo_ids if pid in by_photo]
+
+    # Any current members not in the submitted list keep their relative order at the end
+    submitted_set = set(valid_ids)
+    remaining = [r.photo_id for r in current if r.photo_id not in submitted_set]
+    final_order = valid_ids + remaining
+
+    # Delete all current rows, reinsert in order (avoids unique constraint conflicts)
+    await db.execute(
+        delete(SiteImageRole).where(
+            SiteImageRole.site_id == auth_ctx.scoped_site_id,
+            SiteImageRole.role == role,
+        )
+    )
+    await db.flush()
+
+    for pos, pid in enumerate(final_order):
+        old = by_photo[pid]
+        db.add(SiteImageRole(
+            site_id=auth_ctx.scoped_site_id,
+            role=role,
+            photo_id=pid,
+            position=pos,
+        ))
+    await db.flush()
+
+
+# ---------------------------------------------------------------------------
 # Public loader (by site_id — tenant already trusted via Host)
 # ---------------------------------------------------------------------------
 

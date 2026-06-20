@@ -1,0 +1,72 @@
+{% extends "admin/base.html" %}
+{% block title %}Hours{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Opening Hours</h1>
+
+{% if is_internal_admin %}
+<div class="alert alert-info">Internal admin — select a site to manage hours.</div>
+{% else %}
+
+<h2 class="text-lg font-semibold mb-3">Weekly Schedule</h2>
+<div class="space-y-1 mb-8">
+    {% for day_idx in range(7) %}
+    <div id="day-{{ day_idx }}">
+        {% set day = day_idx %}
+        {% set day_name = day_names[day_idx] %}
+        {% set ranges = hours_by_day.get(day_idx, []) %}
+        {% include "admin/_hours_day.html" %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="divider"></div>
+
+<h2 class="text-lg font-semibold mb-3">Exceptions</h2>
+<p class="text-sm text-base-content/60 mb-4">Closures or special hours for specific dates (holidays, events, etc.).</p>
+
+<div id="exceptions-list">
+    {% include "admin/_hours_exceptions.html" %}
+</div>
+
+<div class="mt-4 card bg-base-100 shadow-sm p-4">
+    <h3 class="font-semibold text-sm mb-3">Add exception</h3>
+    <form hx-post="/admin/hours/exceptions/add"
+          hx-target="#exceptions-list"
+          hx-swap="innerHTML"
+          class="space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="label label-text text-xs">Start date</label>
+                <input type="date" name="start_date" required class="input input-bordered input-sm">
+            </div>
+            <div>
+                <label class="label label-text text-xs">End date</label>
+                <input type="date" name="end_date" required class="input input-bordered input-sm">
+            </div>
+            <div>
+                <label class="label label-text text-xs">Label</label>
+                <input type="text" name="label" placeholder="e.g. Christmas Day" class="input input-bordered input-sm">
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <label class="label cursor-pointer gap-2">
+                <input type="checkbox" name="is_closed" checked class="checkbox checkbox-sm"
+                       onchange="this.closest('form').querySelector('.special-hours-fields').classList.toggle('hidden', this.checked)">
+                <span class="label-text text-sm">Closed all day</span>
+            </label>
+        </div>
+        <div class="special-hours-fields hidden">
+            <label class="label label-text text-xs">Special hours (if not closed)</label>
+            <div class="flex gap-2 items-center">
+                <input type="time" name="sh_open" value="09:00" class="input input-bordered input-xs w-28">
+                <span class="text-xs">to</span>
+                <input type="time" name="sh_close" value="17:00" class="input input-bordered input-xs w-28">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Add exception</button>
+    </form>
+</div>
+
+{% endif %}
+{% endblock %}

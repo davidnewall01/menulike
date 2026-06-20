@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dumpling Mama's — Bar &amp; Dining</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ---- Slate token starting point (dark theme) ---- */
+  :root{
+    --ink:#141110;
+    --ink-2:#221c17;
+    --white:#ffffff;
+    --muted:rgba(255,255,255,.74);
+    --line:rgba(255,255,255,.55);
+    --accent:#2f7d7d;                 /* their brand teal — used on menu, not the hero */
+    --script:'Kaushan Script', cursive;
+    --sans:'Archivo', system-ui, sans-serif;
+    --maxw:1280px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans); color:var(--white); background:var(--ink)}
+
+  .hero{position:relative; height:100vh; min-height:660px; overflow:hidden}
+
+  /* Dark interior placeholder — the real site uses the bar/dining-room photo.
+     Swap this layer for the hero image role; the scrim below keeps text legible. */
+  .hero__bg{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(120% 80% at 50% 32%, rgba(196,154,98,.20), rgba(20,17,16,0) 58%),
+      linear-gradient(180deg,#262019 0%,#16120f 58%,#0d0a08 100%);
+  }
+  .hero__scrim{
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(8,6,5,.42) 0%, rgba(8,6,5,.22) 34%, rgba(8,6,5,.66) 100%);
+  }
+
+  .hero__main{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 clamp(28px,6vw,92px);
+    gap:40px;
+  }
+
+  /* ---- Logo (centre-left): script wordmark + sub ---- */
+  .logo{flex:1 1 auto; text-align:center; padding-left:clamp(0px,6vw,92px)}
+  .logo__script{
+    font-family:var(--script); font-weight:400;
+    font-size:clamp(3rem,8.6vw,6.6rem); line-height:.95;
+    text-shadow:0 6px 32px rgba(0,0,0,.55);
+  }
+  .logo__sub{
+    margin-top:.65rem; padding-left:.42em;
+    font-size:clamp(.85rem,1.6vw,1.35rem); font-weight:600;
+    letter-spacing:.42em; text-transform:uppercase;
+  }
+
+  /* ---- Nav (right, vertical stack) ---- */
+  .nav{flex:0 0 auto; display:flex; flex-direction:column; gap:clamp(.5rem,1.4vw,1rem); text-align:right}
+  .nav a{
+    color:var(--white); text-decoration:none;
+    font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+    font-size:clamp(1.3rem,2.4vw,2.1rem); line-height:1.05;
+    transition:opacity .2s;
+  }
+  .nav a:hover{opacity:.58}
+
+  /* ---- Info block (bottom-left) ---- */
+  .info{
+    position:absolute; left:clamp(28px,6vw,92px); bottom:clamp(28px,5vw,64px);
+    font-size:.95rem; line-height:1.5;
+  }
+  .info b{font-weight:700}
+  .info .gap{display:block; height:1rem}
+
+  /* ---- Rotating badge + scroll cue (bottom-right) ---- */
+  .badge{
+    position:absolute; right:clamp(24px,5vw,72px); bottom:clamp(24px,5vw,64px);
+    width:clamp(118px,12vw,168px); height:clamp(118px,12vw,168px);
+  }
+  .badge svg{width:100%; height:100%; display:block}
+  .badge__ring{transform-origin:100px 100px; animation:spin 22s linear infinite}
+  .badge__ring text{
+    fill:var(--white); font-family:var(--sans); font-weight:600;
+    font-size:11px; letter-spacing:1.6px; text-transform:uppercase;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media (max-width:760px){
+    .hero__main{flex-direction:column; justify-content:center; gap:2.2rem; text-align:center}
+    .logo{padding-left:0}
+    .nav{text-align:center}
+    .info{font-size:.8rem}
+    .badge{display:none}
+  }
+</style>
+</head>
+<body>
+  <section class="hero">
+    <div class="hero__bg"></div>
+    <div class="hero__scrim"></div>
+
+    <div class="hero__main">
+      <div class="logo">
+        <div class="logo__script">Dumpling Mama's</div>
+        <div class="logo__sub">Bar &amp; Dining</div>
+      </div>
+
+      <nav class="nav">
+        <a href="#">About</a>
+        <a href="#">Menu</a>
+        <a href="#">Reviews</a>
+        <a href="#">FAQ's</a>
+        <a href="#">Events</a>
+      </nav>
+    </div>
+
+    <div class="info">
+      <b>Wed–Sun</b><br>
+      12:00 pm – 9:00 pm<br>
+      Closed Jul 22 – Aug 30 2026
+      <span class="gap"></span>
+      <b>Access Via Donald Street Nelson Bay</b>
+    </div>
+
+    <div class="badge" aria-hidden="true">
+      <svg viewBox="0 0 200 200">
+        <defs>
+          <path id="ring" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0"/>
+        </defs>
+        <g class="badge__ring">
+          <text><textPath href="#ring" startOffset="0">WINE &amp; DINE · COLD DRINKS · BEERS · COCKTAILS · </textPath></text>
+        </g>
+        <circle cx="100" cy="100" r="46" fill="none" stroke="var(--line)" stroke-width="1.4"/>
+        <path d="M100,84 L100,116 M86,103 L100,117 L114,103"
+              fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </section>
+</body>
+</html>

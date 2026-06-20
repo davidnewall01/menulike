@@ -8,7 +8,8 @@ from app.auth.context import AuthContext
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
 from app.models.site import Site
 from app.schemas.site import SiteDetailsForm
-from app.services.exceptions import NoSiteInScope, SiteNotFound
+from app.services.exceptions import InvalidTemplate, NoSiteInScope, SiteNotFound
+from app.web.template_resolver import AVAILABLE_TEMPLATES
 
 
 # ---------------------------------------------------------------------------
@@ -16,9 +17,9 @@ from app.services.exceptions import NoSiteInScope, SiteNotFound
 # ---------------------------------------------------------------------------
 
 async def get_site_by_slug(db: AsyncSession, slug: str) -> Site | None:
-    """Load a site and its full menu tree by slug.
+    """Load a site with all public-render data eager-loaded.
 
-    Eager-loads the entire chain: menus -> sections -> subsections -> items -> variants.
+    Eager-loads: menus tree, regular_hours, hours_exceptions.
     Read-only — no flush, no commit.
     """
     stmt = (
@@ -29,7 +30,9 @@ async def get_site_by_slug(db: AsyncSession, slug: str) -> Site | None:
             .selectinload(Menu.sections)
             .selectinload(Section.subsections)
             .selectinload(Subsection.items)
-            .selectinload(MenuItem.variants)
+            .selectinload(MenuItem.variants),
+            selectinload(Site.regular_hours),
+            selectinload(Site.hours_exceptions),
         )
     )
     result = await db.execute(stmt)
@@ -89,5 +92,32 @@ async def update_site_details(
     for field in _DETAIL_FIELDS:
         setattr(site, field, getattr(form, field))
 
+    await db.flush()
+    return site
+
+
+_AVAILABLE_KEYS = {k for k, _ in AVAILABLE_TEMPLATES}
+
+
+async def set_template(
+    db: AsyncSession, auth_ctx: AuthContext, template: str
+) -> Site:
+    """Set the template for the owner's scoped site. Flush only.
+
+    Validates the template value against AVAILABLE_TEMPLATES.
+    """
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+    if template not in _AVAILABLE_KEYS:
+        raise InvalidTemplate(f"Unknown template '{template}'")
+
+    result = await db.execute(
+        select(Site).where(Site.site_id == auth_ctx.scoped_site_id)
+    )
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
+
+    site.template = template
     await db.flush()
     return site

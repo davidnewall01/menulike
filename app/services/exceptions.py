@@ -47,3 +47,7 @@ class InvalidImage(Exception):
 
 class InvalidRole(Exception):
     """The role key is not in the allowed set."""
+
+
+class InvalidTemplate(Exception):
+    """The template value is not in AVAILABLE_TEMPLATES."""

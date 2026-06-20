@@ -1,0 +1,51 @@
+{% extends "public/linen/base.html" %}
+
+{% block head %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="menu-page wrap">
+
+  {% if site.menus | length == 0 %}
+  <p class="menu-empty">No menus available.</p>
+
+  {% elif site.menus | length == 1 %}
+  {# Single menu — no tabs needed #}
+  {% set m = site.menus[0] %}
+  <div class="menu-head">
+    <h1 class="menu-title">{{ m.name }}</h1>
+    {% if m.availability_note %}
+    <p class="menu-avail">{{ m.availability_note }}</p>
+    {% endif %}
+  </div>
+  {% for section in m.sections %}
+    {% include "public/linen/_menu_section.html" %}
+  {% endfor %}
+
+  {% else %}
+  {# Multiple menus — Alpine tabs #}
+  <div x-data="{ tab: 0 }">
+    <div class="menu-tabs">
+      {% for m in site.menus %}
+      <button class="menu-tab"
+              :class="tab === {{ loop.index0 }} && 'menu-tab--on'"
+              @click="tab = {{ loop.index0 }}">{{ m.name }}</button>
+      {% endfor %}
+    </div>
+
+    {% for m in site.menus %}
+    <div x-show="tab === {{ loop.index0 }}" x-cloak>
+      {% if m.availability_note %}
+      <p class="menu-avail">{{ m.availability_note }}</p>
+      {% endif %}
+      {% for section in m.sections %}
+        {% include "public/linen/_menu_section.html" %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

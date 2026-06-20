@@ -9,8 +9,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.hours_exception import HoursException
     from app.models.menu import Menu
     from app.models.photo import Photo
+    from app.models.regular_hours import RegularHours
     from app.models.site_image_role import SiteImageRole
 
 
@@ -76,4 +78,16 @@ class Site(TimestampMixin, Base):
         back_populates="site",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+    regular_hours: Mapped[list["RegularHours"]] = relationship(
+        back_populates="site",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="RegularHours.day_of_week, RegularHours.open_time",
+    )
+    hours_exceptions: Mapped[list["HoursException"]] = relationship(
+        back_populates="site",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="HoursException.start_date",
     )

@@ -1,0 +1,60 @@
+{% extends "public/olive/base.html" %}
+
+{% block head %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block content %}
+{% set photos = role_images.get("feature_images", []) %}
+
+<div class="split">
+  {# LEFT — carousel looping feature_images #}
+  <div class="carousel"
+       x-data="{ idx: 0, total: {{ photos|length or 1 }} }"
+       x-init="setInterval(() => { idx = (idx + 1) % total }, 5000)">
+    <div class="carousel__track" :style="'transform:translateX(-' + (idx * 100) + '%)'">
+      {% if photos %}
+        {% for photo in photos %}
+        <div class="slide" style="background-image:url('{{ storage_url(photo.s3_key) }}')"></div>
+        {% endfor %}
+      {% else %}
+        <div class="slide slide--placeholder"></div>
+      {% endif %}
+    </div>
+
+    {% if photos|length > 1 %}
+    <button class="carousel__btn carousel__btn--prev"
+            @click="idx = (idx - 1 + total) % total"
+            aria-label="Previous">&#8249;</button>
+    <button class="carousel__btn carousel__btn--next"
+            @click="idx = (idx + 1) % total"
+            aria-label="Next">&#8250;</button>
+    <div class="carousel__dots">
+      {% for photo in photos %}
+      <span class="dot" :class="idx === {{ loop.index0 }} && 'is-active'"
+            @click="idx = {{ loop.index0 }}"></span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {# RIGHT — sage panel #}
+  <div class="panel">
+    <div class="panel__eyebrow">Welcome to</div>
+    <h1 class="panel__title">{{ site.restaurant_name }}</h1>
+    {% if site.tagline %}
+    <p class="panel__tagline">{{ site.tagline }}</p>
+    {% endif %}
+
+    {# Link buttons — static placeholder. First wired to booking_url if present.
+       The links-collection content type is deferred. #}
+    <div class="links">
+      {% if site.booking_url %}
+      <a class="link-btn" href="{{ site.booking_url }}">Make a Reservation</a>
+      {% endif %}
+      <a class="link-btn" href="/menu">View Our Menu</a>
+      <a class="link-btn" href="#visit">Visit Us</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

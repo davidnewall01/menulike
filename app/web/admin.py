@@ -12,18 +12,21 @@ from starlette.responses import Response
 
 from app.auth.context import AuthContext
 from app.auth.deps import SESSION_COOKIE, require_auth, require_csrf
-from app.coordinators import image_role_coordinator, menu_coordinator, photo_coordinator, site_coordinator
+from app.coordinators import hours_coordinator, hours_exception_coordinator, image_role_coordinator, menu_coordinator, photo_coordinator, site_coordinator
 from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.schemas.site import SiteDetailsForm
-from app.services import auth_service, image_role_service, menu_service, photo_service, site_service
+from app.services import auth_service, hours_exception_service, hours_service, image_role_service, menu_service, photo_service, site_service
+from app.services.hours_service import HoursRangeNotFound
+from app.services.hours_exception_service import HoursExceptionNotFound, InvalidDateRange
 from app.services.storage import public_url as storage_public_url
 from app.services.exceptions import (
     InvalidImage,
     InvalidRole,
+    InvalidTemplate,
     ItemNotFound,
     MenuNotFound,
     NoSiteInScope,
@@ -35,6 +38,7 @@ from app.services.exceptions import (
     VariantNotFound,
 )
 from app.services.storage import StorageNotConfigured
+from app.web.template_resolver import AVAILABLE_TEMPLATES, FEATURE_IMAGE_MODE
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 
@@ -954,8 +958,40 @@ async def _photos_with_error(request, auth, db, error_msg):
 # ---------------------------------------------------------------------------
 
 def _roles_by_key(roles):
-    """Convert list of SiteImageRole into {role_key: assignment}."""
-    return {r.role: r for r in roles}
+    """Convert list of SiteImageRole into {role_key: first assignment}.
+
+    list_roles returns ordered by (role, position), so the first seen per role
+    is position 0 — matching the public render's [0] index.
+    """
+    out: dict = {}
+    for r in roles:
+        if r.role not in out:
+            out[r.role] = r
+    return out
+
+
+def _roles_list_by_key(roles):
+    """Convert list of SiteImageRole into {role_key: [assignments...]}."""
+    out: dict = {}
+    for r in roles:
+        out.setdefault(r.role, []).append(r)
+    return out
+
+
+def _appearance_context(site, roles, auth):
+    """Build the shared context dict for the appearance page."""
+    mode = FEATURE_IMAGE_MODE.get(site.template, "single")
+    by_key = _roles_by_key(roles)
+    by_key_list = _roles_list_by_key(roles)
+    return dict(
+        roles=by_key,
+        is_internal_admin=False,
+        storage_url=storage_public_url,
+        available_templates=AVAILABLE_TEMPLATES,
+        current_template=site.template,
+        feature_image_mode=mode,
+        feature_images_list=by_key_list.get("feature_images", []),
+    )
 
 
 @router.get("/appearance", response_class=HTMLResponse)
@@ -968,7 +1004,14 @@ async def appearance_page(
         return _render(
             request, "admin/appearance.html", auth,
             roles={}, is_internal_admin=True, storage_url=None,
+            available_templates=AVAILABLE_TEMPLATES, current_template=None,
+            feature_image_mode="single", feature_images_list=[],
         )
+
+    try:
+        site = await site_service.get_owner_site(db, auth)
+    except SiteNotFound:
+        raise HTTPException(status_code=400, detail="Scoped site not found")
 
     try:
         roles = await image_role_service.list_roles(db, auth)
@@ -977,15 +1020,36 @@ async def appearance_page(
 
     return _render(
         request, "admin/appearance.html", auth,
-        roles=_roles_by_key(roles), is_internal_admin=False,
-        storage_url=storage_public_url,
+        **_appearance_context(site, roles, auth),
     )
+
+
+@router.post("/appearance/template", response_class=HTMLResponse)
+async def appearance_set_template(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    template = form_data.get("template", "")
+
+    try:
+        await site_coordinator.set_template(db, auth, template)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except SiteNotFound:
+        raise HTTPException(status_code=400, detail="Scoped site not found")
+    except InvalidTemplate:
+        raise HTTPException(status_code=400, detail="Invalid template")
+
+    return RedirectResponse(url="/admin/appearance", status_code=303)
 
 
 @router.get("/appearance/picker", response_class=HTMLResponse)
 async def appearance_picker(
     request: Request,
     role: str,
+    mode: str = "single",
     auth: AuthContext = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
@@ -998,6 +1062,7 @@ async def appearance_picker(
     return _render(
         request, "admin/_appearance_picker.html", auth,
         photos=photos, role=role, storage_url=storage_public_url,
+        picker_mode=mode,
     )
 
 
@@ -1059,3 +1124,356 @@ async def appearance_clear(
         role_key=role, assignment=None,
         storage_url=storage_public_url,
     )
+
+
+# ---------------------------------------------------------------------------
+# Feature images — carousel (multi-image) controls
+# ---------------------------------------------------------------------------
+
+async def _render_carousel(request, auth, db):
+    """Re-render the carousel partial after a mutation."""
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    items = _roles_list_by_key(roles).get("feature_images", [])
+    return _render(
+        request, "admin/_appearance_carousel.html", auth,
+        feature_images_list=items, storage_url=storage_public_url,
+    )
+
+
+@router.post("/appearance/feature-images/add", response_class=HTMLResponse)
+async def feature_images_add(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    photo_id_str = form_data.get("photo_id", "")
+
+    try:
+        photo_id = uuid.UUID(photo_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    try:
+        await image_role_coordinator.add_to_role(db, auth, "feature_images", photo_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except InvalidRole:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    return await _render_carousel(request, auth, db)
+
+
+@router.post("/appearance/feature-images/remove", response_class=HTMLResponse)
+async def feature_images_remove(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    photo_id_str = form_data.get("photo_id", "")
+
+    try:
+        photo_id = uuid.UUID(photo_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    try:
+        await image_role_coordinator.remove_from_role(db, auth, "feature_images", photo_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except InvalidRole:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    return await _render_carousel(request, auth, db)
+
+
+@router.post("/appearance/feature-images/move", response_class=HTMLResponse)
+async def feature_images_move(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    """Move a photo up or down in the carousel order. Server-authoritative."""
+    form_data = await request.form()
+    photo_id_str = form_data.get("photo_id", "")
+    direction = form_data.get("direction", "")
+
+    try:
+        photo_id = uuid.UUID(photo_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    if direction not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="Invalid direction")
+
+    # Read current order, apply the swap server-side, then reorder
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    current = [r for r in roles if r.role == "feature_images"]
+    ids = [r.photo_id for r in current]
+
+    if photo_id in ids:
+        idx = ids.index(photo_id)
+        if direction == "up" and idx > 0:
+            ids[idx], ids[idx - 1] = ids[idx - 1], ids[idx]
+        elif direction == "down" and idx < len(ids) - 1:
+            ids[idx], ids[idx + 1] = ids[idx + 1], ids[idx]
+        # else: boundary — no-op
+
+        try:
+            await image_role_coordinator.reorder_role(db, auth, "feature_images", ids)
+        except (NoSiteInScope, InvalidRole):
+            raise HTTPException(status_code=400, detail="Reorder failed")
+
+    return await _render_carousel(request, auth, db)
+
+
+# ---------------------------------------------------------------------------
+# Hours
+# ---------------------------------------------------------------------------
+
+DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def _hours_by_day(hours_list):
+    """Group hours into {day_of_week: [RegularHours, ...]}."""
+    out: dict[int, list] = {d: [] for d in range(7)}
+    for h in hours_list:
+        out[h.day_of_week].append(h)
+    return out
+
+
+@router.get("/hours", response_class=HTMLResponse)
+async def hours_page(
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    if auth.is_internal_admin:
+        return _render(
+            request, "admin/hours.html", auth,
+            hours_by_day={}, day_names=DAY_NAMES, is_internal_admin=True,
+            exceptions=[],
+        )
+
+    try:
+        hours = await hours_service.list_hours(db, auth)
+        exceptions = await hours_exception_service.list_exceptions(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/hours.html", auth,
+        hours_by_day=_hours_by_day(hours), day_names=DAY_NAMES,
+        is_internal_admin=False, exceptions=exceptions,
+    )
+
+
+@router.post("/hours/add", response_class=HTMLResponse)
+async def hours_add_range(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import time as dt_time
+
+    form_data = await request.form()
+    try:
+        day = int(form_data.get("day_of_week", ""))
+        open_time = dt_time.fromisoformat(form_data.get("open_time", ""))
+        close_time = dt_time.fromisoformat(form_data.get("close_time", ""))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid time values")
+
+    if day < 0 or day > 6:
+        raise HTTPException(status_code=400, detail="Invalid day")
+
+    try:
+        await hours_coordinator.add_range(db, auth, day, open_time, close_time)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return await _render_hours_day(request, auth, db, day)
+
+
+@router.post("/hours/{range_id}/update", response_class=HTMLResponse)
+async def hours_update_range(
+    request: Request,
+    range_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import time as dt_time
+
+    form_data = await request.form()
+    day = int(form_data.get("day_of_week", "0"))
+
+    try:
+        open_time = dt_time.fromisoformat(form_data.get("open_time", ""))
+        close_time = dt_time.fromisoformat(form_data.get("close_time", ""))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid time values")
+
+    try:
+        await hours_coordinator.update_range(db, auth, range_id, open_time, close_time)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except HoursRangeNotFound:
+        raise HTTPException(status_code=404, detail="Range not found")
+
+    return await _render_hours_day(request, auth, db, day)
+
+
+@router.post("/hours/{range_id}/delete", response_class=HTMLResponse)
+async def hours_delete_range(
+    request: Request,
+    range_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    day = int(form_data.get("day_of_week", "0"))
+
+    try:
+        await hours_coordinator.delete_range(db, auth, range_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except HoursRangeNotFound:
+        raise HTTPException(status_code=404, detail="Range not found")
+
+    return await _render_hours_day(request, auth, db, day)
+
+
+async def _render_hours_day(request, auth, db, day):
+    """Re-render a single day's hours partial after a mutation."""
+    try:
+        hours = await hours_service.list_hours(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    day_hours = [h for h in hours if h.day_of_week == day]
+    return _render(
+        request, "admin/_hours_day.html", auth,
+        day=day, day_name=DAY_NAMES[day], ranges=day_hours,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Hours exceptions
+# ---------------------------------------------------------------------------
+
+
+def _parse_special_hours(form_data) -> list | None:
+    """Parse special_hours ranges from form data. Returns None if closed."""
+    opens = form_data.getlist("sh_open")
+    closes = form_data.getlist("sh_close")
+    if not opens:
+        return None
+    ranges = []
+    for o, c in zip(opens, closes):
+        if o and c:
+            ranges.append({"open": o, "close": c})
+    return ranges or None
+
+
+@router.post("/hours/exceptions/add", response_class=HTMLResponse)
+async def exception_add(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import date as dt_date
+
+    form_data = await request.form()
+    try:
+        start = dt_date.fromisoformat(form_data.get("start_date", ""))
+        end = dt_date.fromisoformat(form_data.get("end_date", ""))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid date values")
+
+    is_closed = form_data.get("is_closed", "on") == "on"
+    label = form_data.get("label", "").strip() or None
+    special_hours = None if is_closed else _parse_special_hours(form_data)
+
+    try:
+        await hours_exception_coordinator.add_exception(
+            db, auth, start, end, is_closed, special_hours, label
+        )
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except InvalidDateRange:
+        raise HTTPException(status_code=400, detail="End date must be on or after start date")
+
+    return await _render_exceptions_list(request, auth, db)
+
+
+@router.post("/hours/exceptions/{exc_id}/update", response_class=HTMLResponse)
+async def exception_update(
+    request: Request,
+    exc_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import date as dt_date
+
+    form_data = await request.form()
+    try:
+        start = dt_date.fromisoformat(form_data.get("start_date", ""))
+        end = dt_date.fromisoformat(form_data.get("end_date", ""))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid date values")
+
+    is_closed = form_data.get("is_closed", "on") == "on"
+    label = form_data.get("label", "").strip() or None
+    special_hours = None if is_closed else _parse_special_hours(form_data)
+
+    try:
+        await hours_exception_coordinator.update_exception(
+            db, auth, exc_id, start, end, is_closed, special_hours, label
+        )
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except HoursExceptionNotFound:
+        raise HTTPException(status_code=404, detail="Exception not found")
+    except InvalidDateRange:
+        raise HTTPException(status_code=400, detail="End date must be on or after start date")
+
+    return await _render_exceptions_list(request, auth, db)
+
+
+@router.post("/hours/exceptions/{exc_id}/delete", response_class=HTMLResponse)
+async def exception_delete(
+    request: Request,
+    exc_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await hours_exception_coordinator.delete_exception(db, auth, exc_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except HoursExceptionNotFound:
+        raise HTTPException(status_code=404, detail="Exception not found")
+
+    return await _render_exceptions_list(request, auth, db)
+
+
+async def _render_exceptions_list(request, auth, db):
+    """Re-render the exceptions list partial after a mutation."""
+    try:
+        exceptions = await hours_exception_service.list_exceptions(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    return _render(
+        request, "admin/_hours_exceptions.html", auth,
+        exceptions=exceptions,
+    )
+

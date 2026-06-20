@@ -1,0 +1,59 @@
+{% extends "public/slate/base.html" %}
+
+{% block content %}
+{% set hero_photo = role_images.get("feature_images", [])[0] if role_images.get("feature_images") else none %}
+{% set logo_photo = role_images.get("logo", [])[0] if role_images.get("logo") else none %}
+
+<section class="hero">
+  {% if hero_photo %}
+  <div class="hero__bg" style="background-image:url('{{ storage_url(hero_photo.s3_key) }}')"></div>
+  {% else %}
+  <div class="hero__bg hero__bg--gradient"></div>
+  {% endif %}
+  <div class="hero__scrim"></div>
+
+  <div class="hero__main">
+    <div class="logo">
+      {% if logo_photo %}
+      <img src="{{ storage_url(logo_photo.s3_key) }}" alt="{{ site.restaurant_name }}" class="logo__img">
+      {% else %}
+      <div class="logo__script">{{ site.restaurant_name }}</div>
+      {% endif %}
+      {% if site.tagline %}
+      <div class="logo__sub">{{ site.tagline }}</div>
+      {% endif %}
+    </div>
+
+    {% include "public/slate/_nav.html" %}
+  </div>
+
+  {# Info block (bottom-left): address/phone. Hours slot noted as a gap — no hours model yet. #}
+  {% if site.address_street or site.phone %}
+  <div class="info">
+    {% if site.address_street %}
+    <b>{{ site.address_street }}</b>
+    {% if site.address_suburb %}<br>{{ site.address_suburb }}{% endif %}
+    {% endif %}
+    {% if site.phone %}
+    {% if site.address_street %}<span class="gap"></span>{% endif %}
+    {{ site.phone }}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# Badge (bottom-right): static template decoration, not tenant content. #}
+  <div class="badge" aria-hidden="true">
+    <svg viewBox="0 0 200 200">
+      <defs>
+        <path id="ring" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0"/>
+      </defs>
+      <g class="badge__ring">
+        <text><textPath href="#ring" startOffset="0">DINE &middot; DRINKS &middot; COCKTAILS &middot; WINE &middot; GOOD TIMES &middot; </textPath></text>
+      </g>
+      <circle cx="100" cy="100" r="46" fill="none" stroke="var(--line)" stroke-width="1.4"/>
+      <path d="M100,84 L100,116 M86,103 L100,117 L114,103"
+            fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+</section>
+{% endblock %}

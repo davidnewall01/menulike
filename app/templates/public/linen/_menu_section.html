@@ -1,0 +1,41 @@
+<div class="m-section">
+  <h2 class="m-section__name">{{ section.name }}</h2>
+  {% if section.description %}
+  <p class="m-section__desc">{{ section.description }}</p>
+  {% endif %}
+
+  {% for subsection in section.subsections %}
+  <div class="m-sub">
+    {% if subsection.name %}
+    <h3 class="m-sub__name">{{ subsection.name }}</h3>
+    {% endif %}
+    {% if subsection.description %}
+    <p class="m-sub__desc">{{ subsection.description }}</p>
+    {% endif %}
+
+    {% for item in subsection.items %}
+    <div class="m-item{% if item.featured %} m-item--feat{% endif %}">
+      <div class="m-item__head">
+        <span class="m-item__name">{{ item.name }}</span>
+        {% if item.variants | length == 1 and not item.variants[0].label %}
+        <span class="m-item__price">${{ "%.2f" | format(item.variants[0].price) }}</span>
+        {% endif %}
+      </div>
+      {% if item.description %}
+      <p class="m-item__desc">{{ item.description }}</p>
+      {% endif %}
+      {% if item.dietary_tags %}
+      <span class="m-item__tags">{{ item.dietary_tags | join(", ") }}</span>
+      {% endif %}
+      {% if item.variants | length > 1 or (item.variants | length == 1 and item.variants[0].label) %}
+      <div class="m-item__vars">
+        {% for v in item.variants %}
+        <span>{% if v.label %}{{ v.label }}: {% endif %}${{ "%.2f" | format(v.price) }}</span>{% if not loop.last %} · {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>

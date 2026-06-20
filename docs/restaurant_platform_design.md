@@ -7,7 +7,7 @@
 >
 > Status markers: ✅ decided · 🟡 leaning / provisional · ❓ open question · 🔭 roadmap (not v1)
 
-Last updated: 2026-06-19
+Last updated: 2026-06-20
 
 ---
 
@@ -118,14 +118,16 @@ builders work — proven, not novel risk.
   building that before customer #2 is over-rotation. Two mechanisms for now: fixed layouts for
   structured pages, blocks for narrative ones.
 
-**PoC posture — fused now, separable in code.** Right now theme + layout are **fused** into one
-per-customer template (the flagship). No theme-picker, no layout-picker. The separation lives in
-the **code structure** (tokens vs templates, §5), so surfacing the split later is *config, not
-rewrite*.
+**PoC posture — switching shipped; theme/layout still fused per template.** Three templates now
+exist — **Linen** (centred-light flagship), **Slate** (dark, vertical-nav), **Olive** (split +
+carousel) — named by material aesthetic, never per-client. A **site-level `template` field + an
+Appearance template-picker are built**: an owner switches template from the admin and the public
+site re-renders, content intact. Within each template, theme + layout are still **fused** into one
+self-contained bundle (§5); there is no separate theme- or layout-picker yet.
 
-🔭 Deferred: the per-page **layout selector**, the multi-theme **library / marketplace**, and
-template **switching** UI. The seams (token/template split, presentation-independent content) go
-in now so these stay cheap later.
+🔭 Still deferred: the per-page **layout selector** and the multi-theme **library / marketplace**.
+(Template *switching itself* is no longer deferred — it shipped.) The seams (token/template split,
+presentation-independent content) keep these cheap later.
 
 ---
 
@@ -169,11 +171,17 @@ thing. The front-end approach for the public templates is now decided (✅, was 
   it reads generic; public is bespoke.
 - **Public interactivity ✅:** **Alpine.js** for the few declarative bits (mobile menu,
   scroll-spy, lightbox). No framework.
-- **Template code structure ✅:** `themes/` (token sets — the *theme* layer) · `layouts/`
-  (per-page Jinja, referencing tokens only, never hardcoded colour — the *layout* layer) ·
-  `_partials/` (shared: nav, footer, dish, block, gallery). Public render route: resolve site by
-  `Host` → load theme tokens + content → render the page's layout. Physically separate folders =
-  the theme/layout seam (§3) is real in code even while fused in the product.
+- **Template code structure ✅ (as built — revised):** each template is a **self-contained
+  bundle**, not a shared `themes/`·`layouts/`·`_partials/` split. `app/templates/public/{name}/`
+  holds its own `base · home · _nav · _footer · tokens`, with `app/static/themes/{name}/{name}.css`
+  alongside. Internal references are **direct within the bundle**; dynamic resolution happens
+  **only at the route entry** (`resolve_template` → falls back to the flagship; `page_path`). A
+  curated `AVAILABLE_TEMPLATES` allowlist (not a folder-scan) gates what owners can pick.
+  *Why the change from the planned split:* templates diverge on **nav and base structure**
+  (vertical vs split nav, full-bleed vs split layout), so a shared-partials split leaves the
+  divergent parts shared and forces per-template retrofits. Self-contained bundles keep each
+  template's `_nav`/`base` its own. The theme/layout seam (§3) still lives in `tokens.html` vs the
+  layout templates *within* each bundle.
 - **Hosting:** Railway (staging + production)
 - **Media:** AWS S3 (ap-southeast-2)
 - **Email:** Resend
@@ -232,6 +240,12 @@ screenshots + copy-paste values → live "connected ✓" verification. Videos la
   are *roles referencing into it*, not separate uploads. Upload once, assign roles.
 - **Keep originals untouched;** generate derivatives from them. **Strip EXIF/GPS on ingest;**
   normalise rotation.
+- 🟡 **One asset can't serve every context (the logo-colour lesson).** A single stored logo is a
+  *fixed-colour* asset: Porto's white-on-transparent logo reads on a dark hero (Linen/Slate) but
+  vanishes on a light nav bar (Olive). Per *keep-originals*, the fix is never to mutate the source —
+  it's a **render-time treatment** (CSS filter / blend) or a **per-context variant asset**, chosen
+  by the template. Interim: templates on light surfaces fall back to the **text wordmark** rather
+  than force the image. A proper context-aware logo treatment is 🔭 deferred.
 - **Derivatives strategy:**
   - 🟡 Start: a few fixed sizes via Pillow on upload.
   - Graduate to an **on-the-fly image CDN** (Cloudflare Images / imgix / Cloudinary) once the
@@ -239,9 +253,11 @@ screenshots + copy-paste values → live "connected ✓" verification. Videos la
 - **Focal point** solves cross-template cropping (same source → wide banner here, square tile
   there). Store an (x,y) focal point; render via CSS `object-position` or an image-CDN URL param.
 
-> **Build status (2026-06-19):** the photo-library foundation is built and browser-verified —
-> upload → S3 → per-site library (view / alt / delete), format-agnostic (JPEG/PNG/WebP). Roles,
-> focal point, tags, and derivative sizing are *not yet* built (deferred per above).
+> **Build status (2026-06-20):** photo library built and browser-verified — upload → S3 →
+> per-site library (view / alt / delete), format-agnostic (JPEG/PNG/WebP/JFIF). **Image *roles*
+> are now built** (`feature_images`, `logo`) with an Appearance editor; `feature_images` supports
+> the full ordered **list** (multi-image carousel), proven live in the Olive template. Focal point,
+> tags, and derivative sizing remain deferred.
 
 ---
 
@@ -253,11 +269,15 @@ the Design surface.
 
 **Identity** (site-level)
 - `restaurant_name` — text, single, **required**
-- `logo` — image, 0..1, optional (fallback: wordmark of name)
+- `logo` — image, 0..1, optional (fallback: wordmark of name). *Fixed-colour asset — see the
+  logo-colour lesson (§7): light-surface templates fall back to the text wordmark.*
 - `tagline` — short text, single, optional
 
 **Home / hero**
-- `feature_images` — image list, 1..N, **required** (single-hero uses `[0]`; carousel uses all)
+- `feature_images` — image list, 1..N, **required** (single-hero uses `[0]`; carousel uses all).
+  ✅ **Built & proven:** ordered list with add / remove / reorder; templates declare
+  single-vs-carousel via a `FEATURE_IMAGE_MODE` map and the Appearance editor adapts its control.
+  The live proof of principles 3–4, and the first atom of the template **slot manifest** (§10).
 - `hero_heading` — text, single, optional (defaults to `restaurant_name`)
 - `hero_subheading` — short text, single, optional
 
@@ -270,10 +290,22 @@ the Design surface.
 **Photos** (the library; everything else references in)
 - `photos` — image list; each: `s3_key`, `focal_point`, `tags` (food/interior/exterior),
   `alt_text`, `order`
-- `gallery` — ordered selection from `photos`, 0..N, optional
+- `gallery` — ordered selection from `photos`, 0..N, optional. ✅ **built (2026-06-20):** a third
+  ordered image role (reuses the multi-image-role machinery), managed on its own `/admin/gallery`
+  page (content, not Appearance/design). Rendered as a **varied-size masonry** driven by each
+  photo's stored aspect ratio (`width`/`height`) — no uniform grid, no crop, no new data. 🔭
+  Deferred escalation: explicit owner-set prominence ("make this one featured/large") is a
+  content-driven add, only if a real need appears (same pattern as the price-columns decision).
 
-**Hours**
-- `opening_hours` — per-day open/close ranges; closed days; multiple ranges/day (lunch + dinner)
+**Hours** ✅ **built (2026-06-20)**
+- `regular_hours` — per day-of-week, a list of open/close ranges (zero ranges = closed; multiple =
+  lunch + dinner). Local wall-clock times, never UTC; overnight ranges allowed (close < open, e.g.
+  18:00–01:00). Ordered by day, then `open_time`.
+- `hours_exceptions` — date-anchored overrides: `{start_date, end_date, is_closed, special_hours?,
+  label}`. Single date or range; closed or special-hours; local calendar dates. Covers public
+  holidays, seasonal closures, one-offs, special-day hours. The Visit page renders active + upcoming
+  exceptions (`end_date >= today`). 🔭 Deferred: auto-knowing public holidays, recurring annual
+  exceptions, a live "open now" badge, schema.org markup.
 
 **Location & contact**
 - `address` — structured (street, suburb, state, postcode, country), **required**
@@ -284,6 +316,16 @@ the Design surface.
 **Calls to action**
 - `booking_url` — text, optional (OpenTable etc.)
 - `order_url` — text, optional (their own Stripe/Foodhub — the "Order Now" handoff)
+- ❓ `cta_links` — **ordered labeled-links collection** (label + url), 0..N. Surfaced by the Olive
+  template's right-panel button stack (Make a Reservation / View Menu / special menus / Gift
+  Voucher). Currently rendered as a **static placeholder**; the real content type is the same
+  bounded-collection primitive (§3) and is 🔭 deferred until a template needs it for real.
+
+**Navigation** ❓ *(discovery finding — not yet a slot)*
+- Nav items are **hardcoded per template** today (Eat / Drink / Visit / Gallery). All three
+  templates revealed this should be **content-driven** — a `nav_links` labeled-links collection
+  (same primitive as `cta_links`), with the template owning only arrangement. Deferred, but flagged
+  as the next obvious content-shape leak.
 
 **SEO / meta** (site-level, mostly derivable)
 - `meta_title`, `meta_description`, `og_image`, `favicon` — optional, sensible defaults
@@ -324,8 +366,19 @@ Menu        → Dinner, Drinks, ...
   hand off.
 - **Availability** ("Lunch 12–3pm") = a plain `availability_note` text field on the menu, not
   structured time-based switching.
-- **How menus appear** (tabs vs scroll vs pages, per-dish photos vs text rows) is the template's
-  job — content carries only structure + order.
+- **How menus appear** (tabs vs scroll vs pages, per-dish photos vs text rows, **stacked prices
+  vs price-columns**) is the template's job — content carries only structure + order.
+- ✅ **Variant display — stacked default; price-columns a deferred owner option (decided 2026-06-20).**
+  Variants render *stacked under the item* by default (Linen ships this): mobile-correct and valid
+  for any variant shape. A *price-column* grid (Small | Large, or wine Glass | Bottle | Carafe as
+  section columns) is an alternative the owner should be able to choose — but it carries a hidden
+  content prerequisite: **every item in the section must share the same variant labels in the same
+  order** (a homogeneous section), and it collapses back to stacked on mobile regardless. So columns
+  is a **per-section, eligibility-gated, *design-config* option** (stored Design-side, read by the
+  template) — *not* a content/schema change. (Sections declaring fixed price-columns was considered
+  and rejected: it trades the flexible per-item variant model for rigidity — the content-shape leak
+  principle 2 warns against.) 🔭 Deferred; a natural future atom of the config form seeded by
+  `FEATURE_IMAGE_MODE`.
 
 **Storage — normalised tree, one table per level (NOT a flat denormalised table).**
 A flat "one row per item with group columns" table breaks down: group renames duplicate across
@@ -350,33 +403,91 @@ menu_item_variants(id, item_id, label?, price, position)
   underneath, table-like on top. Wrapper levels (unnamed subsection) auto-created and hidden
   until a named group is wanted.
 
-> **Build status (2026-06-19):** menu tooling is functionally complete — CRUD at every level,
-> reparent (move-item), drag-reorder within a parent, expand/collapse. This is the reusable
-> bounded-collection primitive the block model (§3) generalises from.
+> **Build status (2026-06-20):** menu *admin tooling* functionally complete — CRUD at every level,
+> reparent (move-item), drag-reorder within a parent, expand/collapse. The **public menu render now
+> ships in the Linen bundle** — template-aware `/menu`, tabbed multi-menu (Eat/Drink), stacked
+> variants, headingless-subsection passthrough, dietary tags, descriptions — replacing the old
+> pre-template path. This is the reusable bounded-collection primitive the block model (§3)
+> generalises from.
 
 ---
 
 ## 10. Open questions / next ❓
 
 - [ ] Validate the 4-level menu model against the **Drinks** menu (wine → Red/White/Sparkling).
-- [ ] Detail the remaining content entities (hours, location, about) to the same depth as the menu.
+- [~] Detail the remaining content entities to the menu's depth: **hours done** (regular +
+  exceptions, §8); **location** done (structured address); **about** still open (the narrative
+  block primitive).
 - [ ] Decide `variants` storage: child table vs JSONB.
+- [ ] **Price-columns as a per-section design-config option** — stacked is the shipped default;
+  offer columns where a section's variants are homogeneous, owner-chosen, Design-side (§9).
 - [x] ~~Pick the custom-hostname provider~~ → **Approximated** (decided 2026-06-18; see §6).
 - [ ] Pick the image CDN (and when to switch from Pillow).
 - [x] ~~Front-end approach for the public templates~~ → **SSR Jinja + hand-authored CSS design
   tokens + Alpine.js; no JS framework, no DaisyUI on public; `themes/`·`layouts/`·`_partials/`
   structure** (decided 2026-06-19; see §3, §5).
-- [ ] **Name the flagship template.** *(in progress 2026-06-19)*
+- [x] ~~**Name the flagship template.**~~ → **Linen** (flagship); siblings **Slate**, **Olive**.
+  Named by material aesthetic, never per-client (decided 2026-06-20).
+- [~] **Flagship built (home + menu + visit + gallery).** Linen home (hero + logo roles), menu (§9),
+  Visit (on the hours model), and the **Gallery** (masonry, §8) all shipped. Only the **Our Story**
+  narrative page remains on Linen — the heavier one, since it needs the content-block primitive
+  designed first. After that, the site is content-complete and the work shifts to platform plumbing
+  (domains, billing, onboarding).
+- [x] ~~Wireframe the 2 non-flagship templates for slot discovery.~~ → **Slate** (dark/vertical-nav)
+  and **Olive** (split/carousel) built as full homes — the discovery pass. Divergence axes landed as
+  centred-light / dark-vertical / split-carousel rather than the planned minimal/photo-heavy/
+  content-rich (2026-06-20).
+- [ ] **`nav_links` as content** — make navigation a labeled-links collection (§8); currently
+  hardcoded per template.
+- [ ] **`cta_links` collection** — the Olive button stack as real content, not a placeholder (§8).
+- [ ] **Context-aware logo treatment** — render-time filter or per-context variant so one logo
+  serves dark hero + light nav (§7).
+- [ ] **Generalise the config form from `FEATURE_IMAGE_MODE`** — the single-vs-carousel mode map is
+  the first atom of a template **slot manifest**; the manifest-driven config form grows from it once
+  2–3 more slots need template-aware editing.
 - [ ] **Design the content-block primitive** — narrative pages (Our Story now, Events later); §3.
-- [ ] **Build the flagship template** (the "build 1 for real" of principle 7), co-designed with
-  the site-level slots it needs: hero (`feature_images`), `gallery`, `opening_hours`, plus the
-  Our Story narrative page.
-- [ ] Wireframe the 2 non-flagship templates for slot discovery (Photofull, Modern).
 - [x] ~~Confirm whether this lives in its own repo / stack instance~~ → **own standalone repo** (decided).
 
 ---
 
 ## Changelog
+
+- **2026-06-20** — **Gallery shipped (§8).** A third ordered image role (`gallery`) reusing the
+  multi-image-role machinery wholesale — managed on its own `/admin/gallery` page (kept as *content*,
+  separate from Appearance/design). The public Linen page renders a **varied-size masonry** driven by
+  each photo's stored aspect ratio (no uniform grid, no crop, no new data field). Explicit owner-set
+  photo prominence deferred as a content-driven escalation. The picker was generalised
+  (`add_url`/`add_target` per route) so gallery adds can't leak into the carousel. With Gallery in,
+  only the Our Story narrative page remains before the site is content-complete.
+
+- **2026-06-20** — **Hours model + Visit page shipped (§8).** Filled the discovery-pass hours gap.
+  `regular_hours` — per day-of-week list of open/close ranges (multi-range lunch + dinner, closed =
+  no ranges, overnight allowed, local wall-clock not UTC). `hours_exceptions` — date-anchored
+  overrides (single date or range, closed or special-hours, label) for holidays/seasonal closures/
+  one-offs; rendered active + upcoming on Visit. Both have an admin editor (the previously-stubbed
+  Hours page). The **Linen Visit page** ships off the reference (Hours / Where / Reserve cards),
+  consuming hours + the existing address/phone/email. Deferred: auto public-holidays, recurring
+  exceptions, live "open now", schema.org markup.
+
+- **2026-06-20** — **Linen menu render shipped + variant display decided (§9).** The public menu
+  page now renders in the Linen bundle (template-aware `/menu`, tabbed Eat/Drink, headingless-
+  subsection passthrough, dietary tags), retiring the old pre-template path. Variant display
+  decided: **stacked under the item by default** (shipped), with **price-columns** (Small | Large,
+  wine Glass | Bottle | Carafe) deferred as a **per-section, homogeneity-gated, design-config option**
+  afforded to the owner — *not* a schema change (section-declared columns considered and rejected as
+  a content-shape leak). Stacked is mobile-correct and renders any variant shape; columns is a
+  desktop enhancement valid only for uniform sections.
+
+- **2026-06-20** — **Template switching shipped + discovery pass complete.** Three templates now
+  exist — **Linen** (flagship), **Slate**, **Olive** — named by material aesthetic; a site-level
+  `template` field + an Appearance **picker** let owners switch with content intact. Template code
+  structure **revised to self-contained per-template bundles** (`public/{name}/` + `themes/{name}/`),
+  replacing the planned shared `themes/`·`layouts/`·`_partials/` split, because templates diverge on
+  nav/base structure (§5). **`feature_images` list/carousel built and proven** — add/remove/reorder,
+  with a `FEATURE_IMAGE_MODE` map driving a template-aware single-vs-carousel editor: the live
+  validation of principles 3–4 and the **first atom of the slot-manifest / config form** (the "config
+  for dissimilar sites" mechanism). Discovery findings recorded: nav + hero CTAs want to become
+  **labeled-links collections** (§8); the **logo-colour-vs-context** lesson (§7).
 
 - **2026-06-19** — **Templating architecture added (§3).** The "template" splits into four
   layers — **theme** (site-level, one), **layout** (per-page, selectable, renders *in* the theme),

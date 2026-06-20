@@ -1,0 +1,10 @@
+{# Olive footer — for future inner pages. The home is a full split layout. #}
+<footer class="foot">
+  <div class="foot__brand">{{ site.restaurant_name }}</div>
+  {% if site.address_street %}
+  <p>{{ site.address_street }}{% if site.address_suburb %}, {{ site.address_suburb }}{% endif %}</p>
+  {% endif %}
+  {% if site.phone %}
+  <p>{{ site.phone }}</p>
+  {% endif %}
+</footer>
