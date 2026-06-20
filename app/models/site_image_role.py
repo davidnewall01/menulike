@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from app.models.photo import Photo
     from app.models.site import Site
 
-ALLOWED_ROLES = {"feature_images", "logo"}
+ALLOWED_ROLES = {"feature_images", "gallery", "logo"}
 
 
 class SiteImageRole(TimestampMixin, Base):

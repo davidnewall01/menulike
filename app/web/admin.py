@@ -1063,6 +1063,9 @@ async def appearance_picker(
         request, "admin/_appearance_picker.html", auth,
         photos=photos, role=role, storage_url=storage_public_url,
         picker_mode=mode,
+        add_url="/admin/appearance/feature-images/add",
+        add_target="#slot-feature_images",
+        cancel_url="/admin/appearance",
     )
 
 
@@ -1235,6 +1238,162 @@ async def feature_images_move(
             raise HTTPException(status_code=400, detail="Reorder failed")
 
     return await _render_carousel(request, auth, db)
+
+
+# ---------------------------------------------------------------------------
+# Gallery (content — ordered multi-image role)
+# ---------------------------------------------------------------------------
+
+async def _render_gallery_manager(request, auth, db):
+    """Re-render the gallery manager partial after a mutation."""
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    items = _roles_list_by_key(roles).get("gallery", [])
+    return _render(
+        request, "admin/_gallery_manager.html", auth,
+        gallery_list=items, storage_url=storage_public_url,
+    )
+
+
+@router.get("/gallery", response_class=HTMLResponse)
+async def gallery_page(
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    if auth.is_internal_admin:
+        return _render(
+            request, "admin/gallery.html", auth,
+            gallery_list=[], is_internal_admin=True, storage_url=None,
+        )
+
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    items = _roles_list_by_key(roles).get("gallery", [])
+    return _render(
+        request, "admin/gallery.html", auth,
+        gallery_list=items, is_internal_admin=False,
+        storage_url=storage_public_url,
+    )
+
+
+@router.get("/gallery/picker", response_class=HTMLResponse)
+async def gallery_picker(
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Photo picker for the gallery role."""
+    try:
+        photos = await photo_service.list_photos(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/_appearance_picker.html", auth,
+        photos=photos, role="gallery", storage_url=storage_public_url,
+        picker_mode="carousel",
+        add_url="/admin/gallery/add",
+        add_target="#gallery-images",
+        cancel_url="/admin/gallery",
+    )
+
+
+@router.post("/gallery/add", response_class=HTMLResponse)
+async def gallery_add(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    photo_id_str = form_data.get("photo_id", "")
+
+    try:
+        photo_id = uuid.UUID(photo_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    try:
+        await image_role_coordinator.add_to_role(db, auth, "gallery", photo_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except InvalidRole:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    return await _render_gallery_manager(request, auth, db)
+
+
+@router.post("/gallery/remove", response_class=HTMLResponse)
+async def gallery_remove(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    photo_id_str = form_data.get("photo_id", "")
+
+    try:
+        photo_id = uuid.UUID(photo_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    try:
+        await image_role_coordinator.remove_from_role(db, auth, "gallery", photo_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except InvalidRole:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    return await _render_gallery_manager(request, auth, db)
+
+
+@router.post("/gallery/move", response_class=HTMLResponse)
+async def gallery_move(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    """Move a photo up or down in the gallery order."""
+    form_data = await request.form()
+    photo_id_str = form_data.get("photo_id", "")
+    direction = form_data.get("direction", "")
+
+    try:
+        photo_id = uuid.UUID(photo_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    if direction not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="Invalid direction")
+
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    current = [r for r in roles if r.role == "gallery"]
+    ids = [r.photo_id for r in current]
+
+    if photo_id in ids:
+        idx = ids.index(photo_id)
+        if direction == "up" and idx > 0:
+            ids[idx], ids[idx - 1] = ids[idx - 1], ids[idx]
+        elif direction == "down" and idx < len(ids) - 1:
+            ids[idx], ids[idx + 1] = ids[idx + 1], ids[idx]
+
+        try:
+            await image_role_coordinator.reorder_role(db, auth, "gallery", ids)
+        except (NoSiteInScope, InvalidRole):
+            raise HTTPException(status_code=400, detail="Reorder failed")
+
+    return await _render_gallery_manager(request, auth, db)
 
 
 # ---------------------------------------------------------------------------

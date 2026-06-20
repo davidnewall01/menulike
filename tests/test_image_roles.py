@@ -281,7 +281,7 @@ class TestInvalidRole:
         auth = _auth(owner)
 
         with pytest.raises(InvalidRole):
-            await image_role_service.assign(db_session, auth, "gallery", photo.photo_id)
+            await image_role_service.assign(db_session, auth, "banner", photo.photo_id)
 
     async def test_clear_unknown_role_rejected(self, db_session):
         site = await make_site(db_session, slug="role-bad-clear")
@@ -492,3 +492,97 @@ class TestReorderRole:
             .where(SiteImageRole.site_id == site_b.site_id, SiteImageRole.role == "feature_images")
         )
         assert result_b.scalar_one_or_none() is not None
+
+
+# ---------------------------------------------------------------------------
+# Gallery role — confirm it works through the generic multi-image path
+# ---------------------------------------------------------------------------
+
+class TestGalleryRole:
+
+    async def test_gallery_add_and_order(self, db_session):
+        """Gallery role uses add_to_role — appends at sequential positions."""
+        site = await make_site(db_session, slug="gallery-add")
+        owner = await make_owner(db_session, site)
+        photos = [await _make_photo(db_session, site, f"g{i}.jpg") for i in range(3)]
+        auth = _auth(owner)
+
+        for p in photos:
+            await image_role_service.add_to_role(db_session, auth, "gallery", p.photo_id)
+
+        result = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site.site_id, SiteImageRole.role == "gallery")
+            .order_by(SiteImageRole.position)
+        )
+        rows = list(result.scalars().all())
+        assert len(rows) == 3
+        assert [r.photo_id for r in rows] == [p.photo_id for p in photos]
+        assert [r.position for r in rows] == [0, 1, 2]
+
+    async def test_gallery_foreign_photo_rejected(self, db_session):
+        """Adding a photo from another site to gallery raises PhotoNotFound."""
+        site_a = await make_site(db_session, slug="gallery-idor-a")
+        site_b = await make_site(db_session, slug="gallery-idor-b")
+        owner_a = await make_owner(db_session, site_a)
+        photo_b = await _make_photo(db_session, site_b)
+        auth_a = _auth(owner_a)
+
+        with pytest.raises(PhotoNotFound):
+            await image_role_service.add_to_role(db_session, auth_a, "gallery", photo_b.photo_id)
+
+    async def test_gallery_remove(self, db_session):
+        site = await make_site(db_session, slug="gallery-rm")
+        owner = await make_owner(db_session, site)
+        photos = [await _make_photo(db_session, site, f"g{i}.jpg") for i in range(2)]
+        auth = _auth(owner)
+
+        for p in photos:
+            await image_role_service.add_to_role(db_session, auth, "gallery", p.photo_id)
+
+        await image_role_service.remove_from_role(db_session, auth, "gallery", photos[0].photo_id)
+
+        result = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site.site_id, SiteImageRole.role == "gallery")
+        )
+        rows = list(result.scalars().all())
+        assert len(rows) == 1
+        assert rows[0].photo_id == photos[1].photo_id
+
+    async def test_gallery_reorder_rejects_non_member(self, db_session):
+        """A non-member photo_id in gallery reorder is silently ignored."""
+        site = await make_site(db_session, slug="gallery-reorder-foreign")
+        owner = await make_owner(db_session, site)
+        photo = await _make_photo(db_session, site, "g.jpg")
+        auth = _auth(owner)
+
+        await image_role_service.add_to_role(db_session, auth, "gallery", photo.photo_id)
+
+        # Try to sneak a random UUID into the reorder — should be ignored
+        fake_id = uuid.uuid4()
+        await image_role_service.reorder_role(
+            db_session, auth, "gallery", [fake_id, photo.photo_id]
+        )
+
+        result = await db_session.execute(
+            select(SiteImageRole)
+            .where(SiteImageRole.site_id == site.site_id, SiteImageRole.role == "gallery")
+        )
+        rows = list(result.scalars().all())
+        assert len(rows) == 1
+        assert rows[0].photo_id == photo.photo_id
+
+    async def test_gallery_in_load_role_images(self, db_session):
+        """load_role_images returns gallery photos alongside other roles."""
+        site = await make_site(db_session, slug="gallery-load")
+        owner = await make_owner(db_session, site)
+        photo = await _make_photo(db_session, site, "g.jpg")
+        auth = _auth(owner)
+
+        await image_role_service.add_to_role(db_session, auth, "gallery", photo.photo_id)
+
+        images = await image_role_service.load_role_images(db_session, site.site_id)
+        assert "gallery" in images
+        assert len(images["gallery"]) == 1
+        assert images["gallery"][0].photo_id == photo.photo_id

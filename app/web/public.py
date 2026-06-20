@@ -49,6 +49,25 @@ async def menu(request: Request, site: Site = Depends(resolve_tenant)):
     )
 
 
+@router.get("/gallery", response_class=HTMLResponse)
+async def gallery(
+    request: Request,
+    site: Site = Depends(resolve_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    template = resolve_template(site.template)
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    return templates.TemplateResponse(
+        page_path(template, "gallery"),
+        {
+            "request": request,
+            "site": site,
+            "role_images": role_images,
+            "storage_url": storage_public_url,
+        },
+    )
+
+
 _DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 

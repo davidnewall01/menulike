@@ -1,0 +1,74 @@
+{% extends "public/linen/base.html" %}
+
+{% block head %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block content %}
+{% set logo_photo = role_images.get("logo", [])[0] if role_images.get("logo") else none %}
+{% set gallery_photos = role_images.get("gallery", []) %}
+
+<div class="gallery-page wrap" x-data="galleryLightbox()" @keydown.escape.window="close()" @keydown.arrow-left.window="prev()" @keydown.arrow-right.window="next()">
+  <div class="gallery-header">
+    <p class="eyebrow">Our Space</p>
+    <h1 class="gallery-title">Gallery</h1>
+  </div>
+
+  {% if gallery_photos %}
+  <div class="masonry">
+    {% for photo in gallery_photos %}
+    {% set w = photo.width or 400 %}
+    {% set h = photo.height or 300 %}
+    {% set ratio = h / w %}
+    {% set row_span = (ratio * 20) | round | int %}
+    {% if row_span < 8 %}{% set row_span = 8 %}{% endif %}
+    {% if row_span > 40 %}{% set row_span = 40 %}{% endif %}
+    <a href="#"
+       class="masonry__item"
+       style="grid-row: span {{ row_span }};"
+       @click.prevent="open({{ loop.index0 }})">
+      <img src="{{ storage_url(photo.s3_key) }}"
+           alt="{{ photo.alt_text or '' }}"
+           loading="{% if loop.index0 < 6 %}eager{% else %}lazy{% endif %}"
+           width="{{ w }}" height="{{ h }}">
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="gallery-empty">No photos yet.</p>
+  {% endif %}
+
+  {# --- Lightbox overlay --- #}
+  <div class="lightbox" x-show="shown" x-cloak x-transition.opacity @click.self="close()">
+    <button class="lightbox__close" @click="close()" aria-label="Close">&times;</button>
+    {% if gallery_photos | length > 1 %}
+    <button class="lightbox__arrow lightbox__arrow--prev" @click="prev()" aria-label="Previous">&lsaquo;</button>
+    <button class="lightbox__arrow lightbox__arrow--next" @click="next()" aria-label="Next">&rsaquo;</button>
+    {% endif %}
+    <figure class="lightbox__fig">
+      <img class="lightbox__img" :src="currentSrc" :alt="currentAlt">
+      <figcaption class="lightbox__cap" x-show="currentAlt" x-text="currentAlt"></figcaption>
+    </figure>
+  </div>
+</div>
+
+<script>
+function galleryLightbox() {
+  var photos = [
+    {% for photo in gallery_photos %}
+    { src: {{ storage_url(photo.s3_key) | tojson }}, alt: {{ (photo.alt_text or "") | tojson }} }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+  return {
+    shown: false,
+    idx: 0,
+    get currentSrc() { return photos.length ? photos[this.idx].src : ""; },
+    get currentAlt() { return photos.length ? photos[this.idx].alt : ""; },
+    open(i) { this.idx = i; this.shown = true; },
+    close() { this.shown = false; },
+    prev() { if (this.shown && photos.length) this.idx = (this.idx - 1 + photos.length) % photos.length; },
+    next() { if (this.shown && photos.length) this.idx = (this.idx + 1) % photos.length; }
+  };
+}
+</script>
+{% endblock %}

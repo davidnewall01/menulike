@@ -1,0 +1,15 @@
+{% extends "admin/base.html" %}
+{% block title %}Gallery{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-2">Gallery</h1>
+<p class="text-sm text-base-content/60 mb-6">Choose and order the photos visitors see on your gallery page.</p>
+
+{% if is_internal_admin %}
+<div class="alert alert-info">Internal admin — select a site to manage the gallery.</div>
+{% else %}
+<div id="gallery-images">
+    {% include "admin/_gallery_manager.html" %}
+</div>
+{% endif %}
+
+{% endblock %}
