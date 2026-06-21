@@ -19,7 +19,7 @@ from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.schemas.site import SiteDetailsForm
-from app.services import auth_service, content_block_service, hours_exception_service, hours_service, image_role_service, menu_service, photo_service, site_service
+from app.services import auth_service, content_block_service, hours_exception_service, hours_service, image_role_service, menu_extraction_service, menu_service, photo_service, site_service
 from app.services.hours_service import HoursRangeNotFound
 from app.services.hours_exception_service import HoursExceptionNotFound, InvalidDateRange
 from app.services.storage import public_url as storage_public_url
@@ -38,6 +38,11 @@ from app.services.exceptions import (
     SiteNotFound,
     SubsectionNotFound,
     VariantNotFound,
+)
+from app.services.menu_extraction_service import (
+    ExtractionFailed,
+    ExtractionNotConfigured,
+    InvalidPDF,
 )
 from app.services.storage import StorageNotConfigured
 from app.web.template_resolver import AVAILABLE_TEMPLATES, FEATURE_IMAGE_MODE
@@ -1898,5 +1903,69 @@ async def _render_exceptions_list(request, auth, db):
     return _render(
         request, "admin/_hours_exceptions.html", auth,
         exceptions=exceptions,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Menu extraction sandbox
+# ---------------------------------------------------------------------------
+
+@router.get("/extraction-sandbox", response_class=HTMLResponse)
+async def extraction_sandbox_page(
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+):
+    return _render(request, "admin/extraction_sandbox.html", auth)
+
+
+@router.post("/extraction-sandbox", response_class=HTMLResponse)
+async def extraction_sandbox_run(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+):
+    import json as _json
+
+    form_data = await request.form()
+    upload = form_data.get("file")
+
+    if not upload or not hasattr(upload, "read"):
+        return _render(
+            request, "admin/extraction_sandbox.html", auth,
+            error="No file selected.",
+        )
+
+    content_type = getattr(upload, "content_type", "")
+    if content_type != "application/pdf":
+        return _render(
+            request, "admin/extraction_sandbox.html", auth,
+            error=f"Expected a PDF file, got: {content_type or 'unknown'}",
+        )
+
+    file_data = await upload.read()
+
+    try:
+        result = await menu_extraction_service.extract_from_pdf(file_data)
+    except ExtractionNotConfigured as exc:
+        return _render(
+            request, "admin/extraction_sandbox.html", auth,
+            error=str(exc),
+        )
+    except InvalidPDF as exc:
+        return _render(
+            request, "admin/extraction_sandbox.html", auth,
+            error=str(exc),
+        )
+    except ExtractionFailed as exc:
+        return _render(
+            request, "admin/extraction_sandbox.html", auth,
+            error=str(exc),
+            raw_text=exc.raw_text,
+        )
+
+    result_json = _json.dumps(result.model_dump(), indent=2)
+    return _render(
+        request, "admin/extraction_sandbox.html", auth,
+        result_json=result_json,
+        ignored=result.ignored,
     )
 

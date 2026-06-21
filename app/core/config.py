@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     S3_REGION: str = "ap-southeast-2"
     S3_PUBLIC_BASE_URL: str = ""
 
+    # Menu extraction (Claude vision). Not required for boot — fails at use-time.
+    ANTHROPIC_API_KEY: str = ""
+    MENU_EXTRACTION_MODEL: str = "claude-sonnet-4-6"
+
     # Emit SQL to logs when true.
     DB_ECHO: bool = False
 
