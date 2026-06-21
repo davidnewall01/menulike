@@ -10,6 +10,14 @@ from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, Va
 from app.services import menu_service
 
 
+async def set_menu_published(
+    db: AsyncSession, auth_ctx: AuthContext, menu_id: uuid.UUID, published: bool
+) -> Menu:
+    menu = await menu_service.set_menu_published(db, auth_ctx, menu_id, published)
+    await db.commit()
+    return menu
+
+
 async def create_menu(
     db: AsyncSession, auth_ctx: AuthContext, form: MenuForm
 ) -> Menu:

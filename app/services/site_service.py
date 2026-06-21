@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
+from app.models.content_block import ContentBlock
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
 from app.models.site import Site
 from app.schemas.site import SiteDetailsForm
@@ -19,20 +20,23 @@ from app.web.template_resolver import AVAILABLE_TEMPLATES
 async def get_site_by_slug(db: AsyncSession, slug: str) -> Site | None:
     """Load a site with all public-render data eager-loaded.
 
-    Eager-loads: menus tree, regular_hours, hours_exceptions.
+    Eager-loads: menus tree, regular_hours, hours_exceptions,
+    content_blocks (+ nested image).
     Read-only — no flush, no commit.
     """
     stmt = (
         select(Site)
         .where(Site.slug == slug)
         .options(
-            selectinload(Site.menus)
+            selectinload(Site.menus.and_(Menu.is_published.is_(True)))
             .selectinload(Menu.sections)
             .selectinload(Section.subsections)
             .selectinload(Subsection.items)
             .selectinload(MenuItem.variants),
             selectinload(Site.regular_hours),
             selectinload(Site.hours_exceptions),
+            selectinload(Site.content_blocks)
+            .selectinload(ContentBlock.image),
         )
     )
     result = await db.execute(stmt)

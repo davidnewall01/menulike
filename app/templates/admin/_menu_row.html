@@ -2,6 +2,9 @@
     <div class="card-body py-3 flex-row items-center justify-between">
         <div>
             <a href="/admin/menu/{{ menu.menu_id }}" class="font-semibold text-lg link link-hover">{{ menu.name }}</a>
+            {% if not menu.is_published %}
+            <span class="badge badge-warning badge-sm ml-2">Draft</span>
+            {% endif %}
             {% if menu.availability_note %}
             <span class="text-sm text-base-content/60 ml-2">{{ menu.availability_note }}</span>
             {% endif %}
@@ -9,6 +12,19 @@
             <p class="text-sm text-base-content/60 mt-0.5">{{ menu.description }}</p>
             {% endif %}
         </div>
-        <a href="/admin/menu/{{ menu.menu_id }}" class="btn btn-ghost btn-sm">Edit</a>
+        <div class="flex items-center gap-2">
+            {% if menu.is_published %}
+            <form method="post" action="/admin/menu/{{ menu.menu_id }}/unpublish">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-ghost btn-sm">Unpublish</button>
+            </form>
+            {% else %}
+            <form method="post" action="/admin/menu/{{ menu.menu_id }}/publish">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-success btn-sm">Publish</button>
+            </form>
+            {% endif %}
+            <a href="/admin/menu/{{ menu.menu_id }}" class="btn btn-ghost btn-sm">Edit</a>
+        </div>
     </div>
 </div>

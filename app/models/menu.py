@@ -28,6 +28,9 @@ class Menu(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     availability_note: Mapped[str | None] = mapped_column(String, nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_published: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
 
     # Relationships
     site: Mapped["Site"] = relationship(back_populates="menus")

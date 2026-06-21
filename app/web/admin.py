@@ -12,18 +12,20 @@ from starlette.responses import Response
 
 from app.auth.context import AuthContext
 from app.auth.deps import SESSION_COOKIE, require_auth, require_csrf
-from app.coordinators import hours_coordinator, hours_exception_coordinator, image_role_coordinator, menu_coordinator, photo_coordinator, site_coordinator
+from app.coordinators import content_block_coordinator, hours_coordinator, hours_exception_coordinator, image_role_coordinator, menu_coordinator, photo_coordinator, site_coordinator
 from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.schemas.site import SiteDetailsForm
-from app.services import auth_service, hours_exception_service, hours_service, image_role_service, menu_service, photo_service, site_service
+from app.services import auth_service, content_block_service, hours_exception_service, hours_service, image_role_service, menu_service, photo_service, site_service
 from app.services.hours_service import HoursRangeNotFound
 from app.services.hours_exception_service import HoursExceptionNotFound, InvalidDateRange
 from app.services.storage import public_url as storage_public_url
 from app.services.exceptions import (
+    ContentBlockNotFound,
+    EmptyBlock,
     InvalidImage,
     InvalidRole,
     InvalidTemplate,
@@ -240,6 +242,36 @@ async def menu_create(
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
 
+    return RedirectResponse(url="/admin/menu", status_code=303)
+
+
+@router.post("/menu/{menu_id}/publish", response_class=HTMLResponse)
+async def menu_publish(
+    menu_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await menu_coordinator.set_menu_published(db, auth, menu_id, True)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except MenuNotFound:
+        raise HTTPException(status_code=404, detail="Menu not found")
+    return RedirectResponse(url="/admin/menu", status_code=303)
+
+
+@router.post("/menu/{menu_id}/unpublish", response_class=HTMLResponse)
+async def menu_unpublish(
+    menu_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await menu_coordinator.set_menu_published(db, auth, menu_id, False)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except MenuNotFound:
+        raise HTTPException(status_code=404, detail="Menu not found")
     return RedirectResponse(url="/admin/menu", status_code=303)
 
 
@@ -1394,6 +1426,238 @@ async def gallery_move(
             raise HTTPException(status_code=400, detail="Reorder failed")
 
     return await _render_gallery_manager(request, auth, db)
+
+
+# ---------------------------------------------------------------------------
+# Our Story (content blocks)
+# ---------------------------------------------------------------------------
+
+PAGE_KEY = "our_story"
+
+
+async def _render_blocks(request, auth, db):
+    """Re-render the block list partial after a mutation."""
+    try:
+        blocks = await content_block_service.list_blocks(db, auth, PAGE_KEY)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    return _render(
+        request, "admin/_block_list.html", auth,
+        blocks=blocks, storage_url=storage_public_url,
+    )
+
+
+@router.get("/our-story", response_class=HTMLResponse)
+async def our_story_page(
+    request: Request,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    if auth.is_internal_admin:
+        return _render(
+            request, "admin/our_story.html", auth,
+            blocks=[], is_internal_admin=True, storage_url=None,
+        )
+
+    try:
+        blocks = await content_block_service.list_blocks(db, auth, PAGE_KEY)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/our_story.html", auth,
+        blocks=blocks, is_internal_admin=False,
+        storage_url=storage_public_url,
+    )
+
+
+@router.post("/our-story/add", response_class=HTMLResponse)
+async def our_story_add(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    heading = form_data.get("heading", "").strip() or None
+    body = form_data.get("body", "").strip() or None
+
+    try:
+        await content_block_coordinator.create_block(db, auth, PAGE_KEY, heading, body)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except EmptyBlock:
+        raise HTTPException(status_code=400, detail="Block must have a heading or body")
+
+    return await _render_blocks(request, auth, db)
+
+
+@router.get("/our-story/{block_id}/edit", response_class=HTMLResponse)
+async def our_story_edit_form(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        block = await content_block_service._get_owner_block(db, auth, block_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+
+    return _render(
+        request, "admin/_block_edit.html", auth,
+        block=block,
+    )
+
+
+@router.post("/our-story/{block_id}/update", response_class=HTMLResponse)
+async def our_story_update(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    heading = form_data.get("heading", "").strip() or None
+    body = form_data.get("body", "").strip() or None
+
+    try:
+        await content_block_coordinator.update_block(db, auth, block_id, heading, body)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+    except EmptyBlock:
+        raise HTTPException(status_code=400, detail="Block must have a heading, body, or image")
+
+    return await _render_blocks(request, auth, db)
+
+
+@router.post("/our-story/{block_id}/delete", response_class=HTMLResponse)
+async def our_story_delete(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await content_block_coordinator.delete_block(db, auth, block_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+
+    return await _render_blocks(request, auth, db)
+
+
+@router.get("/our-story/picker/{block_id}", response_class=HTMLResponse)
+async def our_story_picker(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Photo picker for a block image — carousel mode, single-select behaviour."""
+    try:
+        photos = await photo_service.list_photos(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/_appearance_picker.html", auth,
+        photos=photos, role="block_image", storage_url=storage_public_url,
+        picker_mode="carousel",
+        add_url=f"/admin/our-story/{block_id}/set-image",
+        add_target="#block-list",
+        cancel_url="/admin/our-story",
+    )
+
+
+@router.post("/our-story/{block_id}/set-image", response_class=HTMLResponse)
+async def our_story_set_image(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    photo_id_str = form_data.get("photo_id", "")
+
+    try:
+        photo_id = uuid.UUID(photo_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    try:
+        await content_block_coordinator.set_block_image(db, auth, block_id, photo_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    return await _render_blocks(request, auth, db)
+
+
+@router.post("/our-story/{block_id}/clear-image", response_class=HTMLResponse)
+async def our_story_clear_image(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await content_block_coordinator.clear_block_image(db, auth, block_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+    except EmptyBlock:
+        raise HTTPException(status_code=400, detail="Cannot remove image — block would be empty")
+
+    return await _render_blocks(request, auth, db)
+
+
+@router.post("/our-story/move", response_class=HTMLResponse)
+async def our_story_move(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    block_id_str = form_data.get("block_id", "")
+    direction = form_data.get("direction", "")
+
+    try:
+        block_id = uuid.UUID(block_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid block_id")
+
+    if direction not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="Invalid direction")
+
+    try:
+        blocks = await content_block_service.list_blocks(db, auth, PAGE_KEY)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    ids = [b.block_id for b in blocks]
+
+    if block_id in ids:
+        idx = ids.index(block_id)
+        if direction == "up" and idx > 0:
+            ids[idx], ids[idx - 1] = ids[idx - 1], ids[idx]
+        elif direction == "down" and idx < len(ids) - 1:
+            ids[idx], ids[idx + 1] = ids[idx + 1], ids[idx]
+
+        try:
+            await content_block_coordinator.reorder_blocks(db, auth, PAGE_KEY, ids)
+        except NoSiteInScope:
+            raise HTTPException(status_code=400, detail="Reorder failed")
+
+    return await _render_blocks(request, auth, db)
 
 
 # ---------------------------------------------------------------------------

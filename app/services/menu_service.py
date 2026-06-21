@@ -91,6 +91,20 @@ async def list_owner_menus(
 
 
 # ---------------------------------------------------------------------------
+# Publish / unpublish
+# ---------------------------------------------------------------------------
+
+async def set_menu_published(
+    db: AsyncSession, auth_ctx: AuthContext, menu_id: uuid.UUID, published: bool
+) -> Menu:
+    """Set is_published on a menu. Scoped via get_owner_menu (IDOR-safe). Flush only."""
+    menu = await get_owner_menu(db, auth_ctx, menu_id)
+    menu.is_published = published
+    await db.flush()
+    return menu
+
+
+# ---------------------------------------------------------------------------
 # Writes (flush only — coordinator commits)
 # ---------------------------------------------------------------------------
 
