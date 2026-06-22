@@ -28,6 +28,19 @@
                 <input type="text" name="dietary_tags" value="{{ item.dietary_tags | join(', ') }}" class="input input-bordered input-sm w-full" placeholder="e.g. vegetarian, gluten-free">
             </div>
             <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Extras (label + optional price)</span></label>
+                <div class="extras-list space-y-1">
+                    {% for extra in item.extras %}
+                    <div class="extras-row flex items-center gap-1">
+                        <input type="text" name="extras_label" value="{{ extra.label }}" placeholder="Label" class="input input-bordered input-xs w-32">
+                        <input type="text" name="extras_price" value="{{ extra.price or '' }}" placeholder="Price" class="input input-bordered input-xs w-20">
+                        <button type="button" class="btn btn-ghost btn-xs extras-remove" title="Remove">✕</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-ghost btn-xs mt-1 extras-add">+ Extra</button>
+            </div>
+            <div class="form-control">
                 <label class="label cursor-pointer justify-start gap-2 py-0">
                     <input type="checkbox" name="featured" value="on" {% if item.featured %}checked{% endif %} class="checkbox checkbox-sm">
                     <span class="label-text text-xs">Featured</span>

@@ -25,6 +25,7 @@ class Menu(TimestampMixin, Base):
         index=True,
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
+    display_title: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     availability_note: Mapped[str | None] = mapped_column(String, nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -56,6 +57,7 @@ class Section(TimestampMixin, Base):
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Relationships
@@ -109,6 +111,9 @@ class MenuItem(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     dietary_tags: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    extras: Mapped[list] = mapped_column(
         JSONB, nullable=False, server_default="[]"
     )
     featured: Mapped[bool] = mapped_column(

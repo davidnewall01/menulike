@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
-from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
+from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm, parse_extras
 from app.schemas.site import SiteDetailsForm
 from app.services import auth_service, content_block_service, hours_exception_service, hours_service, image_role_service, menu_extraction_service, menu_service, photo_service, site_service
 from app.services.hours_service import HoursRangeNotFound
@@ -370,13 +370,18 @@ async def item_create(
     subsection_id = form_data.get("subsection_id")
     menu_id = form_data.get("menu_id")
 
+    extras = parse_extras(
+        form_data.getlist("extras_label"),
+        form_data.getlist("extras_price"),
+    )
+
     try:
         form = ItemForm(**dict(form_data))
     except ValidationError:
         return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
 
     try:
-        await menu_coordinator.create_item(db, auth, uuid.UUID(subsection_id), form)
+        await menu_coordinator.create_item(db, auth, uuid.UUID(subsection_id), form, extras=extras)
     except (NoSiteInScope, SubsectionNotFound) as exc:
         _not_found(exc)
 
@@ -434,6 +439,11 @@ async def item_update_or_delete(
             _not_found(exc)
         return Response(status_code=200)
 
+    extras = parse_extras(
+        form_data.getlist("extras_label"),
+        form_data.getlist("extras_price"),
+    )
+
     try:
         form = ItemForm(**dict(form_data))
     except ValidationError as exc:
@@ -448,7 +458,7 @@ async def item_update_or_delete(
         )
 
     try:
-        item = await menu_coordinator.update_item(db, auth, item_id, form)
+        item = await menu_coordinator.update_item(db, auth, item_id, form, extras=extras)
     except (NoSiteInScope, ItemNotFound) as exc:
         _not_found(exc)
 

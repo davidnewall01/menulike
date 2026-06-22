@@ -128,6 +128,7 @@ async def create_menu(
     menu = Menu(
         site_id=auth_ctx.scoped_site_id,
         name=form.name,
+        display_title=form.display_title,
         description=form.description,
         availability_note=form.availability_note,
         position=max_pos + 10,
@@ -143,6 +144,7 @@ async def update_menu(
     """Rename / update a menu. Scoped-load first (IDOR boundary)."""
     menu = await get_owner_menu(db, auth_ctx, menu_id)
     menu.name = form.name
+    menu.display_title = form.display_title
     menu.description = form.description
     menu.availability_note = form.availability_note
     await db.flush()
@@ -203,6 +205,7 @@ async def create_section(
         menu_id=menu.menu_id,
         name=form.name,
         description=form.description,
+        note=form.note,
         position=max_pos + 10,
     )
     db.add(section)
@@ -218,6 +221,7 @@ async def update_section(
     section = await get_owner_section(db, auth_ctx, section_id)
     section.name = form.name
     section.description = form.description
+    section.note = form.note
     await db.flush()
     return section
 
@@ -365,7 +369,8 @@ async def get_owner_item_with_variants(
 
 async def create_item(
     db: AsyncSession, auth_ctx: AuthContext,
-    subsection_id: uuid.UUID, form: ItemForm
+    subsection_id: uuid.UUID, form: ItemForm,
+    extras: list[dict] | None = None,
 ) -> MenuItem:
     """Create a new item in a subsection. Scoped-load the parent first."""
     subsection = await get_owner_subsection(db, auth_ctx, subsection_id)
@@ -381,6 +386,7 @@ async def create_item(
         name=form.name,
         description=form.description,
         dietary_tags=form.parsed_dietary_tags(),
+        extras=extras or [],
         featured=form.featured,
         position=max_pos + 10,
     )
@@ -391,13 +397,15 @@ async def create_item(
 
 async def update_item(
     db: AsyncSession, auth_ctx: AuthContext,
-    item_id: uuid.UUID, form: ItemForm
+    item_id: uuid.UUID, form: ItemForm,
+    extras: list[dict] | None = None,
 ) -> MenuItem:
     """Update an item. Scoped-load first."""
     item = await get_owner_item(db, auth_ctx, item_id)
     item.name = form.name
     item.description = form.description
     item.dietary_tags = form.parsed_dietary_tags()
+    item.extras = extras if extras is not None else []
     item.featured = form.featured
     await db.flush()
     return item

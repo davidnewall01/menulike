@@ -5,6 +5,25 @@ from decimal import Decimal, InvalidOperation
 from pydantic import BaseModel, field_validator
 
 
+def parse_extras(labels: list[str], prices: list[str]) -> list[dict]:
+    """Pair extras_label[] and extras_price[] lists into a normalised JSONB array.
+
+    Rules:
+    - Strip whitespace from both label and price.
+    - Drop rows where the label is blank (price-only rows are meaningless).
+    - Keep rows where price is blank (e.g. "Seasonal" with no price).
+    - Price stored as string (display-only, not arithmetic).
+    """
+    extras = []
+    for label, price in zip(labels, prices):
+        label = label.strip()
+        if not label:
+            continue
+        price = price.strip()
+        extras.append({"label": label, "price": price or None})
+    return extras
+
+
 class MenuForm(BaseModel):
     """Validates the menu create/edit form.
 
@@ -13,10 +32,11 @@ class MenuForm(BaseModel):
     """
 
     name: str
+    display_title: str | None = None
     description: str | None = None
     availability_note: str | None = None
 
-    @field_validator("description", "availability_note", mode="before")
+    @field_validator("display_title", "description", "availability_note", mode="before")
     @classmethod
     def empty_str_to_none(cls, v):
         if isinstance(v, str) and v.strip() == "":
@@ -37,8 +57,9 @@ class SectionForm(BaseModel):
 
     name: str
     description: str | None = None
+    note: str | None = None
 
-    @field_validator("description", mode="before")
+    @field_validator("description", "note", mode="before")
     @classmethod
     def empty_str_to_none(cls, v):
         if isinstance(v, str) and v.strip() == "":

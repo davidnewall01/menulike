@@ -105,18 +105,20 @@ async def delete_subsection(
 
 async def create_item(
     db: AsyncSession, auth_ctx: AuthContext,
-    subsection_id: uuid.UUID, form: ItemForm
+    subsection_id: uuid.UUID, form: ItemForm,
+    extras: list[dict] | None = None,
 ) -> MenuItem:
-    item = await menu_service.create_item(db, auth_ctx, subsection_id, form)
+    item = await menu_service.create_item(db, auth_ctx, subsection_id, form, extras=extras)
     await db.commit()
     return item
 
 
 async def update_item(
     db: AsyncSession, auth_ctx: AuthContext,
-    item_id: uuid.UUID, form: ItemForm
+    item_id: uuid.UUID, form: ItemForm,
+    extras: list[dict] | None = None,
 ) -> MenuItem:
-    item = await menu_service.update_item(db, auth_ctx, item_id, form)
+    item = await menu_service.update_item(db, auth_ctx, item_id, form, extras=extras)
     await db.commit()
     return item
 

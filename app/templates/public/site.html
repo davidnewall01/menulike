@@ -10,7 +10,7 @@
 
 {% for menu in site.menus %}
 <div class="menu">
-    <h2 class="menu-name">{{ menu.name }}</h2>
+    <h2 class="menu-name">{{ menu.display_title or menu.name }}</h2>
     {% if menu.availability_note %}
     <p class="availability">{{ menu.availability_note }}</p>
     {% endif %}
@@ -18,6 +18,9 @@
     {% for section in menu.sections %}
     <div class="section">
         <h3>{{ section.name }}</h3>
+        {% if section.note %}
+        <p class="section-note">{{ section.note }}</p>
+        {% endif %}
 
         {% for subsection in section.subsections %}
         <div class="subsection">
@@ -38,6 +41,9 @@
                 {% endif %}
                 {% if item.dietary_tags %}
                 <span class="dietary">{{ item.dietary_tags | join(", ") }}</span>
+                {% endif %}
+                {% if item.extras %}
+                <span class="extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</span>
                 {% endif %}
                 {% if item.variants | length > 1 or (item.variants | length == 1 and item.variants[0].label) %}
                 <div class="variants">

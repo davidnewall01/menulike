@@ -10,6 +10,9 @@
             {% if section.description %}
             <p class="text-base-content/60 text-sm">{{ section.description }}</p>
             {% endif %}
+            {% if section.note %}
+            <p class="text-base-content/50 text-xs italic">{{ section.note }}</p>
+            {% endif %}
         </div>
         <span class="collapse-summary hidden text-base-content/50 text-sm ml-1">· {{ item_count }} dish{{ "es" if item_count != 1 else "" }}</span>
     </div>

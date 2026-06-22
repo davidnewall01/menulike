@@ -25,6 +25,7 @@
                 <li><a href="/admin/menu">Menu</a></li>
                 <li><a href="/admin/hours">Hours</a></li>
                 <li><a href="/admin/photos">Photos</a></li>
+                <li><a href="/admin/our-story">Our Story</a></li>
                 <li><a href="/admin/gallery">Gallery</a></li>
                 <li><a href="/admin/appearance">Appearance</a></li>
             </ul>
@@ -71,6 +72,26 @@
                 if (summary) summary.classList.toggle("hidden", expand);
             });
         }
+
+        /* Extras add/remove — delegated so it survives HTMX swaps */
+        document.addEventListener("click", function (e) {
+            var addBtn = e.target.closest(".extras-add");
+            if (addBtn) {
+                var list = addBtn.previousElementSibling;
+                var row = document.createElement("div");
+                row.className = "extras-row flex items-center gap-1";
+                row.innerHTML =
+                    '<input type="text" name="extras_label" placeholder="Label" class="input input-bordered input-xs w-32">' +
+                    '<input type="text" name="extras_price" placeholder="Price" class="input input-bordered input-xs w-20">' +
+                    '<button type="button" class="btn btn-ghost btn-xs extras-remove" title="Remove">\u2715</button>';
+                list.appendChild(row);
+                return;
+            }
+            var removeBtn = e.target.closest(".extras-remove");
+            if (removeBtn) {
+                removeBtn.closest(".extras-row").remove();
+            }
+        });
 
         /* Drag-to-reorder — Sortable.js, one instance per [data-sortable] container.
            Each container is independent (no shared group = no cross-container drag).

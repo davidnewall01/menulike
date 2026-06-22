@@ -35,6 +35,9 @@
         {% if item.dietary_tags %}
         <span class="badge badge-outline badge-sm mt-1">{{ item.dietary_tags | join(", ") }}</span>
         {% endif %}
+        {% if item.extras %}
+        <p class="text-xs text-base-content/50 mt-1">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>
+        {% endif %}
 
         <div class="mt-2">
             <div data-sortable data-reorder-url="/admin/item/{{ item.menu_item_id }}/reorder-variants">

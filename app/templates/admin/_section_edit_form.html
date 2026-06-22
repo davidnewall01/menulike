@@ -21,6 +21,10 @@
             <label class="label py-0"><span class="label-text text-xs">Description</span></label>
             <input type="text" name="description" value="{{ section.description or '' }}" class="input input-bordered input-sm w-full">
         </div>
+        <div class="form-control">
+            <label class="label py-0"><span class="label-text text-xs">Note (shown below heading on public site)</span></label>
+            <input type="text" name="note" value="{{ section.note or '' }}" class="input input-bordered input-sm w-full" placeholder="e.g. All pastas available gluten-free">
+        </div>
         <div class="flex gap-2">
             <button type="submit" class="btn btn-primary btn-xs">Save</button>
             <button type="button" class="btn btn-outline btn-xs"
