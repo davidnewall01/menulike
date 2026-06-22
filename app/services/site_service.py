@@ -8,8 +8,9 @@ from app.auth.context import AuthContext
 from app.models.content_block import ContentBlock
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
 from app.models.site import Site
+from app.models.user import User
 from app.schemas.site import SiteDetailsForm
-from app.services.exceptions import InvalidTemplate, NoSiteInScope, SiteNotFound
+from app.services.exceptions import AlreadyHasSite, InvalidTemplate, NoSiteInScope, SiteNotFound
 from app.web.template_resolver import AVAILABLE_TEMPLATES
 
 
@@ -64,6 +65,41 @@ async def get_owner_site(db: AsyncSession, auth_ctx: AuthContext) -> Site | None
 # ---------------------------------------------------------------------------
 # Writes (flush only — coordinator commits)
 # ---------------------------------------------------------------------------
+
+async def create_site(
+    db: AsyncSession,
+    auth_ctx: AuthContext,
+    restaurant_name: str,
+    slug: str,
+) -> Site:
+    """Create a new site and bind it to the authenticated owner.
+
+    INVERTED GUARD vs every other write service: this one asserts
+    site_id IS None. An owner who already has a site cannot create a
+    second one. This is deliberate — do not "fix" it to match the
+    normal scoped_site_id-must-be-present pattern.
+
+    Flushes but does NOT commit (coordinator commits).
+    """
+    if auth_ctx.site_id is not None:
+        raise AlreadyHasSite()
+
+    site = Site(
+        slug=slug,
+        restaurant_name=restaurant_name,
+        settings={},
+    )
+    db.add(site)
+    await db.flush()  # site_id is now assigned
+
+    # Bind the user to the new site
+    result = await db.execute(select(User).where(User.user_id == auth_ctx.user_id))
+    user = result.scalar_one()
+    user.site_id = site.site_id
+    await db.flush()
+
+    return site
+
 
 _DETAIL_FIELDS = [
     "restaurant_name", "tagline", "hero_heading", "hero_subheading",

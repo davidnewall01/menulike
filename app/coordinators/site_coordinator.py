@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.context import AuthContext
 from app.models.site import Site
 from app.schemas.site import SiteDetailsForm
-from app.services import site_service
+from app.services import site_service, slug_service
 
 
 async def update_site_details(
@@ -19,6 +19,18 @@ async def update_site_details(
     no site_id is accepted from the caller.
     """
     site = await site_service.update_site_details(db, auth_ctx, form)
+    await db.commit()
+    return site
+
+
+async def create_site(
+    db: AsyncSession,
+    auth_ctx: AuthContext,
+    restaurant_name: str,
+) -> Site:
+    """Generate slug, create site, bind to user, commit."""
+    slug = await slug_service.generate_unique_slug(db, restaurant_name)
+    site = await site_service.create_site(db, auth_ctx, restaurant_name, slug)
     await db.commit()
     return site
 

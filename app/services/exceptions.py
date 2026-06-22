@@ -51,3 +51,23 @@ class InvalidRole(Exception):
 
 class InvalidTemplate(Exception):
     """The template value is not in AVAILABLE_TEMPLATES."""
+
+
+class ContentBlockNotFound(Exception):
+    """The block_id didn't resolve within the owner's scoped site."""
+
+
+class EmptyBlock(Exception):
+    """A block must have at least one of heading, body, or image."""
+
+
+class DuplicateEmail(Exception):
+    """An account with this email already exists."""
+
+
+class AlreadyHasSite(Exception):
+    """The owner already has a site bound — cannot create a second one."""
+
+
+class OwnerNeedsSetup(Exception):
+    """An owner with no site yet hit a workspace route — redirect to setup."""

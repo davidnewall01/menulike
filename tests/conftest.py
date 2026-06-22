@@ -126,6 +126,23 @@ async def make_owner(
     return user
 
 
+async def make_owner_no_site(
+    db_session: AsyncSession,
+    email: str | None = None,
+    password: str = "testpass",
+) -> User:
+    """Insert an owner user with NO site (the signup state)."""
+    user = User(
+        email=email or f"owner-{uuid.uuid4().hex[:8]}@test.dev",
+        password_hash=hash_password(password),
+        role="owner",
+        site_id=None,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    return user
+
+
 async def make_menu(
     db_session: AsyncSession,
     site: Site,

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 
 from app.auth.context import AuthContext
-from app.auth.deps import SESSION_COOKIE, require_auth, require_csrf
+from app.auth.deps import SESSION_COOKIE, require_auth, require_csrf, require_csrf_owner_site, require_owner_site
 from app.coordinators import content_block_coordinator, hours_coordinator, hours_exception_coordinator, image_role_coordinator, menu_coordinator, photo_coordinator, site_coordinator
 from app.core.config import settings
 from app.core.csrf import generate_csrf_token
@@ -91,13 +91,24 @@ async def login_submit(
     password: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
+    # Normalise email to match signup behaviour
+    email = email.strip().lower()
+
     user = await auth_service.authenticate_user(db, email, password)
 
     if user is None:
         return _render(request, "admin/login.html", status_code=401, error="Invalid email or password")
 
+    # Role-based post-login routing
+    if user.role == "internal_admin":
+        redirect_url = "/admin/"
+    elif user.site_id is None:
+        redirect_url = "/setup/restaurant"
+    else:
+        redirect_url = "/admin/"
+
     token = encode_session(user.user_id)
-    response = RedirectResponse(url="/admin/", status_code=303)
+    response = RedirectResponse(url=redirect_url, status_code=303)
     response.set_cookie(
         key=SESSION_COOKIE,
         value=token,
@@ -124,7 +135,7 @@ async def logout(auth: AuthContext = Depends(require_csrf)):
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -148,7 +159,7 @@ async def dashboard(
 @router.get("/details", response_class=HTMLResponse)
 async def details_page(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -162,7 +173,7 @@ async def details_page(
 @router.post("/details", response_class=HTMLResponse)
 async def details_save(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -200,7 +211,7 @@ async def details_save(
 @router.get("/menu", response_class=HTMLResponse)
 async def menu_list(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     if auth.is_internal_admin:
@@ -223,7 +234,7 @@ async def menu_list(
 @router.post("/menu", response_class=HTMLResponse)
 async def menu_create(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -253,7 +264,7 @@ async def menu_create(
 @router.post("/menu/{menu_id}/publish", response_class=HTMLResponse)
 async def menu_publish(
     menu_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -268,7 +279,7 @@ async def menu_publish(
 @router.post("/menu/{menu_id}/unpublish", response_class=HTMLResponse)
 async def menu_unpublish(
     menu_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -284,7 +295,7 @@ async def menu_unpublish(
 async def menu_canvas(
     request: Request,
     menu_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -301,7 +312,7 @@ async def menu_canvas(
 async def menu_update_or_delete(
     request: Request,
     menu_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -363,7 +374,7 @@ def _not_found(exc):
 @router.post("/item", response_class=HTMLResponse)
 async def item_create(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -392,7 +403,7 @@ async def item_create(
 async def item_display(
     request: Request,
     item_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
     menu_id: uuid.UUID | None = None,
 ):
@@ -409,7 +420,7 @@ async def item_display(
 async def item_edit_form(
     request: Request,
     item_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
     menu_id: uuid.UUID | None = None,
 ):
@@ -426,7 +437,7 @@ async def item_edit_form(
 async def item_update_or_delete(
     request: Request,
     item_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -475,7 +486,7 @@ async def item_update_or_delete(
 @router.post("/variant", response_class=HTMLResponse)
 async def variant_create(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -499,7 +510,7 @@ async def variant_create(
 async def variant_display(
     request: Request,
     variant_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     """Return the variant display partial (for cancel-edit swap)."""
@@ -515,7 +526,7 @@ async def variant_display(
 async def variant_edit_form(
     request: Request,
     variant_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     """Return the variant edit form partial."""
@@ -531,7 +542,7 @@ async def variant_edit_form(
 async def variant_update_or_delete(
     request: Request,
     variant_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -572,7 +583,7 @@ async def variant_update_or_delete(
 @router.post("/section", response_class=HTMLResponse)
 async def section_create(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -597,7 +608,7 @@ async def section_create(
 async def section_edit_form(
     request: Request,
     section_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
     menu_id: uuid.UUID | None = None,
 ):
@@ -616,7 +627,7 @@ async def section_edit_form(
 async def section_update_or_delete(
     request: Request,
     section_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -665,7 +676,7 @@ async def section_update_or_delete(
 @router.post("/subsection", response_class=HTMLResponse)
 async def subsection_create(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -691,7 +702,7 @@ async def subsection_create(
 async def subsection_edit_form(
     request: Request,
     subsection_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
     menu_id: uuid.UUID | None = None,
 ):
@@ -710,7 +721,7 @@ async def subsection_edit_form(
 async def subsection_update_or_delete(
     request: Request,
     subsection_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -760,7 +771,7 @@ async def subsection_update_or_delete(
 async def item_move(
     request: Request,
     item_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -793,7 +804,7 @@ def _parse_ordered_ids(form_data) -> list[uuid.UUID]:
 async def reorder_sections(
     menu_id: uuid.UUID,
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -818,7 +829,7 @@ async def reorder_sections(
 async def reorder_subsections(
     section_id: uuid.UUID,
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -843,7 +854,7 @@ async def reorder_subsections(
 async def reorder_items(
     subsection_id: uuid.UUID,
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -868,7 +879,7 @@ async def reorder_items(
 async def reorder_variants(
     item_id: uuid.UUID,
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -896,7 +907,7 @@ async def reorder_variants(
 @router.get("/photos", response_class=HTMLResponse)
 async def photos_page(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     if auth.is_internal_admin:
@@ -920,7 +931,7 @@ async def photos_page(
 @router.post("/photos", response_class=HTMLResponse)
 async def photos_upload(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -958,7 +969,7 @@ async def photos_upload(
 async def photos_update_alt(
     request: Request,
     photo_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -981,7 +992,7 @@ async def photos_update_alt(
 async def photos_delete(
     request: Request,
     photo_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -1053,7 +1064,7 @@ def _appearance_context(site, roles, auth):
 @router.get("/appearance", response_class=HTMLResponse)
 async def appearance_page(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     if auth.is_internal_admin:
@@ -1083,7 +1094,7 @@ async def appearance_page(
 @router.post("/appearance/template", response_class=HTMLResponse)
 async def appearance_set_template(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1106,7 +1117,7 @@ async def appearance_picker(
     request: Request,
     role: str,
     mode: str = "single",
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     """Return a photo-picker grid partial for the given role."""
@@ -1128,7 +1139,7 @@ async def appearance_picker(
 @router.post("/appearance/assign", response_class=HTMLResponse)
 async def appearance_assign(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1165,7 +1176,7 @@ async def appearance_assign(
 @router.post("/appearance/clear", response_class=HTMLResponse)
 async def appearance_clear(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1205,7 +1216,7 @@ async def _render_carousel(request, auth, db):
 @router.post("/appearance/feature-images/add", response_class=HTMLResponse)
 async def feature_images_add(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1231,7 +1242,7 @@ async def feature_images_add(
 @router.post("/appearance/feature-images/remove", response_class=HTMLResponse)
 async def feature_images_remove(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1255,7 +1266,7 @@ async def feature_images_remove(
 @router.post("/appearance/feature-images/move", response_class=HTMLResponse)
 async def feature_images_move(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     """Move a photo up or down in the carousel order. Server-authoritative."""
@@ -1316,7 +1327,7 @@ async def _render_gallery_manager(request, auth, db):
 @router.get("/gallery", response_class=HTMLResponse)
 async def gallery_page(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     if auth.is_internal_admin:
@@ -1341,7 +1352,7 @@ async def gallery_page(
 @router.get("/gallery/picker", response_class=HTMLResponse)
 async def gallery_picker(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     """Photo picker for the gallery role."""
@@ -1363,7 +1374,7 @@ async def gallery_picker(
 @router.post("/gallery/add", response_class=HTMLResponse)
 async def gallery_add(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1389,7 +1400,7 @@ async def gallery_add(
 @router.post("/gallery/remove", response_class=HTMLResponse)
 async def gallery_remove(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1413,7 +1424,7 @@ async def gallery_remove(
 @router.post("/gallery/move", response_class=HTMLResponse)
 async def gallery_move(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     """Move a photo up or down in the gallery order."""
@@ -1474,7 +1485,7 @@ async def _render_blocks(request, auth, db):
 @router.get("/our-story", response_class=HTMLResponse)
 async def our_story_page(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     if auth.is_internal_admin:
@@ -1498,7 +1509,7 @@ async def our_story_page(
 @router.post("/our-story/add", response_class=HTMLResponse)
 async def our_story_add(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1519,7 +1530,7 @@ async def our_story_add(
 async def our_story_edit_form(
     request: Request,
     block_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -1539,7 +1550,7 @@ async def our_story_edit_form(
 async def our_story_update(
     request: Request,
     block_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1562,7 +1573,7 @@ async def our_story_update(
 async def our_story_delete(
     request: Request,
     block_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -1579,7 +1590,7 @@ async def our_story_delete(
 async def our_story_picker(
     request: Request,
     block_id: uuid.UUID,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     """Photo picker for a block image — carousel mode, single-select behaviour."""
@@ -1602,7 +1613,7 @@ async def our_story_picker(
 async def our_story_set_image(
     request: Request,
     block_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1629,7 +1640,7 @@ async def our_story_set_image(
 async def our_story_clear_image(
     request: Request,
     block_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -1647,7 +1658,7 @@ async def our_story_clear_image(
 @router.post("/our-story/move", response_class=HTMLResponse)
 async def our_story_move(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1702,7 +1713,7 @@ def _hours_by_day(hours_list):
 @router.get("/hours", response_class=HTMLResponse)
 async def hours_page(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     if auth.is_internal_admin:
@@ -1728,7 +1739,7 @@ async def hours_page(
 @router.post("/hours/add", response_class=HTMLResponse)
 async def hours_add_range(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     from datetime import time as dt_time
@@ -1756,7 +1767,7 @@ async def hours_add_range(
 async def hours_update_range(
     request: Request,
     range_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     from datetime import time as dt_time
@@ -1784,7 +1795,7 @@ async def hours_update_range(
 async def hours_delete_range(
     request: Request,
     range_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
@@ -1834,7 +1845,7 @@ def _parse_special_hours(form_data) -> list | None:
 @router.post("/hours/exceptions/add", response_class=HTMLResponse)
 async def exception_add(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     from datetime import date as dt_date
@@ -1866,7 +1877,7 @@ async def exception_add(
 async def exception_update(
     request: Request,
     exc_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     from datetime import date as dt_date
@@ -1900,7 +1911,7 @@ async def exception_update(
 async def exception_delete(
     request: Request,
     exc_id: uuid.UUID,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -1932,7 +1943,7 @@ async def _render_exceptions_list(request, auth, db):
 @router.get("/extraction-sandbox", response_class=HTMLResponse)
 async def extraction_sandbox_page(
     request: Request,
-    auth: AuthContext = Depends(require_auth),
+    auth: AuthContext = Depends(require_owner_site),
 ):
     return _render(request, "admin/extraction_sandbox.html", auth)
 
@@ -1940,7 +1951,7 @@ async def extraction_sandbox_page(
 @router.post("/extraction-sandbox", response_class=HTMLResponse)
 async def extraction_sandbox_run(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
 ):
     import json as _json
 
@@ -1994,7 +2005,7 @@ async def extraction_sandbox_run(
 @router.post("/extraction-sandbox/commit", response_class=HTMLResponse)
 async def extraction_sandbox_commit(
     request: Request,
-    auth: AuthContext = Depends(require_csrf),
+    auth: AuthContext = Depends(require_csrf_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
     """Commit extracted JSON as an unpublished draft menu."""

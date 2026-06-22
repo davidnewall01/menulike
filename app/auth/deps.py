@@ -11,6 +11,7 @@ from app.core.csrf import generate_csrf_token, validate_csrf_token
 from app.core.security import decode_session
 from app.db.session import get_db
 from app.models.user import User
+from app.services.exceptions import OwnerNeedsSetup
 
 SESSION_COOKIE = "session"
 
@@ -51,6 +52,20 @@ def require_auth(auth: AuthContext = Depends(get_auth_context)) -> AuthContext:
     return auth
 
 
+def require_owner_site(auth: AuthContext = Depends(require_auth)) -> AuthContext:
+    """Gate: an owner with no site yet must complete setup first.
+
+    Keys on role — internal_admin ALSO has site_id=None but must NOT be
+    caught by this gate.  Only owner + no site triggers the redirect.
+    Raises OwnerNeedsSetup (handled by an app-level exception handler
+    that returns a real RedirectResponse — NOT HTTPException(303), which
+    FastAPI renders as JSON).
+    """
+    if not auth.is_internal_admin and auth.site_id is None:
+        raise OwnerNeedsSetup()
+    return auth
+
+
 async def require_csrf(
     request: Request,
     auth: AuthContext = Depends(require_auth),
@@ -60,6 +75,22 @@ async def require_csrf(
     Reads csrf_token from the form body. Returns the AuthContext on success;
     raises 403 on missing, invalid, or session-mismatched token.
     """
+    form = await request.form()
+    token = form.get("csrf_token")
+    if not validate_csrf_token(token, auth):
+        raise HTTPException(
+            status_code=403,
+            detail="CSRF validation failed",
+            headers={"X-CSRF-Fail": "1"},
+        )
+    return auth
+
+
+async def require_csrf_owner_site(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+) -> AuthContext:
+    """CSRF + owner-must-have-site combined dependency for POST routes."""
     form = await request.form()
     token = form.get("csrf_token")
     if not validate_csrf_token(token, auth):
