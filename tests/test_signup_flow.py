@@ -242,7 +242,7 @@ class TestSetupRestaurant:
             follow_redirects=False,
         )
         assert resp.status_code == 303
-        assert resp.headers["location"] == "/admin/"
+        assert resp.headers["location"] == "/setup/menu"
 
         # Verify slug was created
         from sqlalchemy import select

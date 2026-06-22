@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Upload your menu — menulike</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f8f7f4;
+            color: #1a1a1a;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .card {
+            width: 100%;
+            max-width: 400px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+            padding: 2rem 1.5rem;
+        }
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.25rem;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.4;
+        }
+        form { display: flex; flex-direction: column; gap: 1rem; }
+        label { font-weight: 600; font-size: 0.875rem; }
+        input[type="file"] {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+            margin-top: 0.25rem;
+            display: block;
+        }
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            background: #1a1a1a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #333; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .errors {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            color: #991b1b;
+            line-height: 1.4;
+        }
+        .errors ul { list-style: none; }
+        .errors li + li { margin-top: 0.25rem; }
+        .skip-link {
+            display: block;
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #666;
+        }
+        .skip-link a { color: #1d4ed8; text-decoration: none; }
+        .skip-link a:hover { text-decoration: underline; }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 1rem 0;
+        }
+        .loading.active { display: block; }
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #d1d5db;
+            border-top-color: #1a1a1a;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 0.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text {
+            font-size: 0.875rem;
+            color: #666;
+            line-height: 1.4;
+        }
+        .upload-area { display: block; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <p class="brand">menulike</p>
+        <p class="subtitle">Got a menu PDF? Upload it and we'll read it into your site.</p>
+
+        {% if errors is defined and errors %}
+        <div class="errors">
+            <ul>
+            {% for e in errors %}
+                <li>{{ e }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" id="upload-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="upload-area" id="upload-area">
+                <label for="file">Menu PDF</label>
+                <input type="file" id="file" name="file" accept="application/pdf" required>
+            </div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p class="loading-text">Reading your menu — this takes about 20 seconds</p>
+            </div>
+            <button type="submit" class="btn" id="submit-btn">Upload and read my menu</button>
+        </form>
+
+        <p class="skip-link"><a href="/admin/">Skip for now — I'll add my menu later</a></p>
+    </div>
+
+    <script>
+    document.getElementById('upload-form').addEventListener('submit', function() {
+        document.getElementById('upload-area').style.display = 'none';
+        document.getElementById('loading').classList.add('active');
+        var btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = 'Reading…';
+    });
+    </script>
+</body>
+</html>

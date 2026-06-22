@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>We found your menu — menulike</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f8f7f4;
+            color: #1a1a1a;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .card {
+            width: 100%;
+            max-width: 440px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+            padding: 2rem 1.5rem;
+        }
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.25rem;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .success-icon {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        h2 {
+            text-align: center;
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+        .stat {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.125rem;
+        }
+        .sections-list {
+            margin-bottom: 1.25rem;
+        }
+        .sections-label {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        .sections-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+        }
+        .tag {
+            background: #e5e7eb;
+            border-radius: 6px;
+            padding: 0.25rem 0.625rem;
+            font-size: 0.8125rem;
+            color: #374151;
+        }
+        .info-box {
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.8125rem;
+            line-height: 1.4;
+            margin-bottom: 0.75rem;
+        }
+        .info-box-note {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+        .info-box-warn {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+        .info-box strong { font-weight: 600; }
+        .info-box ul { list-style: none; margin-top: 0.375rem; }
+        .info-box li { padding: 0.125rem 0; }
+        .info-box li::before { content: "\2022"; margin-right: 0.375rem; }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            background: #1a1a1a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+        .btn:hover { background: #333; }
+        .skip-link {
+            display: block;
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #666;
+        }
+        .skip-link a { color: #1d4ed8; text-decoration: none; }
+        .skip-link a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <p class="brand">menulike</p>
+        <div class="success-icon">&#9989;</div>
+        <h2>We found your menu!</h2>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number">{{ section_count }}</div>
+                <div class="stat-label">section{{ 's' if section_count != 1 else '' }}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">{{ dish_count }}</div>
+                <div class="stat-label">dish{{ 'es' if dish_count != 1 else '' }}</div>
+            </div>
+        </div>
+
+        <div class="sections-list">
+            <p class="sections-label">Sections found:</p>
+            <div class="sections-tags">
+                {% for name in section_names %}
+                <span class="tag">{{ name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if menu_note %}
+        <div class="info-box info-box-note">
+            <strong>Menu note:</strong> {{ menu_note }}
+        </div>
+        {% endif %}
+
+        {% if ignored %}
+        <div class="info-box info-box-warn">
+            <strong>Skipped (not menu items):</strong>
+            <ul>
+            {% for item in ignored %}
+                <li>{{ item }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if priceless_items %}
+        <div class="info-box info-box-warn">
+            <strong>Items without a price (you can add prices later):</strong>
+            <ul>
+            {% for item in priceless_items %}
+                <li>{{ item }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/setup/menu/confirm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="extraction_json" value="{{ extraction_json }}">
+            <button type="submit" class="btn">Looks good — save my menu</button>
+        </form>
+
+        <p class="skip-link"><a href="/admin/">Skip — I'll add my menu later</a></p>
+    </div>
+</body>
+</html>

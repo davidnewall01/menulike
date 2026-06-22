@@ -62,6 +62,36 @@ async def get_owner_site(db: AsyncSession, auth_ctx: AuthContext) -> Site | None
     return site
 
 
+async def get_owner_site_with_drafts(
+    db: AsyncSession, auth_ctx: AuthContext,
+) -> Site | None:
+    """Load the owner's site with ALL menus (including drafts) eager-loaded.
+
+    Used for the authenticated preview — drafts must be visible to the owner
+    but never to the public. Do NOT use this for the public render path
+    (that's get_site_by_slug, which filters is_published).
+    """
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+
+    stmt = (
+        select(Site)
+        .where(Site.site_id == auth_ctx.scoped_site_id)
+        .options(
+            selectinload(Site.menus)
+            .selectinload(Menu.sections)
+            .selectinload(Section.subsections)
+            .selectinload(Subsection.items)
+            .selectinload(MenuItem.variants),
+        )
+    )
+    result = await db.execute(stmt)
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
+    return site
+
+
 # ---------------------------------------------------------------------------
 # Writes (flush only — coordinator commits)
 # ---------------------------------------------------------------------------

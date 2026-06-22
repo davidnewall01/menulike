@@ -129,6 +129,31 @@ async def logout(auth: AuthContext = Depends(require_csrf)):
 
 
 # ---------------------------------------------------------------------------
+# Preview (draft-inclusive, real Linen template)
+# ---------------------------------------------------------------------------
+
+@router.get("/preview/menu", response_class=HTMLResponse)
+async def preview_menu(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Render the owner's menu (including drafts) through the real Linen template.
+
+    Authenticated, owner-scoped. Draft stays out of the public subdomain.
+    """
+    site = await site_service.get_owner_site_with_drafts(db, auth)
+    return templates.TemplateResponse(
+        "public/linen/menu.html",
+        {
+            "request": request,
+            "site": site,
+            "preview_mode": True,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
 

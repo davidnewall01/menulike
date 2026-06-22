@@ -1,7 +1,9 @@
-# Reset dev: stop server, run migrations, seed, start server.
+# Reset dev: stop server, drop DB, run migrations, seed, start server.
 # Usage: .\scripts\reset_dev.ps1
 
 $port = 8000
+$env:PGPASSWORD = "menulike"
+$pgArgs = @("-U", "menulike", "-h", "localhost", "-p", "5433")
 
 # --- Stop server ---
 $ps = netstat -ano | Select-String ":$port\s" |
@@ -13,7 +15,28 @@ foreach ($p in $ps) {
     Write-Host "Killing PID $p (holding port $port)"
     taskkill /F /PID $p 2>$null | Out-Null
 }
-Start-Sleep -Seconds 1
+Start-Sleep -Seconds 2
+
+# --- Drop & recreate DB ---
+Write-Host ""
+Write-Host "--- Dropping and recreating database ---"
+
+# Terminate all other connections to the DB first
+psql @pgArgs -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'menulike' AND pid <> pg_backend_pid();" 2>$null | Out-Null
+
+psql @pgArgs -d postgres -c "DROP DATABASE IF EXISTS menulike;"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Drop failed - aborting." -ForegroundColor Red
+    exit 1
+}
+
+psql @pgArgs -d postgres -c "CREATE DATABASE menulike;"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Create failed - aborting." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Database recreated."
 
 # --- Migrations ---
 Write-Host ""
