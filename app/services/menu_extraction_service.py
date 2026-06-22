@@ -154,7 +154,7 @@ async def extract_from_pdf(pdf_bytes: bytes) -> ExtractedMenu:
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     response = await client.messages.create(
         model=settings.MENU_EXTRACTION_MODEL,
-        max_tokens=8000,
+        max_tokens=16000,
         messages=[{"role": "user", "content": content}],
     )
 
