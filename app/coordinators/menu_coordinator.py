@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
+from app.schemas.extraction import ExtractedMenu
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.services import menu_service
 
@@ -202,3 +203,16 @@ async def reorder_variants(
 ) -> None:
     await menu_service.reorder_variants(db, auth_ctx, item_id, ordered_ids)
     await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Import
+# ---------------------------------------------------------------------------
+
+async def commit_extracted_menu(
+    db: AsyncSession, auth_ctx: AuthContext, extracted: ExtractedMenu
+) -> Menu:
+    """Build a full menu tree from extraction JSON in one transaction."""
+    menu = await menu_service.commit_extracted_menu(db, auth_ctx, extracted)
+    await db.commit()
+    return menu

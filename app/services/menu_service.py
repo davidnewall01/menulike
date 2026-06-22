@@ -1,6 +1,7 @@
 """Menu queries and mutations — scoped to the owner's site."""
 
 import uuid
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
+from app.schemas.extraction import ExtractedMenu
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.services.exceptions import (
     ItemNotFound,
@@ -599,3 +601,96 @@ async def reorder_variants(
         db, MenuItemVariant.menu_item_id, item_id,
         MenuItemVariant.menu_item_variant_id, MenuItemVariant, ordered_ids,
     )
+
+
+# ---------------------------------------------------------------------------
+# Import: commit extracted menu JSON → draft menu tree
+# ---------------------------------------------------------------------------
+
+def _parse_price(raw: str | None) -> Decimal | None:
+    """Strip '$'/whitespace from a price string → Decimal, or None if unparseable."""
+    if raw is None:
+        return None
+    cleaned = raw.strip().lstrip("$").strip()
+    if not cleaned:
+        return None
+    try:
+        d = Decimal(cleaned)
+    except InvalidOperation:
+        return None
+    if d < 0:
+        return None
+    return d
+
+
+async def commit_extracted_menu(
+    db: AsyncSession, auth_ctx: AuthContext, extracted: ExtractedMenu
+) -> Menu:
+    """Build a full menu tree from extraction JSON and flush (don't commit).
+
+    Creates an UNPUBLISHED draft menu under auth_ctx.scoped_site_id.
+    Variants with null/unparseable prices are skipped (item still created).
+    Extras are stored as-is (display strings in JSONB, no Decimal conversion).
+    The whole tree is built on transient objects; one flush persists everything.
+    """
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+
+    # Position after existing menus
+    result = await db.execute(
+        select(func.coalesce(func.max(Menu.position), 0))
+        .where(Menu.site_id == auth_ctx.scoped_site_id)
+    )
+    max_pos = result.scalar_one()
+
+    menu = Menu(
+        site_id=auth_ctx.scoped_site_id,
+        name=extracted.menu_name,
+        is_published=False,
+        position=max_pos + 10,
+    )
+
+    for sec_idx, ext_sec in enumerate(extracted.sections):
+        section = Section(
+            name=ext_sec.name,
+            note=ext_sec.note,
+            position=(sec_idx + 1) * 10,
+        )
+        menu.sections.append(section)
+
+        for sub_idx, ext_sub in enumerate(ext_sec.subsections):
+            subsection = Subsection(
+                name=ext_sub.name,
+                position=(sub_idx + 1) * 10,
+            )
+            section.subsections.append(subsection)
+
+            for item_idx, ext_item in enumerate(ext_sub.items):
+                extras = [
+                    {"label": e.label, "price": e.price}
+                    for e in ext_item.extras
+                ]
+                item = MenuItem(
+                    name=ext_item.name,
+                    description=ext_item.description,
+                    dietary_tags=ext_item.dietary_tags,
+                    extras=extras,
+                    featured=False,
+                    position=(item_idx + 1) * 10,
+                )
+                subsection.items.append(item)
+
+                for var_idx, ext_var in enumerate(ext_item.variants):
+                    price = _parse_price(ext_var.price)
+                    if price is None:
+                        continue  # skip unpriceable variants
+                    variant = MenuItemVariant(
+                        label=ext_var.label,
+                        price=price,
+                        position=(var_idx + 1) * 10,
+                    )
+                    item.variants.append(variant)
+
+    db.add(menu)
+    await db.flush()
+    return menu

@@ -924,23 +924,32 @@ async def photos_upload(
     db: AsyncSession = Depends(get_db),
 ):
     form_data = await request.form()
-    upload = form_data.get("file")
+    uploads = form_data.getlist("file")
 
-    if not upload or not hasattr(upload, "read"):
+    if not uploads or not any(hasattr(u, "read") for u in uploads):
         return await _photos_with_error(request, auth, db, "No file selected.")
 
-    file_data = await upload.read()
-    filename = getattr(upload, "filename", None)
-    content_type = getattr(upload, "content_type", "application/octet-stream")
+    errors = []
+    for upload in uploads:
+        if not hasattr(upload, "read"):
+            continue
+        file_data = await upload.read()
+        if not file_data:
+            continue
+        filename = getattr(upload, "filename", None)
+        content_type = getattr(upload, "content_type", "application/octet-stream")
 
-    try:
-        await photo_coordinator.create_photo(db, auth, file_data, filename, content_type)
-    except InvalidImage as exc:
-        return await _photos_with_error(request, auth, db, str(exc))
-    except NoSiteInScope:
-        raise HTTPException(status_code=400, detail="No site in scope")
-    except StorageNotConfigured as exc:
-        return await _photos_with_error(request, auth, db, str(exc))
+        try:
+            await photo_coordinator.create_photo(db, auth, file_data, filename, content_type)
+        except InvalidImage as exc:
+            errors.append(f"{filename}: {exc}")
+        except NoSiteInScope:
+            raise HTTPException(status_code=400, detail="No site in scope")
+        except StorageNotConfigured as exc:
+            return await _photos_with_error(request, auth, db, str(exc))
+
+    if errors:
+        return await _photos_with_error(request, auth, db, "; ".join(errors))
 
     return RedirectResponse(url="/admin/photos", status_code=303)
 
@@ -1973,9 +1982,43 @@ async def extraction_sandbox_run(
         )
 
     result_json = _json.dumps(result.model_dump(), indent=2)
+    result_json_raw = _json.dumps(result.model_dump())
     return _render(
         request, "admin/extraction_sandbox.html", auth,
         result_json=result_json,
+        result_json_raw=result_json_raw,
         ignored=result.ignored,
+    )
+
+
+@router.post("/extraction-sandbox/commit", response_class=HTMLResponse)
+async def extraction_sandbox_commit(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf),
+    db: AsyncSession = Depends(get_db),
+):
+    """Commit extracted JSON as an unpublished draft menu."""
+    import json as _json
+    from app.schemas.extraction import ExtractedMenu
+
+    form_data = await request.form()
+    raw = form_data.get("extraction_json", "")
+
+    try:
+        data = _json.loads(raw)
+        extracted = ExtractedMenu.model_validate(data)
+    except Exception:
+        return _render(
+            request, "admin/extraction_sandbox.html", auth,
+            error="Invalid extraction data — please re-extract.",
+        )
+
+    try:
+        menu = await menu_coordinator.commit_extracted_menu(db, auth, extracted)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return RedirectResponse(
+        url=f"/admin/menu/{menu.menu_id}", status_code=303
     )
 

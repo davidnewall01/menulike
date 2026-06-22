@@ -8,13 +8,16 @@
 
 <div class="card bg-base-100 shadow mb-6">
     <div class="card-body">
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" onsubmit="this.querySelector('.btn-extract').disabled=true;this.querySelector('.btn-extract').textContent='Extracting… (15-30s)';this.querySelector('.extract-spinner').classList.remove('hidden')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="form-control w-full mb-3">
                 <label class="label"><span class="label-text">Menu PDF</span></label>
                 <input type="file" name="file" accept="application/pdf" class="file-input file-input-bordered w-full" required>
             </div>
-            <button type="submit" class="btn btn-primary">Extract</button>
+            <div class="flex items-center gap-3">
+                <button type="submit" class="btn btn-primary btn-extract">Extract</button>
+                <span class="loading loading-spinner loading-md extract-spinner hidden"></span>
+            </div>
         </form>
     </div>
 </div>
@@ -49,10 +52,23 @@
 {% endif %}
 
 {% if result_json %}
-<div class="card bg-base-100 shadow">
+<div class="card bg-base-100 shadow mb-4">
     <div class="card-body">
         <h2 class="card-title text-lg">Extracted JSON</h2>
         <pre class="text-xs whitespace-pre-wrap overflow-x-auto bg-base-200 p-4 rounded max-h-[80vh] overflow-y-auto">{{ result_json }}</pre>
+    </div>
+</div>
+{% endif %}
+
+{% if result_json_raw %}
+<div class="card bg-base-100 shadow">
+    <div class="card-body">
+        <form method="post" action="/admin/extraction-sandbox/commit">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="extraction_json" value="{{ result_json_raw }}">
+            <p class="text-sm text-base-content/60 mb-3">Create an unpublished draft menu from this extraction. You can review and edit it before publishing.</p>
+            <button type="submit" class="btn btn-success">Create draft menu</button>
+        </form>
     </div>
 </div>
 {% endif %}
