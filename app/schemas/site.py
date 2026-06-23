@@ -25,8 +25,6 @@ class SiteDetailsForm(BaseModel):
     address_postcode: str | None = None
     phone: str | None = None
     email: str | None = None
-    meta_title: str | None = None
-    meta_description: str | None = None
 
     @field_validator("*", mode="before")
     @classmethod
@@ -42,4 +40,16 @@ class SiteDetailsForm(BaseModel):
         if not stripped:
             raise ValueError("Restaurant name is required")
         return stripped
+
+
+class SeoForm(BaseModel):
+    """Validates the SEO override form. Both fields optional (empty = revert to derived)."""
+
+    meta_title: str | None = None
+    meta_description: str | None = None
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v, info):
+        return _empty_to_none(v)
 

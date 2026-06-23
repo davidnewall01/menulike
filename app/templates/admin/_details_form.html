@@ -60,17 +60,6 @@
                     <input type="text" id="email" name="email" value="{{ site.email or '' }}" class="input input-bordered w-full">
                 </div>
             </div>
-            <div class="divider"></div>
-            <h2 class="card-title text-lg">SEO</h2>
-            <div class="form-control w-full">
-                <label class="label" for="meta_title"><span class="label-text">Meta title</span></label>
-                <input type="text" id="meta_title" name="meta_title" value="{{ site.meta_title or '' }}" class="input input-bordered w-full">
-            </div>
-            <div class="form-control w-full">
-                <label class="label" for="meta_description"><span class="label-text">Meta description</span></label>
-                <textarea id="meta_description" name="meta_description" rows="2" class="textarea textarea-bordered w-full">{{ site.meta_description or '' }}</textarea>
-            </div>
-
             <div class="card-actions justify-end pt-4">
                 <button type="submit" class="btn btn-primary">Save details</button>
             </div>

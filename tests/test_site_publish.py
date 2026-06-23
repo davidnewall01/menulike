@@ -79,8 +79,10 @@ class TestCanPublish:
         """can_publish keys on status/source, which are mode-independent."""
         site = SimpleNamespace(
             restaurant_name="Test", tagline=None, address_street=None,
-            phone=None, email=None, regular_hours=[], content_blocks=[],
+            address_suburb=None, phone=None, email=None,
+            regular_hours=[], content_blocks=[],
             menus=[SimpleNamespace(name="Food")],
+            meta_title=None, meta_description=None,
         )
         photo = SimpleNamespace(s3_key="test.jpg", alt_text="", width=800, height=600)
         role_images = {"feature_images": [photo]}

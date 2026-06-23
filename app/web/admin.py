@@ -337,6 +337,7 @@ async def dashboard(
         yours_count=yours_count,
         total_areas=len(site_view),
         photo_count=photo_count,
+        platform_domain=settings.PLATFORM_BASE_DOMAIN,
     )
 
 
@@ -382,6 +383,65 @@ async def unpublish_site(
     """
     await site_coordinator.unpublish(db, auth)
     return RedirectResponse(url="/admin/", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# SEO (search listing)
+# ---------------------------------------------------------------------------
+
+@router.get("/seo", response_class=HTMLResponse)
+async def seo_page(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.content.resolver import resolve_site_view
+
+    try:
+        site = await site_service.get_owner_site_full(db, auth)
+    except SiteNotFound:
+        raise HTTPException(status_code=400, detail="Scoped site not found")
+
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    view = resolve_site_view(site=site, role_images=role_images, mode="public", storage_url=storage_public_url)
+
+    return _render(
+        request, "admin/seo.html", auth,
+        site=site, seo=view["seo"],
+        platform_domain=settings.PLATFORM_BASE_DOMAIN,
+    )
+
+
+@router.post("/seo", response_class=HTMLResponse)
+async def seo_save(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.content.resolver import resolve_site_view
+    from app.schemas.site import SeoForm
+
+    form_data = await request.form()
+    form = SeoForm(**dict(form_data))
+
+    try:
+        site = await site_coordinator.update_seo(
+            db, auth, form.meta_title, form.meta_description,
+        )
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except SiteNotFound:
+        raise HTTPException(status_code=400, detail="Scoped site not found")
+
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    view = resolve_site_view(site=site, role_images=role_images, mode="public", storage_url=storage_public_url)
+
+    return _render(
+        request, "admin/seo.html", auth,
+        site=site, seo=view["seo"],
+        platform_domain=settings.PLATFORM_BASE_DOMAIN,
+        saved=True,
+    )
 
 
 # ---------------------------------------------------------------------------

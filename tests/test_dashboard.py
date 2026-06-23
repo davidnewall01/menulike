@@ -70,7 +70,7 @@ class TestEmptySiteDashboard:
         cookies = await _login(client, "prog0@test.dev")
 
         resp = await _get_dashboard(client, cookies)
-        assert "0 of 5 made yours" in resp.text
+        assert "0 of 6 made yours" in resp.text
 
     async def test_not_published_header(
         self, client: AsyncClient, db_session: AsyncSession,

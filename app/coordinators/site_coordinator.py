@@ -23,6 +23,18 @@ async def update_site_details(
     return site
 
 
+async def update_seo(
+    db: AsyncSession,
+    auth_ctx: AuthContext,
+    meta_title: str | None,
+    meta_description: str | None,
+) -> Site:
+    """Apply SEO overrides and commit."""
+    site = await site_service.update_seo(db, auth_ctx, meta_title, meta_description)
+    await db.commit()
+    return site
+
+
 async def create_site(
     db: AsyncSession,
     auth_ctx: AuthContext,

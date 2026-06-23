@@ -20,7 +20,7 @@ from typing import Any, Callable, Literal
 
 from app.content import samples
 
-Source = Literal["real", "sample", "empty"]
+Source = Literal["real", "sample", "derived", "empty"]
 Status = Literal["yours", "partial", "sample"]
 RenderMode = Literal["public", "preview"]
 
@@ -29,11 +29,11 @@ RenderMode = Literal["public", "preview"]
 class FieldView:
     """One resolved content field.
 
-    value:  the actual content (real data, sample constant, or None)
-    source: "real" | "sample" | "empty"
+    value:  the actual content (real data, sample constant, derived, or None)
+    source: "real" | "sample" | "derived" | "empty"
 
     Invariant: source="sample" if and only if value came from the samples
-    module. These are always set together — never one without the other.
+    module. source="derived" for computed defaults (e.g. SEO meta).
     """
     value: Any
     source: Source
@@ -119,6 +119,7 @@ def resolve_site_view(
         "visit": _resolve_visit(site, mode),
         "gallery": _resolve_gallery(role_images, mode, storage_url),
         "menu": _resolve_menu(site, mode),
+        "seo": _resolve_seo(site),
     }
 
 
@@ -319,3 +320,78 @@ def _resolve_menu(site: Any, mode: RenderMode) -> AreaView:
         ),
     }
     return AreaView(status=_compute_status("menu", fields), fields=fields)
+
+
+_META_TITLE_MAX = 60
+
+
+def _derive_meta_title(site: Any) -> str | None:
+    """Derive a meta title from name + suburb. None if too thin."""
+    name = site.restaurant_name
+    suburb = getattr(site, "address_suburb", None)
+    if suburb:
+        candidate = f"{name} — {suburb}"
+        if len(candidate) <= _META_TITLE_MAX:
+            return candidate
+    return name
+
+
+def _derive_meta_description(site: Any) -> str | None:
+    """Derive a meta description from tagline + suburb.
+
+    Degrade ladder:
+      both   → "{tagline}. Located in {suburb}."
+      tagline only → "{tagline}"
+      suburb only  → "{name} — a restaurant in {suburb}."
+      neither      → None (omit — better no description than a bad one)
+    """
+    tagline = getattr(site, "tagline", None)
+    suburb = getattr(site, "address_suburb", None)
+    name = site.restaurant_name
+
+    if tagline and suburb:
+        desc = f"{tagline}. Located in {suburb}."
+    elif tagline:
+        desc = tagline
+    elif suburb:
+        desc = f"{name} — a restaurant in {suburb}."
+    else:
+        return None
+
+    return desc[:155] if len(desc) > 155 else desc
+
+
+def _resolve_seo(site: Any) -> AreaView:
+    """Resolve SEO meta fields with derive-with-override.
+
+    Mode-independent: derived values are always computed (not sample content).
+    NOT status-bearing — SEO is not part of the publish gate.
+    """
+    has_title = bool(site.meta_title)
+    has_desc = bool(site.meta_description)
+
+    if has_title:
+        title_field = FieldView(value=site.meta_title, source="real")
+    else:
+        derived = _derive_meta_title(site)
+        title_field = FieldView(value=derived, source="derived")
+
+    if has_desc:
+        desc_field = FieldView(value=site.meta_description, source="real")
+    else:
+        derived = _derive_meta_description(site)
+        if derived:
+            desc_field = FieldView(value=derived, source="derived")
+        else:
+            desc_field = FieldView(value=None, source="empty")
+
+    fields = {"meta_title": title_field, "meta_description": desc_field}
+
+    # Status: "yours" if either is overridden, else "sample" (auto-generated).
+    # This is cosmetic for the dashboard tile only — not a publish-gate concern.
+    if has_title or has_desc:
+        status: Status = "yours"
+    else:
+        status = "sample"
+
+    return AreaView(status=status, fields=fields)

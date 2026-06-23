@@ -199,7 +199,6 @@ _DETAIL_FIELDS = [
     "restaurant_name", "tagline",
     "address_street", "address_suburb", "address_state", "address_postcode",
     "phone", "email",
-    "meta_title", "meta_description",
 ]
 
 
@@ -226,6 +225,29 @@ async def update_site_details(
     for field in _DETAIL_FIELDS:
         setattr(site, field, getattr(form, field))
 
+    await db.flush()
+    return site
+
+
+async def update_seo(
+    db: AsyncSession,
+    auth_ctx: AuthContext,
+    meta_title: str | None,
+    meta_description: str | None,
+) -> Site:
+    """Set SEO override fields. None = revert to derived. Flush only."""
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+
+    result = await db.execute(
+        select(Site).where(Site.site_id == auth_ctx.scoped_site_id)
+    )
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
+
+    site.meta_title = meta_title
+    site.meta_description = meta_description
     await db.flush()
     return site
 

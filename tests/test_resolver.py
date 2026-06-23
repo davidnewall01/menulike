@@ -39,21 +39,27 @@ def make_site(
     restaurant_name: str = "Test Restaurant",
     tagline: str | None = None,
     address_street: str | None = None,
+    address_suburb: str | None = None,
     phone: str | None = None,
     email: str | None = None,
     regular_hours: list | None = None,
     content_blocks: list | None = None,
     menus: list | None = None,
+    meta_title: str | None = None,
+    meta_description: str | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         restaurant_name=restaurant_name,
         tagline=tagline,
         address_street=address_street,
+        address_suburb=address_suburb,
         phone=phone,
         email=email,
         regular_hours=regular_hours or [],
         content_blocks=content_blocks or [],
         menus=menus or [],
+        meta_title=meta_title,
+        meta_description=meta_description,
     )
 
 
@@ -547,7 +553,7 @@ class TestStructure:
 
     def test_all_areas_present(self):
         view = _resolve(site=make_site(), role_images={}, mode="public")
-        assert set(view.keys()) == {"home", "our_story", "visit", "gallery", "menu"}
+        assert set(view.keys()) == {"home", "our_story", "visit", "gallery", "menu", "seo"}
 
     def test_field_view_is_frozen(self):
         fv = FieldView(value="x", source="real")

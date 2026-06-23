@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>{{ site.meta_title or site.restaurant_name }}</title>
-  {% if site.meta_description %}
-  <meta name="description" content="{{ site.meta_description }}">
+  <title>{{ view.seo.fields.meta_title.value or site.restaurant_name }}</title>
+  {% if view.seo.fields.meta_description.value %}
+  <meta name="description" content="{{ view.seo.fields.meta_description.value }}">
   {% endif %}
   {% include "public/linen/tokens.html" %}
   <link rel="stylesheet" href="/static/themes/linen/linen.css">
