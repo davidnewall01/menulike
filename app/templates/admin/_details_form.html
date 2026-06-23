@@ -28,24 +28,6 @@
             </div>
 
             <div class="divider"></div>
-            <h2 class="card-title text-lg">Hero</h2>
-            <div class="form-control w-full">
-                <label class="label" for="hero_heading"><span class="label-text">Heading</span></label>
-                <input type="text" id="hero_heading" name="hero_heading" value="{{ site.hero_heading or '' }}" class="input input-bordered w-full">
-            </div>
-            <div class="form-control w-full">
-                <label class="label" for="hero_subheading"><span class="label-text">Subheading</span></label>
-                <input type="text" id="hero_subheading" name="hero_subheading" value="{{ site.hero_subheading or '' }}" class="input input-bordered w-full">
-            </div>
-
-            <div class="divider"></div>
-            <h2 class="card-title text-lg">About</h2>
-            <div class="form-control w-full">
-                <label class="label" for="about_story"><span class="label-text">Story</span></label>
-                <textarea id="about_story" name="about_story" rows="4" class="textarea textarea-bordered w-full">{{ site.about_story or '' }}</textarea>
-            </div>
-
-            <div class="divider"></div>
             <h2 class="card-title text-lg">Address</h2>
             <div class="form-control w-full">
                 <label class="label" for="address_street"><span class="label-text">Street</span></label>
@@ -61,15 +43,9 @@
                     <input type="text" id="address_state" name="address_state" value="{{ site.address_state or '' }}" class="input input-bordered w-full">
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="form-control">
-                    <label class="label" for="address_postcode"><span class="label-text">Postcode</span></label>
-                    <input type="text" id="address_postcode" name="address_postcode" value="{{ site.address_postcode or '' }}" class="input input-bordered w-full">
-                </div>
-                <div class="form-control">
-                    <label class="label" for="address_country"><span class="label-text">Country</span></label>
-                    <input type="text" id="address_country" name="address_country" value="{{ site.address_country or '' }}" class="input input-bordered w-full">
-                </div>
+            <div class="form-control w-full">
+                <label class="label" for="address_postcode"><span class="label-text">Postcode</span></label>
+                <input type="text" id="address_postcode" name="address_postcode" value="{{ site.address_postcode or '' }}" class="input input-bordered w-full">
             </div>
 
             <div class="divider"></div>
@@ -84,17 +60,6 @@
                     <input type="text" id="email" name="email" value="{{ site.email or '' }}" class="input input-bordered w-full">
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="form-control">
-                    <label class="label" for="booking_url"><span class="label-text">Booking URL</span></label>
-                    <input type="text" id="booking_url" name="booking_url" value="{{ site.booking_url or '' }}" class="input input-bordered w-full">
-                </div>
-                <div class="form-control">
-                    <label class="label" for="order_url"><span class="label-text">Order URL</span></label>
-                    <input type="text" id="order_url" name="order_url" value="{{ site.order_url or '' }}" class="input input-bordered w-full">
-                </div>
-            </div>
-
             <div class="divider"></div>
             <h2 class="card-title text-lg">SEO</h2>
             <div class="form-control w-full">

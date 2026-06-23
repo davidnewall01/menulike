@@ -132,6 +132,17 @@ class TestEligibleSiteDashboard:
         assert "Add your menu" not in html
         assert "Add a hero photo" not in html
 
+    async def test_photo_count_on_dashboard(
+        self, client: AsyncClient, db_session: AsyncSession,
+    ):
+        """Photos tile shows count matching the library."""
+        site, _, cookies = await self._setup(db_session, client)
+        resp = await _get_dashboard(client, cookies)
+        html = resp.text
+        # _setup creates 1 photo
+        assert "1 photo" in html
+        assert "No photos yet" not in html
+
 
 # ---------------------------------------------------------------------------
 # Published site

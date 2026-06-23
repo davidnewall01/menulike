@@ -196,10 +196,10 @@ async def create_site(
 
 
 _DETAIL_FIELDS = [
-    "restaurant_name", "tagline", "hero_heading", "hero_subheading",
-    "about_story", "address_street", "address_suburb", "address_state",
-    "address_postcode", "address_country", "phone", "email",
-    "booking_url", "order_url", "meta_title", "meta_description",
+    "restaurant_name", "tagline",
+    "address_street", "address_suburb", "address_state", "address_postcode",
+    "phone", "email",
+    "meta_title", "meta_description",
 ]
 
 

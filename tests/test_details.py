@@ -151,36 +151,3 @@ class TestDetailsEditing:
         await db_session.refresh(site)
         assert site.restaurant_name == "ValFail"
 
-    async def test_javascript_url_rejected(self, db_session, client):
-        """javascript: scheme in booking/order URLs must be rejected."""
-        site = await make_site(db_session, slug="urltest", name="URL Test")
-        owner = await make_owner(db_session, site, email="u@test.dev", password="pass")
-
-        cookie = await self._login(client, "u@test.dev", "pass")
-        token = csrf_token_for(owner)
-
-        resp = await client.post(
-            "/admin/details",
-            data={
-                "restaurant_name": "URL Test",
-                "booking_url": "javascript:alert(1)",
-                "csrf_token": token,
-            },
-            cookies={"session": cookie},
-        )
-        assert resp.status_code == 200
-        assert "not allowed" in resp.text
-        assert "Details saved" not in resp.text
-
-        # Valid https URL should work
-        resp = await client.post(
-            "/admin/details",
-            data={
-                "restaurant_name": "URL Test",
-                "booking_url": "https://book.example.com",
-                "csrf_token": token,
-            },
-            cookies={"session": cookie},
-        )
-        assert resp.status_code == 200
-        assert "Details saved" in resp.text
