@@ -12,6 +12,18 @@ from app.models.site import Site
 from app.services import site_service
 
 
+class SiteNotPublished(Exception):
+    """The resolved site exists but is not published yet.
+
+    Carries the restaurant_name so the exception handler can render the
+    coming-soon page without any other tenant data.
+    """
+
+    def __init__(self, restaurant_name: str) -> None:
+        self.restaurant_name = restaurant_name
+        super().__init__(restaurant_name)
+
+
 def extract_slug(host: str, base_domain: str) -> str | None:
     """Extract the tenant slug from a Host header value.
 
@@ -43,6 +55,11 @@ async def resolve_tenant(
     """FastAPI dependency: resolve the current tenant from the Host header.
 
     Raises 404 for apex hits, unknown subdomains, or missing tenants.
+    Raises SiteNotPublished for unpublished sites — caught by the
+    exception handler in main.py to render the coming-soon page.
+
+    Admin preview routes never call this (they use require_owner_site),
+    so the publish gate cannot accidentally catch preview.
     """
     host = request.headers.get("host", "")
     slug = extract_slug(host, settings.PLATFORM_BASE_DOMAIN)
@@ -53,5 +70,8 @@ async def resolve_tenant(
     site = await site_service.get_site_by_slug(db, slug)
     if site is None:
         raise HTTPException(status_code=404, detail="Unknown site")
+
+    if not site.is_published:
+        raise SiteNotPublished(site.restaurant_name)
 
     return site

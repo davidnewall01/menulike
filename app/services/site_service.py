@@ -92,6 +92,36 @@ async def get_owner_site_with_drafts(
     return site
 
 
+async def get_owner_site_full(
+    db: AsyncSession, auth_ctx: AuthContext,
+) -> Site:
+    """Load the owner's site with all relationships the resolver needs.
+
+    Eager-loads menus, regular_hours, hours_exceptions, content_blocks
+    (with images). Used by the publish route to feed the resolver for
+    can_publish eligibility checks.
+    """
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+
+    stmt = (
+        select(Site)
+        .where(Site.site_id == auth_ctx.scoped_site_id)
+        .options(
+            selectinload(Site.menus),
+            selectinload(Site.regular_hours),
+            selectinload(Site.hours_exceptions),
+            selectinload(Site.content_blocks)
+            .selectinload(ContentBlock.image),
+        )
+    )
+    result = await db.execute(stmt)
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
+    return site
+
+
 # ---------------------------------------------------------------------------
 # Writes (flush only — coordinator commits)
 # ---------------------------------------------------------------------------
@@ -189,5 +219,52 @@ async def set_template(
         raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
 
     site.template = template
+    await db.flush()
+    return site
+
+
+# ---------------------------------------------------------------------------
+# Publish / go-live
+# ---------------------------------------------------------------------------
+
+def can_publish(site_view: dict) -> tuple[bool, list[str]]:
+    """Check whether a site is eligible to go live.
+
+    Pure function — reads the resolver's SiteView (mode-independent status).
+    Returns (eligible, reasons) where reasons lists unmet requirements.
+
+    Minimum bar for the pilot: menu is real AND home hero is real.
+    Keys on the mode-independent status/source, so can_publish agrees
+    with the dashboard tiles by construction.
+    """
+    reasons: list[str] = []
+
+    if site_view["menu"].status == "sample":
+        reasons.append("Add your menu")
+
+    if site_view["home"].fields["hero"].source != "real":
+        reasons.append("Add a hero photo")
+
+    return (len(reasons) == 0, reasons)
+
+
+async def set_published(
+    db: AsyncSession, auth_ctx: AuthContext, *, is_published: bool,
+) -> Site:
+    """Set the publish state for the owner's scoped site. Flush only.
+
+    Scoped via auth_ctx.scoped_site_id — never accepts a site_id param.
+    """
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+
+    result = await db.execute(
+        select(Site).where(Site.site_id == auth_ctx.scoped_site_id)
+    )
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
+
+    site.is_published = is_published
     await db.flush()
     return site

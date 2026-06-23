@@ -95,10 +95,15 @@ async def make_site(
     name: str = "Test Restaurant",
     **overrides,
 ) -> Site:
-    """Insert a site into the test transaction."""
+    """Insert a site into the test transaction.
+
+    Defaults is_published=True so that most tests (which expect a live site)
+    work without change. Tests for unpublished behaviour pass is_published=False.
+    """
     fields = dict(
         slug=slug,
         restaurant_name=name,
+        is_published=True,
         settings={},
     )
     fields.update(overrides)

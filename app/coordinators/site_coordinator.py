@@ -41,3 +41,17 @@ async def set_template(
     site = await site_service.set_template(db, auth_ctx, template)
     await db.commit()
     return site
+
+
+async def publish(db: AsyncSession, auth_ctx: AuthContext) -> Site:
+    """Set the owner's site to published, then commit."""
+    site = await site_service.set_published(db, auth_ctx, is_published=True)
+    await db.commit()
+    return site
+
+
+async def unpublish(db: AsyncSession, auth_ctx: AuthContext) -> Site:
+    """Set the owner's site to unpublished, then commit."""
+    site = await site_service.set_published(db, auth_ctx, is_published=False)
+    await db.commit()
+    return site

@@ -2,13 +2,14 @@ import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Numeric, String, Text, UUID
+from sqlalchemy import Boolean, Numeric, String, Text, UUID
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.content_block import ContentBlock
     from app.models.hours_exception import HoursException
     from app.models.menu import Menu
     from app.models.photo import Photo
@@ -57,6 +58,11 @@ class Site(TimestampMixin, Base):
     meta_title: Mapped[str | None] = mapped_column(String, nullable=True)
     meta_description: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    # Publish state
+    is_published: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
     # Design config (JSONB)
     settings: Mapped[dict] = mapped_column(
         JSONB, nullable=False, server_default="{}"
@@ -90,4 +96,10 @@ class Site(TimestampMixin, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="HoursException.start_date",
+    )
+    content_blocks: Mapped[list["ContentBlock"]] = relationship(
+        back_populates="site",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="ContentBlock.position",
     )

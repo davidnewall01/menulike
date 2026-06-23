@@ -178,6 +178,50 @@ async def dashboard(
 
 
 # ---------------------------------------------------------------------------
+# Publish / Unpublish
+# ---------------------------------------------------------------------------
+
+@router.post("/publish", response_class=HTMLResponse)
+async def publish_site(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set the owner's site to published (go live).
+
+    Checks eligibility via can_publish (reads the resolver — mode-independent).
+    If not eligible, redirects back to dashboard (the dashboard will show reasons
+    once tiles are built in Chunk 3).
+    """
+    from app.content.resolver import resolve_site_view
+
+    site = await site_service.get_owner_site_full(db, auth)
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    site_view = resolve_site_view(site=site, role_images=role_images, mode="public")
+
+    eligible, _reasons = site_service.can_publish(site_view)
+    if not eligible:
+        return RedirectResponse(url="/admin/", status_code=303)
+
+    await site_coordinator.publish(db, auth)
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+@router.post("/unpublish", response_class=HTMLResponse)
+async def unpublish_site(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set the owner's site to unpublished (take offline).
+
+    No eligibility check — an owner can always take their site offline.
+    """
+    await site_coordinator.unpublish(db, auth)
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+# ---------------------------------------------------------------------------
 # Details editing
 # ---------------------------------------------------------------------------
 
