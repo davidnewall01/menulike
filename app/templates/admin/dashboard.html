@@ -3,22 +3,275 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold mb-4">Dashboard</h1>
-<div class="card bg-base-100 shadow">
-    <div class="card-body">
-        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-            <dt class="font-semibold">Logged in as</dt>
-            <dd>{{ email }}</dd>
-            <dt class="font-semibold">Role</dt>
-            <dd>{{ role }}</dd>
-            {% if site_name %}
-            <dt class="font-semibold">Site</dt>
-            <dd>{{ site_name }}</dd>
-            {% elif is_internal_admin %}
-            <dt class="font-semibold">Site</dt>
-            <dd class="italic text-base-content/60">Internal admin — not scoped to a site</dd>
-            {% endif %}
-        </dl>
+<style>
+  /* Dashboard — pine-on-paper, mobile-first */
+  :root {
+    --d-pine: #1E5B52;
+    --d-pine-deep: #163F39;
+    --d-muted: #6E665B;
+    --d-line: #E5DCCD;
+    --d-paper2: #F1EADD;
+    --d-card: #FFFFFF;
+    --d-honey: #C2853A;
+    --d-sample-bg: #F6ECD8;
+    --d-sample-tx: #946420;
+    --d-sample-bd: #E4CFA6;
+    --d-partial-bg: #FFF3E0;
+    --d-partial-tx: #8D6A2A;
+    --d-partial-bd: #E4CFA6;
+    --d-done-bg: #E3F0EC;
+    --d-done-tx: #1E5B52;
+  }
+
+  .dash-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .dash-head h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+  .dash-head .sub { color: var(--d-muted); font-size: 14px; margin-top: 2px; }
+  .dash-head .sub .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--d-pine); margin-right: 4px; vertical-align: middle; }
+  .dash-head .sub .draft-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--d-honey); margin-right: 4px; vertical-align: middle; }
+  .dash-head .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .dash-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 8px 13px; border: 1px solid var(--d-line); border-radius: 8px; background: var(--d-card); color: inherit; text-decoration: none; }
+  .dash-chip:hover { border-color: #cdbfa9; }
+  .dash-chip .sw { width: 12px; height: 12px; border-radius: 3px; background: linear-gradient(135deg, #43332b, #6e554a); }
+  .btn-preview { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; padding: 9px 16px; border-radius: 8px; background: var(--d-pine); color: #fff; text-decoration: none; }
+  .btn-preview:hover { background: var(--d-pine-deep); }
+
+  /* orientation */
+  .orient { background: var(--d-paper2); border: 1px solid var(--d-line); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 16px 0 6px; }
+  .orient .msg { font-size: 14px; max-width: 58ch; }
+  .orient .msg b { font-weight: 700; }
+  .orient .prog { min-width: 160px; }
+  .orient .prog .lab { font-size: 12px; color: var(--d-muted); font-weight: 600; margin-bottom: 5px; text-align: right; }
+  .orient .bar { height: 7px; border-radius: 4px; background: #E2D6C4; overflow: hidden; }
+  .orient .bar i { display: block; height: 100%; border-radius: 4px; background: var(--d-pine); transition: width 0.3s ease; }
+
+  /* section labels */
+  .seclab { display: flex; align-items: baseline; gap: 8px; margin: 26px 0 12px; }
+  .seclab h2 { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--d-pine); margin: 0; }
+  .seclab .hint { font-size: 13px; color: var(--d-muted); }
+
+  /* tiles */
+  .tile-grid { display: grid; gap: 16px; }
+  .tile-grid.core { grid-template-columns: 1fr 1fr; }
+  .tile-grid.rest { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 840px) { .tile-grid.core { grid-template-columns: 1fr; } .tile-grid.rest { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 520px) { .tile-grid.rest { grid-template-columns: 1fr; } }
+
+  .tile { background: var(--d-card); border: 1px solid var(--d-line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.14s ease, box-shadow 0.14s ease; }
+  .tile:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -20px rgba(33, 28, 22, 0.4); }
+  .tile.is-core { border-color: #D9C9AE; }
+  .tile .tile-body { padding: 16px 16px 14px; display: flex; flex-direction: column; flex: 1; }
+  .tile .tile-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .tile .tile-name { font-size: 16px; font-weight: 700; }
+  .tile.is-core .tile-name { font-size: 17px; }
+  .tile .tile-desc { font-size: 13px; color: var(--d-muted); margin-top: auto; padding-top: 10px; }
+  .tile .tile-cta { margin-top: 10px; }
+  .tile .tile-cta a { display: inline-block; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 7px; text-decoration: none; }
+  .tile .tile-cta .primary { background: var(--d-pine); color: #fff; }
+  .tile .tile-cta .primary:hover { background: var(--d-pine-deep); }
+  .tile .tile-cta .ghost { border: 1.5px solid currentColor; }
+  .tile .tile-cta .ghost:hover { background: var(--d-pine); color: #fff; border-color: var(--d-pine); }
+
+  /* status chips */
+  .st { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 16px; white-space: nowrap; }
+  .st.sample { background: var(--d-sample-bg); color: var(--d-sample-tx); border: 1px solid var(--d-sample-bd); }
+  .st.partial { background: var(--d-partial-bg); color: var(--d-partial-tx); border: 1px solid var(--d-partial-bd); }
+  .st.yours { background: var(--d-done-bg); color: var(--d-done-tx); border: 1px solid transparent; }
+  .st .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .st.sample .dot { background: var(--d-honey); }
+  .st.partial .dot { background: var(--d-honey); }
+  .st.yours .dot { background: var(--d-pine); }
+
+  /* publish bar */
+  .publish-bar { margin: 30px 0 40px; }
+  .publish-bar .box { background: #2A2017; color: #FAF7F1; border-radius: 12px; padding: 22px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  .publish-bar h3 { font-size: 18px; font-weight: 800; margin: 0; }
+  .publish-bar p { font-size: 13px; color: #C9C0B2; margin: 5px 0 0; max-width: 50ch; }
+  .publish-bar .reasons { font-size: 12px; color: #9FC6BD; margin-top: 8px; }
+  .publish-bar .reasons b { color: #fff; }
+  .publish-bar .pbtn { font-size: 14px; font-weight: 800; padding: 12px 22px; border-radius: 9px; border: none; cursor: pointer; white-space: nowrap; }
+  .publish-bar .pbtn.disabled { background: #4B443B; color: #9c948a; cursor: not-allowed; }
+  .publish-bar .pbtn.enabled { background: var(--d-pine); color: #fff; }
+  .publish-bar .pbtn.enabled:hover { background: var(--d-pine-deep); }
+  .publish-bar .live-box { background: var(--d-done-bg); color: var(--d-done-tx); }
+  .publish-bar .live-box h3 { color: var(--d-pine); }
+  .publish-bar .live-box p { color: var(--d-muted); }
+  .publish-bar .take-offline { font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 7px; border: 1.5px solid var(--d-pine); background: transparent; color: var(--d-pine); cursor: pointer; white-space: nowrap; }
+  .publish-bar .take-offline:hover { background: #fbe8e8; border-color: #c44; color: #c44; }
+
+  @media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
+</style>
+
+{# --- Header --- #}
+<div class="dash-head">
+  <div>
+    <h1>{{ site.restaurant_name }}</h1>
+    <div class="sub">
+      {% if site.is_published %}
+      <span class="live-dot"></span> Your site is live
+      {% else %}
+      <span class="draft-dot"></span> Not published yet
+      {% endif %}
     </div>
+  </div>
+  <div class="right">
+    <a href="/admin/appearance" class="dash-chip"><span class="sw"></span> Look: Linen</a>
+    <a href="/admin/preview" class="btn-preview">Preview your site</a>
+  </div>
 </div>
+
+{# --- Orientation banner --- #}
+{% set pct = (yours_count * 100 / total_areas) | int if total_areas > 0 else 0 %}
+<div class="orient">
+  <div class="msg"><b>Replace each sample with your own</b> — your menu, your photos, your words — then publish when the essentials are yours.</div>
+  <div class="prog">
+    <div class="lab">{{ yours_count }} of {{ total_areas }} made yours</div>
+    <div class="bar"><i style="width:{{ pct }}%"></i></div>
+  </div>
+</div>
+
+{# --- Core tiles --- #}
+<div class="seclab"><h2>Start here</h2><span class="hint">The two that matter most</span></div>
+<div class="tile-grid core">
+
+  {# Menu tile #}
+  {% set menu_area = site_view["menu"] %}
+  <div class="tile is-core">
+    <div class="tile-body">
+      <div class="tile-head">
+        <span class="tile-name">Your menu</span>
+        <span class="st {{ menu_area.status }}"><span class="dot"></span>
+          {% if menu_area.status == "yours" %}Yours{% elif menu_area.status == "partial" %}Partly yours{% else %}Still sample{% endif %}
+        </span>
+      </div>
+      <div class="tile-desc">
+        {% if menu_area.status == "yours" %}Your menu is live. Edit it any time.{% else %}Upload your real menu (even a PDF) and it replaces the sample in seconds.{% endif %}
+      </div>
+      <div class="tile-cta">
+        {% if menu_area.status == "yours" %}
+        <a href="/admin/menu" class="primary">Edit your menu</a>
+        {% else %}
+        <a href="/admin/menu/add" class="primary">Upload your menu</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Home & photos tile #}
+  {% set home_area = site_view["home"] %}
+  <div class="tile is-core">
+    <div class="tile-body">
+      <div class="tile-head">
+        <span class="tile-name">Home &amp; photos</span>
+        <span class="st {{ home_area.status }}"><span class="dot"></span>
+          {% if home_area.status == "yours" %}Yours{% elif home_area.status == "partial" %}Partly yours{% else %}Still sample{% endif %}
+        </span>
+      </div>
+      <div class="tile-desc">
+        {% if home_area.status == "yours" %}Your hero image and tagline are set.{% elif home_area.status == "partial" %}Almost there — add your hero photo or tagline.{% else %}Add a great photo of your room or a dish to make the front page yours.{% endif %}
+      </div>
+      <div class="tile-cta">
+        <a href="/admin/appearance" class="primary">{% if home_area.status == "yours" %}Edit photos{% else %}Add your photos{% endif %}</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# --- Secondary tiles --- #}
+<div class="seclab"><h2>The rest of your site</h2><span class="hint">Fill these in whenever you like</span></div>
+<div class="tile-grid rest">
+
+  {# Our Story tile #}
+  {% set story_area = site_view["our_story"] %}
+  <div class="tile">
+    <div class="tile-body">
+      <div class="tile-head">
+        <span class="tile-name">Our Story</span>
+        <span class="st {{ story_area.status }}"><span class="dot"></span>
+          {% if story_area.status == "yours" %}Yours{% else %}Still sample{% endif %}
+        </span>
+      </div>
+      <div class="tile-desc">
+        {% if story_area.status == "yours" %}Your story is live. Edit it any time.{% else %}Tell people who you are — a placeholder story is showing.{% endif %}
+      </div>
+      <div class="tile-cta">
+        <a href="/admin/our-story" class="ghost">{% if story_area.status == "yours" %}Edit your story{% else %}Write your story{% endif %}</a>
+      </div>
+    </div>
+  </div>
+
+  {# Visit & hours tile #}
+  {% set visit_area = site_view["visit"] %}
+  <div class="tile">
+    <div class="tile-body">
+      <div class="tile-head">
+        <span class="tile-name">Visit &amp; hours</span>
+        <span class="st {{ visit_area.status }}"><span class="dot"></span>
+          {% if visit_area.status == "yours" %}Yours{% elif visit_area.status == "partial" %}Partly yours{% else %}Still sample{% endif %}
+        </span>
+      </div>
+      <div class="tile-desc">
+        {% if visit_area.status == "yours" %}Your details and hours are set.{% else %}We've got your name. Add your address and hours.{% endif %}
+      </div>
+      <div class="tile-cta">
+        <a href="/admin/hours" class="ghost">{% if visit_area.status == "yours" %}Edit details{% else %}Add your details{% endif %}</a>
+      </div>
+    </div>
+  </div>
+
+  {# Gallery tile #}
+  {% set gallery_area = site_view["gallery"] %}
+  <div class="tile">
+    <div class="tile-body">
+      <div class="tile-head">
+        <span class="tile-name">Gallery</span>
+        <span class="st {{ gallery_area.status }}"><span class="dot"></span>
+          {% if gallery_area.status == "yours" %}Yours{% else %}Still sample{% endif %}
+        </span>
+      </div>
+      <div class="tile-desc">
+        {% if gallery_area.status == "yours" %}Your gallery photos are live.{% else %}Show off your dishes and space.{% endif %}
+      </div>
+      <div class="tile-cta">
+        <a href="/admin/gallery" class="ghost">{% if gallery_area.status == "yours" %}Edit gallery{% else %}Add photos{% endif %}</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# --- Publish bar --- #}
+<div class="publish-bar">
+  {% if site.is_published %}
+  <div class="box live-box">
+    <div>
+      <h3>Your site is live</h3>
+      <p>Visitors can see your site at your subdomain. Only your own content is shown — no samples.</p>
+    </div>
+    <form method="post" action="/admin/unpublish">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="take-offline">Take offline</button>
+    </form>
+  </div>
+  {% elif eligible %}
+  <div class="box">
+    <div>
+      <h3>Ready to go live?</h3>
+      <p>When you publish, your site shows <b style="color:#fff;">only your own content</b> — every remaining sample is dropped automatically.</p>
+    </div>
+    <form method="post" action="/admin/publish">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="pbtn enabled">Publish site</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="box">
+    <div>
+      <h3>Ready to go live?</h3>
+      <p>When you publish, your site shows <b style="color:#fff;">only your own content</b> — every remaining sample is dropped automatically.</p>
+      <div class="reasons">Replace your core samples first: {% for r in reasons %}<b>{{ r }}</b>{% if not loop.last %} &middot; {% endif %}{% endfor %}</div>
+    </div>
+    <button class="pbtn disabled" disabled>Publish site</button>
+  </div>
+  {% endif %}
+</div>
+
 {% endblock %}

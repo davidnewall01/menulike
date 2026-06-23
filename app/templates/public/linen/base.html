@@ -12,9 +12,24 @@
   <link rel="stylesheet" href="/static/themes/linen/linen.css">
   {% block head %}{% endblock %}
 </head>
-<body{% block body_attrs %}{% endblock %}>
+{% set nav_prefix = nav_prefix | default("") %}
+{# Compute logo_url from view-model (migrated pages) or legacy logo_photo #}
+{% if view is defined and view.home is defined %}
+  {% set logo_url = view.home.fields.logo.value %}
+{% elif logo_photo is defined and logo_photo %}
+  {% set logo_url = storage_url(logo_photo.s3_key) %}
+{% else %}
+  {% set logo_url = none %}
+{% endif %}
+<body class="{% block body_class %}{% endblock %}{% if render_mode == 'preview' %} has-preview-banner{% endif %}">
+  {% if render_mode == "preview" %}
+  <div class="preview-banner">
+    <span>Preview — sample content is marked</span>
+    <a href="/admin/">← Back to dashboard</a>
+  </div>
+  {% endif %}
   {% include "public/linen/_nav.html" %}
   {% block content %}{% endblock %}
-  {% include "public/linen/_footer.html" %}
+  {% block footer %}{% include "public/linen/_footer.html" %}{% endblock %}
 </body>
 </html>

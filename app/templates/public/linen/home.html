@@ -1,38 +1,47 @@
 {% extends "public/linen/base.html" %}
 
-{% block body_attrs %} class="home"{% endblock %}
+{% block body_class %}home{% endblock %}
+{% block footer %}{% endblock %}
 
 {% block content %}
-{% set hero_photo = role_images.get("feature_images", [])[0] if role_images.get("feature_images") else none %}
-{% set logo_photo = role_images.get("logo", [])[0] if role_images.get("logo") else none %}
+{% set home = view.home %}
+{% set hero = home.fields.hero %}
+{% set logo = home.fields.logo %}
+{% set tagline = home.fields.tagline %}
 
 <section class="hero">
-  {% if hero_photo %}
-  <div class="hero__bg" style="background-image:url('{{ storage_url(hero_photo.s3_key) }}')"></div>
+  {% if hero.value %}
+  <div class="hero__bg" style="background-image:url('{{ hero.value }}')"></div>
   {% else %}
   <div class="hero__bg" style="background:linear-gradient(135deg, var(--ink) 0%, #1a3a4a 50%, var(--azure) 100%)"></div>
   {% endif %}
   <div class="hero__ov"></div>
   <div class="hero__in">
-    {% if logo_photo %}
-    <img src="{{ storage_url(logo_photo.s3_key) }}" alt="{{ site.restaurant_name }}" class="hero__logo">
+    {% if logo.value %}
+    <img src="{{ logo.value }}" alt="{{ site.restaurant_name }}" class="hero__logo">
     {% else %}
     <h1 class="hero__wordmark">{{ site.restaurant_name }}</h1>
     {% endif %}
-    {% if site.tagline %}
-    <p class="hero__tag">{{ site.tagline }}</p>
+    {% if tagline.value %}
+    <p class="hero__tag">
+      {% if tagline.source == "sample" %}<span class="sample-badge">Sample</span> {% endif %}
+      {{ tagline.value }}
+    </p>
     {% endif %}
     <div class="hero__nav">
-      <a href="/menu">Eat</a>
-      <a href="/menu">Drink</a>
-      <a href="/visit">Visit</a>
-      <a href="/gallery">Gallery</a>
+      <a href="{{ nav_prefix }}/menu">Eat</a>
+      <a href="{{ nav_prefix }}/menu#drinks">Drink</a>
     </div>
-    {% if site.booking_url %}
-    <div style="margin-top:36px">
-      <a href="{{ site.booking_url }}" class="btn btn--light">Book a Table</a>
-    </div>
+  </div>
+  {% if site.address_street or site.phone %}
+  <div class="hero__contact">
+    {% if site.address_street %}
+    <span>{{ site.address_street }}{% if site.address_suburb %}, {{ site.address_suburb }}{% endif %}</span>
+    {% endif %}
+    {% if site.phone %}
+    <span>{{ site.phone }}</span>
     {% endif %}
   </div>
+  {% endif %}
 </section>
 {% endblock %}

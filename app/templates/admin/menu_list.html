@@ -3,47 +3,80 @@
 {% block title %}Menus{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold mb-4">Menus</h1>
+<style>
+  .ml { max-width: 600px; margin: 0 auto; }
+  .ml-back { font-size: 13px; color: #6E665B; text-decoration: none; display: inline-block; margin-bottom: 16px; }
+  .ml-back:hover { color: #1E5B52; }
+  .ml h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 20px; }
+  .ml-empty { background: #FAF7F1; border: 1px solid #E5DCCD; border-radius: 10px; padding: 16px 18px; font-size: 14px; color: #6E665B; margin-bottom: 20px; }
+  .ml-add-link { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #1E5B52; text-decoration: none; margin-bottom: 20px; }
+  .ml-add-link:hover { text-decoration: underline; }
 
-{% if not menus and not is_internal_admin %}
-<div class="alert alert-info mb-4">
-    <span>No menus yet. Create your first menu below.</span>
-</div>
-{% elif is_internal_admin %}
-<div class="alert alert-info mb-4">
-    <span>Internal admin — select a site to manage menus (coming with multi-tenant admin).</span>
-</div>
-{% endif %}
+  /* Manual form — subdued toggle link + collapsible form */
+  .ml-manual-toggle { display: inline-block; font-size: 13px; color: #6E665B; text-decoration: none; margin-top: 20px; }
+  .ml-manual-toggle:hover { color: #1E5B52; text-decoration: underline; }
+  .ml-manual { margin-top: 12px; }
+  .ml-manual .field { margin-bottom: 12px; }
+  .ml-manual label { display: block; font-size: 13px; font-weight: 600; color: #3E3528; margin-bottom: 4px; }
+  .ml-manual input[type="text"] {
+    width: 100%; padding: 8px 10px; font-size: 14px;
+    border: 1px solid #D9C9AE; border-radius: 7px; background: #fff;
+  }
+  .ml-manual input[type="text"]:focus { outline: none; border-color: #1E5B52; box-shadow: 0 0 0 2px rgba(30,91,82,.15); }
+  .ml-manual .ml-submit {
+    display: inline-block; padding: 9px 18px;
+    font-size: 14px; font-weight: 700; color: #fff; background: #1E5B52;
+    border: none; border-radius: 8px; cursor: pointer; margin-top: 4px;
+  }
+  .ml-manual .ml-submit:hover { background: #163F39; }
+</style>
 
-{% if not is_internal_admin %}
-<div id="menu-list" class="space-y-2 mb-6">
+<div class="ml">
+  <a href="/admin/" class="ml-back">← Back to dashboard</a>
+  <h1>Menus</h1>
+
+  {% if not menus and not is_internal_admin %}
+  <div class="ml-empty">No menus yet. <a href="/admin/menu/add" style="color:#1E5B52;font-weight:600;text-decoration:none">Upload a PDF</a> or create one by hand below.</div>
+  {% elif is_internal_admin %}
+  <div class="ml-empty">Internal admin — select a site to manage menus (coming with multi-tenant admin).</div>
+  {% endif %}
+
+  {% if not is_internal_admin %}
+
+  {% if menus %}
+  <a href="/admin/menu/add" class="ml-add-link">+ Add another menu</a>
+  {% endif %}
+
+  <div id="menu-list" class="space-y-2 mb-6">
     {% for menu in menus %}
     {% include "admin/_menu_row.html" %}
     {% endfor %}
-</div>
+  </div>
 
-<div class="card bg-base-100 shadow">
-    <div class="card-body">
-        <h2 class="card-title text-lg">New menu</h2>
-        <form method="post" action="/admin/menu" class="flex flex-col gap-3">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <div class="form-control w-full">
-                <label class="label" for="new-menu-name"><span class="label-text">Name *</span></label>
-                <input type="text" id="new-menu-name" name="name" required class="input input-bordered w-full" placeholder="e.g. Dinner, Drinks">
-            </div>
-            <div class="form-control w-full">
-                <label class="label" for="new-menu-desc"><span class="label-text">Description</span></label>
-                <input type="text" id="new-menu-desc" name="description" class="input input-bordered w-full">
-            </div>
-            <div class="form-control w-full">
-                <label class="label" for="new-menu-avail"><span class="label-text">Availability note</span></label>
-                <input type="text" id="new-menu-avail" name="availability_note" class="input input-bordered w-full" placeholder="e.g. Served from 5:30 pm">
-            </div>
-            <div class="flex justify-end">
-                <button type="submit" class="btn btn-primary">Create menu</button>
-            </div>
-        </form>
-    </div>
+  <a href="#manual-form" class="ml-manual-toggle" onclick="document.getElementById('manual-form').hidden=!document.getElementById('manual-form').hidden;return false;">Or build a menu by hand →</a>
+  <div id="manual-form" class="ml-manual" hidden>
+    <form method="post" action="/admin/menu">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field">
+        <label for="new-menu-name">Name *</label>
+        <input type="text" id="new-menu-name" name="name" required placeholder="e.g. Dinner, Drinks">
+      </div>
+      <div class="field">
+        <label for="new-menu-display-title">Public title</label>
+        <input type="text" id="new-menu-display-title" name="display_title" placeholder="Leave blank to use the menu name">
+      </div>
+      <div class="field">
+        <label for="new-menu-desc">Description</label>
+        <input type="text" id="new-menu-desc" name="description">
+      </div>
+      <div class="field">
+        <label for="new-menu-avail">Availability note</label>
+        <input type="text" id="new-menu-avail" name="availability_note" placeholder="e.g. Served from 5:30 pm">
+      </div>
+      <button type="submit" class="ml-submit">Create menu</button>
+    </form>
+  </div>
+
+  {% endif %}
 </div>
-{% endif %}
 {% endblock %}
