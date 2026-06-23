@@ -1450,6 +1450,18 @@ def _roles_list_by_key(roles):
     return out
 
 
+# Shared URL constants for the image-role partials (slot/picker/carousel).
+# Routes stay at /admin/appearance/; the partials are surface-agnostic.
+_IMAGE_ROLE_URLS = dict(
+    picker_url="/admin/appearance/picker",
+    assign_url="/admin/appearance/assign",
+    clear_url="/admin/appearance/clear",
+    carousel_add_url="/admin/appearance/feature-images/add",
+    carousel_remove_url="/admin/appearance/feature-images/remove",
+    carousel_move_url="/admin/appearance/feature-images/move",
+)
+
+
 def _appearance_context(site, roles, auth):
     """Build the shared context dict for the appearance page."""
     mode = FEATURE_IMAGE_MODE.get(site.template, "single")
@@ -1463,6 +1475,7 @@ def _appearance_context(site, roles, auth):
         current_template=site.template,
         feature_image_mode=mode,
         feature_images_list=by_key_list.get("feature_images", []),
+        **_IMAGE_ROLE_URLS,
     )
 
 
@@ -1531,13 +1544,16 @@ async def appearance_picker(
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
 
+    # cancel_url comes from the Referer header or defaults to appearance
+    referer = request.headers.get("hx-current-url", "/admin/appearance")
     return _render(
         request, "admin/_appearance_picker.html", auth,
         photos=photos, role=role, storage_url=storage_public_url,
         picker_mode=mode,
+        assign_url="/admin/appearance/assign",
         add_url="/admin/appearance/feature-images/add",
         add_target="#slot-feature_images",
-        cancel_url="/admin/appearance",
+        cancel_url=referer,
     )
 
 
@@ -1575,6 +1591,7 @@ async def appearance_assign(
         request, "admin/_appearance_slot.html", auth,
         role_key=role, assignment=_roles_by_key(roles).get(role),
         storage_url=storage_public_url,
+        **_IMAGE_ROLE_URLS,
     )
 
 
@@ -1598,6 +1615,7 @@ async def appearance_clear(
         request, "admin/_appearance_slot.html", auth,
         role_key=role, assignment=None,
         storage_url=storage_public_url,
+        **_IMAGE_ROLE_URLS,
     )
 
 
@@ -1615,6 +1633,7 @@ async def _render_carousel(request, auth, db):
     return _render(
         request, "admin/_appearance_carousel.html", auth,
         feature_images_list=items, storage_url=storage_public_url,
+        **_IMAGE_ROLE_URLS,
     )
 
 

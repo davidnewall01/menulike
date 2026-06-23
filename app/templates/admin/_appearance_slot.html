@@ -7,11 +7,11 @@
         <span class="text-sm text-base-content/60">{{ assignment.photo.original_filename or "assigned" }}</span>
         <div class="flex gap-2">
             <button class="btn btn-outline btn-xs"
-                    hx-get="/admin/appearance/picker?role={{ role_key }}"
+                    hx-get="{{ picker_url }}?role={{ role_key }}"
                     hx-target="#slot-{{ role_key }}"
                     hx-swap="innerHTML">Change</button>
             <button class="btn btn-outline btn-error btn-xs"
-                    hx-post="/admin/appearance/clear"
+                    hx-post="{{ clear_url }}"
                     hx-target="#slot-{{ role_key }}"
                     hx-swap="innerHTML"
                     hx-vals='{"csrf_token": "{{ csrf_token }}", "role": "{{ role_key }}"}'
@@ -25,7 +25,7 @@
         None
     </div>
     <button class="btn btn-outline btn-sm"
-            hx-get="/admin/appearance/picker?role={{ role_key }}"
+            hx-get="{{ picker_url }}?role={{ role_key }}"
             hx-target="#slot-{{ role_key }}"
             hx-swap="innerHTML">Choose from library</button>
 </div>

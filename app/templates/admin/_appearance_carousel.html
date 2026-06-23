@@ -8,19 +8,19 @@
         <span class="text-sm text-base-content/60 flex-1">{{ item.photo.original_filename or "image" }}</span>
         <div class="flex gap-1">
             <button class="btn btn-ghost btn-xs"
-                    hx-post="/admin/appearance/feature-images/move"
+                    hx-post="{{ carousel_move_url }}"
                     hx-target="#slot-feature_images"
                     hx-swap="innerHTML"
                     hx-vals='{"csrf_token": "{{ csrf_token }}", "photo_id": "{{ item.photo_id }}", "direction": "up"}'
                     title="Move up">&uarr;</button>
             <button class="btn btn-ghost btn-xs"
-                    hx-post="/admin/appearance/feature-images/move"
+                    hx-post="{{ carousel_move_url }}"
                     hx-target="#slot-feature_images"
                     hx-swap="innerHTML"
                     hx-vals='{"csrf_token": "{{ csrf_token }}", "photo_id": "{{ item.photo_id }}", "direction": "down"}'
                     title="Move down">&darr;</button>
             <button class="btn btn-outline btn-error btn-xs"
-                    hx-post="/admin/appearance/feature-images/remove"
+                    hx-post="{{ carousel_remove_url }}"
                     hx-target="#slot-feature_images"
                     hx-swap="innerHTML"
                     hx-vals='{"csrf_token": "{{ csrf_token }}", "photo_id": "{{ item.photo_id }}"}'
@@ -31,7 +31,7 @@
 </div>
 <div class="mt-3">
     <button class="btn btn-outline btn-sm"
-            hx-get="/admin/appearance/picker?role=feature_images&mode=carousel"
+            hx-get="{{ picker_url }}?role=feature_images&mode=carousel"
             hx-target="#slot-feature_images"
             hx-swap="innerHTML">Add image</button>
 </div>
@@ -41,7 +41,7 @@
         None
     </div>
     <button class="btn btn-outline btn-sm"
-            hx-get="/admin/appearance/picker?role=feature_images&mode=carousel"
+            hx-get="{{ picker_url }}?role=feature_images&mode=carousel"
             hx-target="#slot-feature_images"
             hx-swap="innerHTML">Add image</button>
 </div>
