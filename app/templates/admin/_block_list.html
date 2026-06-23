@@ -1,0 +1,75 @@
+{% if blocks %}
+<div class="space-y-4">
+    {% for block in blocks %}
+    <div class="p-3 bg-base-100 rounded-lg border" id="block-{{ block.block_id }}">
+        <div class="flex items-start gap-3">
+            {# Image thumbnail #}
+            <div class="flex-shrink-0">
+                {% if block.image_photo_id and block.image %}
+                <div class="relative">
+                    <img src="{{ storage_url(block.image.s3_key) }}"
+                         alt="{{ block.image.alt_text or '' }}"
+                         class="rounded w-20 h-14 object-cover">
+                    <button class="btn btn-error btn-xs absolute -top-1 -right-1 rounded-full w-5 h-5 p-0"
+                            hx-post="/admin/our-story/{{ block.block_id }}/clear-image"
+                            hx-target="#block-list"
+                            hx-swap="innerHTML"
+                            hx-vals='{"csrf_token": "{{ csrf_token }}"}'
+                            hx-confirm="Remove image from this block?"
+                            title="Remove image">&times;</button>
+                </div>
+                {% else %}
+                <button class="rounded w-20 h-14 bg-base-300 flex items-center justify-center text-base-content/30 text-xs border border-dashed hover:border-primary hover:text-primary transition-colors"
+                        hx-get="/admin/our-story/picker/{{ block.block_id }}"
+                        hx-target="#block-list"
+                        hx-swap="innerHTML"
+                        title="Add image">+ img</button>
+                {% endif %}
+            </div>
+
+            {# Content preview #}
+            <div class="flex-1 min-w-0">
+                {% if block.heading %}
+                <div class="font-semibold text-sm">{{ block.heading }}</div>
+                {% endif %}
+                {% if block.body %}
+                <div class="text-sm text-base-content/60 truncate">{{ block.body[:80] }}{% if block.body | length > 80 %}...{% endif %}</div>
+                {% endif %}
+                {% if not block.heading and not block.body %}
+                <div class="text-sm text-base-content/40 italic">Image only</div>
+                {% endif %}
+            </div>
+
+            {# Actions #}
+            <div class="flex gap-1 flex-shrink-0">
+                <button class="btn btn-ghost btn-xs"
+                        hx-post="/admin/our-story/move"
+                        hx-target="#block-list"
+                        hx-swap="innerHTML"
+                        hx-vals='{"csrf_token": "{{ csrf_token }}", "block_id": "{{ block.block_id }}", "direction": "up"}'
+                        title="Move up">&uarr;</button>
+                <button class="btn btn-ghost btn-xs"
+                        hx-post="/admin/our-story/move"
+                        hx-target="#block-list"
+                        hx-swap="innerHTML"
+                        hx-vals='{"csrf_token": "{{ csrf_token }}", "block_id": "{{ block.block_id }}", "direction": "down"}'
+                        title="Move down">&darr;</button>
+                <button class="btn btn-ghost btn-xs"
+                        hx-get="/admin/our-story/{{ block.block_id }}/edit"
+                        hx-target="#block-{{ block.block_id }}"
+                        hx-swap="outerHTML"
+                        title="Edit">Edit</button>
+                <button class="btn btn-outline btn-error btn-xs"
+                        hx-post="/admin/our-story/{{ block.block_id }}/delete"
+                        hx-target="#block-list"
+                        hx-swap="innerHTML"
+                        hx-vals='{"csrf_token": "{{ csrf_token }}"}'
+                        hx-confirm="Delete this block?">Del</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-base-content/50">No blocks yet. Add one below.</p>
+{% endif %}

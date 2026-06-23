@@ -54,12 +54,10 @@ class TestProtectedRoute:
         )
         cookie = login_resp.cookies["session"]
 
-        # Access dashboard with cookie
+        # Access dashboard with cookie — tiled dashboard shows restaurant name
         resp = await client.get("/admin/", cookies={"session": cookie})
         assert resp.status_code == 200
         assert "My Restaurant" in resp.text
-        assert "o@test.dev" in resp.text
-        assert "owner" in resp.text
 
     async def test_tampered_cookie_returns_401(self, client):
         resp = await client.get("/admin/", cookies={"session": "garbage.token.here"})

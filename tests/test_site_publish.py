@@ -82,11 +82,12 @@ class TestCanPublish:
             phone=None, email=None, regular_hours=[], content_blocks=[],
             menus=[SimpleNamespace(name="Food")],
         )
-        photo = SimpleNamespace(s3_key="test.jpg", alt_text="")
+        photo = SimpleNamespace(s3_key="test.jpg", alt_text="", width=800, height=600)
         role_images = {"feature_images": [photo]}
+        _url = lambda key: f"https://cdn/{key}"
 
-        view_public = resolve_site_view(site=site, role_images=role_images, mode="public")
-        view_preview = resolve_site_view(site=site, role_images=role_images, mode="preview")
+        view_public = resolve_site_view(site=site, role_images=role_images, mode="public", storage_url=_url)
+        view_preview = resolve_site_view(site=site, role_images=role_images, mode="preview", storage_url=_url)
 
         result_pub = can_publish(view_public)
         result_prev = can_publish(view_preview)

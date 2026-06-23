@@ -1,0 +1,88 @@
+{% extends "public/linen/base.html" %}
+
+{% block content %}
+{% set blocks_field = view.our_story.fields.blocks %}
+{% set blocks = blocks_field.value or [] %}
+{% set is_sample = blocks_field.source == "sample" %}
+
+<div class="story-page wrap">
+  <div class="story-header">
+    <p class="eyebrow">About</p>
+    <h1 class="story-title">Our Story</h1>
+  </div>
+
+  {% if blocks %}
+  <div class="story-blocks">
+    {% for block in blocks %}
+    {% set has_heading = block.heading %}
+    {% set has_body = block.body %}
+    {% set has_image = block.image_url %}
+    {% set img_right = loop.index0 % 2 == 0 %}
+
+    {% if has_heading and not has_body and not has_image %}
+    {# Heading only → section divider #}
+    <div class="story-block story-block--divider">
+      <h2 class="story-block__heading">
+        {% if is_sample %}<span class="sample-badge">Sample</span> {% endif %}
+        {{ block.heading }}
+      </h2>
+    </div>
+
+    {% elif has_image and not has_heading and not has_body %}
+    {# Image only → full-width image #}
+    <div class="story-block story-block--image-full">
+      <img src="{{ block.image_url }}"
+           alt="{{ block.image_alt }}"
+           class="story-block__img-full">
+    </div>
+
+    {% elif has_image %}
+    {# Text + image → side by side, alternating #}
+    <div class="story-block story-block--split{% if img_right %} story-block--img-right{% else %} story-block--img-left{% endif %}">
+      <div class="story-block__text">
+        {% if has_heading %}
+        <h2 class="story-block__heading">
+          {% if is_sample %}<span class="sample-badge">Sample</span> {% endif %}
+          {{ block.heading }}
+        </h2>
+        {% endif %}
+        {% if has_body %}
+        {% for para in block.body.split('\n\n') %}
+        {% if para.strip() %}
+        <p>{{ para.strip() }}</p>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+      </div>
+      <div class="story-block__media">
+        <img src="{{ block.image_url }}"
+             alt="{{ block.image_alt }}">
+      </div>
+    </div>
+
+    {% else %}
+    {# Text only → prose paragraphs #}
+    <div class="story-block story-block--prose">
+      {% if has_heading %}
+      <h2 class="story-block__heading">
+        {% if is_sample %}<span class="sample-badge">Sample</span> {% endif %}
+        {{ block.heading }}
+      </h2>
+      {% endif %}
+      {% if has_body %}
+      {% for para in block.body.split('\n\n') %}
+      {% if para.strip() %}
+      <p>{{ para.strip() }}</p>
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="story-empty">Coming soon.</p>
+  {% endif %}
+</div>
+{% endblock %}

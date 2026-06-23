@@ -25,9 +25,9 @@ OUR_STORY_BODY = (
 )
 
 # --- Sample image URLs (static assets under app/static/samples/) ---
-# These are visibly-placeholder images (solid colour + "SAMPLE" text),
-# NOT stock photos. The watermark overlay is added by the preview-render
-# chunk via the source="sample" flag — not baked into these assets.
+# These are visibly-placeholder images (solid colour + "SAMPLE" text baked
+# into the image itself), NOT stock photos. No additional overlay needed —
+# the baked-in text is the watermark.
 
 HERO_IMAGE_URL = "/static/samples/hero.jpg"
 LOGO_IMAGE_URL = "/static/samples/logo.png"

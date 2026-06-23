@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-4">Dashboard</h1>
+<div class="card bg-base-100 shadow">
+    <div class="card-body">
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+            <dt class="font-semibold">Logged in as</dt>
+            <dd>{{ email }}</dd>
+            <dt class="font-semibold">Role</dt>
+            <dd>{{ role }}</dd>
+            {% if site_name %}
+            <dt class="font-semibold">Site</dt>
+            <dd>{{ site_name }}</dd>
+            {% elif is_internal_admin %}
+            <dt class="font-semibold">Site</dt>
+            <dd class="italic text-base-content/60">Internal admin — not scoped to a site</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+{% endblock %}

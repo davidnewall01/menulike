@@ -1,0 +1,114 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Add a menu{% endblock %}
+
+{% block content %}
+<style>
+  .ma { max-width: 520px; margin: 0 auto; }
+  .ma-back { font-size: 13px; color: #6E665B; text-decoration: none; display: inline-block; margin-bottom: 16px; }
+  .ma-back:hover { color: #1E5B52; }
+  .ma h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .ma .sub { font-size: 14px; color: #6E665B; margin: 0 0 28px; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed #D9C9AE;
+    border-radius: 14px;
+    background: #FAF7F1;
+    padding: 40px 24px;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .upload-zone:hover { border-color: #1E5B52; background: #F3EEE4; }
+  .upload-zone .uz-icon { font-size: 36px; margin-bottom: 8px; color: #1E5B52; }
+  .upload-zone .uz-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+  .upload-zone .uz-hint { font-size: 13px; color: #6E665B; margin: 0 0 20px; }
+  .upload-zone input[type="file"] {
+    display: block;
+    margin: 0 auto 16px;
+    font-size: 14px;
+    max-width: 280px;
+  }
+  .upload-zone .uz-btn {
+    display: inline-block;
+    padding: 11px 24px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    background: #1E5B52;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .upload-zone .uz-btn:hover { background: #163F39; }
+  .upload-zone .uz-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* Loading state */
+  .uz-loading { display: none; padding: 16px 0; }
+  .uz-loading.active { display: block; }
+  .uz-spinner {
+    display: inline-block; width: 24px; height: 24px;
+    border: 3px solid #D9C9AE; border-top-color: #1E5B52;
+    border-radius: 50%; animation: uzspin 0.8s linear infinite;
+    margin-bottom: 8px;
+  }
+  @keyframes uzspin { to { transform: rotate(360deg); } }
+  .uz-loading-text { font-size: 14px; color: #6E665B; }
+
+  /* Errors */
+  .uz-errors {
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px;
+    padding: 12px 16px; font-size: 14px; color: #991b1b; margin-bottom: 20px;
+  }
+  .uz-errors ul { list-style: none; }
+  .uz-errors li + li { margin-top: 4px; }
+
+  /* Secondary link */
+  .ma-alt { text-align: center; margin-top: 20px; font-size: 14px; color: #6E665B; }
+  .ma-alt a { color: #1E5B52; font-weight: 600; text-decoration: none; }
+  .ma-alt a:hover { text-decoration: underline; }
+</style>
+
+<div class="ma">
+  <a href="/admin/" class="ma-back">← Back to dashboard</a>
+  <h1>Add a menu</h1>
+  <p class="sub">Upload a PDF and we'll read it into your site in seconds.</p>
+
+  {% if errors is defined and errors %}
+  <div class="uz-errors">
+    <ul>
+    {% for e in errors %}
+      <li>{{ e }}</li>
+    {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/admin/menu/upload" enctype="multipart/form-data" id="upload-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="upload-zone" id="upload-zone">
+      <div class="uz-icon">&#128196;</div>
+      <p class="uz-title">Drop your menu PDF here, or browse</p>
+      <p class="uz-hint">We'll read it automatically — takes about 20 seconds</p>
+      <input type="file" id="file" name="file" accept="application/pdf" required>
+      <button type="submit" class="uz-btn" id="submit-btn">Upload and read my menu</button>
+    </div>
+    <div class="uz-loading" id="uz-loading">
+      <div class="uz-spinner"></div>
+      <p class="uz-loading-text">Reading your menu — this takes about 20 seconds</p>
+    </div>
+  </form>
+
+  <p class="ma-alt">Or <a href="/admin/menu">build a menu by hand →</a></p>
+</div>
+
+<script>
+document.getElementById('upload-form').addEventListener('submit', function() {
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('uz-loading').classList.add('active');
+  var btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Reading…';
+});
+</script>
+{% endblock %}

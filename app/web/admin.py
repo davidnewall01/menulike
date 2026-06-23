@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
+from app.schemas.extraction import ExtractedMenu
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm, parse_extras
 from app.schemas.site import SiteDetailsForm
 from app.services import auth_service, content_block_service, hours_exception_service, hours_service, image_role_service, menu_extraction_service, menu_service, photo_service, site_service
@@ -129,8 +130,49 @@ async def logout(auth: AuthContext = Depends(require_csrf)):
 
 
 # ---------------------------------------------------------------------------
-# Preview (draft-inclusive, real Linen template)
+# Preview (draft-inclusive, real Linen templates, resolver-driven)
 # ---------------------------------------------------------------------------
+
+_DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+_PREVIEW_CTX = {
+    "render_mode": "preview",
+    "nav_prefix": "/admin/preview",
+}
+
+
+async def _load_preview(db: AsyncSession, auth: AuthContext):
+    """Load site + role_images for preview. Shared by all preview routes."""
+    site = await site_service.get_owner_site_preview(db, auth)
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    return site, role_images
+
+
+@router.get("/preview", response_class=HTMLResponse)
+async def preview_home(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview the owner's home page (real content + samples for gaps)."""
+    from app.content.resolver import resolve_site_view
+
+    site, role_images = await _load_preview(db, auth)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="preview",
+        storage_url=storage_public_url,
+    )
+    return templates.TemplateResponse(
+        "public/linen/home.html",
+        {
+            "request": request,
+            "site": site,
+            "view": view,
+            "storage_url": storage_public_url,
+            **_PREVIEW_CTX,
+        },
+    )
+
 
 @router.get("/preview/menu", response_class=HTMLResponse)
 async def preview_menu(
@@ -138,17 +180,112 @@ async def preview_menu(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
-    """Render the owner's menu (including drafts) through the real Linen template.
+    """Preview the owner's menu (including drafts)."""
+    from app.content.resolver import resolve_site_view
 
-    Authenticated, owner-scoped. Draft stays out of the public subdomain.
-    """
-    site = await site_service.get_owner_site_with_drafts(db, auth)
+    site, role_images = await _load_preview(db, auth)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="preview",
+        storage_url=storage_public_url,
+    )
     return templates.TemplateResponse(
         "public/linen/menu.html",
         {
             "request": request,
             "site": site,
-            "render_mode": "preview",
+            "view": view,
+            "storage_url": storage_public_url,
+            **_PREVIEW_CTX,
+        },
+    )
+
+
+@router.get("/preview/our-story", response_class=HTMLResponse)
+async def preview_our_story(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview the owner's Our Story page."""
+    from app.content.resolver import resolve_site_view
+
+    site, role_images = await _load_preview(db, auth)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="preview",
+        storage_url=storage_public_url,
+    )
+    return templates.TemplateResponse(
+        "public/linen/our_story.html",
+        {
+            "request": request,
+            "site": site,
+            "view": view,
+            "storage_url": storage_public_url,
+            **_PREVIEW_CTX,
+        },
+    )
+
+
+@router.get("/preview/gallery", response_class=HTMLResponse)
+async def preview_gallery(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview the owner's gallery."""
+    from app.content.resolver import resolve_site_view
+
+    site, role_images = await _load_preview(db, auth)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="preview",
+        storage_url=storage_public_url,
+    )
+    return templates.TemplateResponse(
+        "public/linen/gallery.html",
+        {
+            "request": request,
+            "site": site,
+            "view": view,
+            "storage_url": storage_public_url,
+            **_PREVIEW_CTX,
+        },
+    )
+
+
+@router.get("/preview/visit", response_class=HTMLResponse)
+async def preview_visit(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview the owner's Visit page."""
+    from datetime import date
+    from app.content.resolver import resolve_site_view
+
+    site, role_images = await _load_preview(db, auth)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="preview",
+        storage_url=storage_public_url,
+    )
+    hours_by_day: dict[int, list] = {}
+    for h in site.regular_hours:
+        hours_by_day.setdefault(h.day_of_week, []).append(h)
+    today = date.today()
+    active_exceptions = [
+        exc for exc in site.hours_exceptions
+        if exc.end_date >= today
+    ]
+    return templates.TemplateResponse(
+        "public/linen/visit.html",
+        {
+            "request": request,
+            "site": site,
+            "view": view,
+            "hours_by_day": hours_by_day,
+            "day_names": _DAY_NAMES,
+            "hours_exceptions": active_exceptions,
+            "storage_url": storage_public_url,
+            **_PREVIEW_CTX,
         },
     )
 
@@ -163,17 +300,43 @@ async def dashboard(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
+    # Internal admin: simple info card (untouched)
+    if auth.is_internal_admin:
+        return _render(
+            request, "admin/dashboard_admin.html", auth,
+            email=auth.email,
+            role=auth.role,
+            is_internal_admin=True,
+        )
+
+    # Owner: tiled dashboard
+    from app.content.resolver import resolve_site_view
+
     try:
-        site = await site_service.get_owner_site(db, auth)
+        site = await site_service.get_owner_site_full(db, auth)
     except SiteNotFound:
         raise HTTPException(status_code=400, detail="Scoped site not found")
 
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    site_view = resolve_site_view(site=site, role_images=role_images, mode="public", storage_url=storage_public_url)
+    eligible, reasons = site_service.can_publish(site_view)
+
+    # Count areas with status "yours" for progress bar
+    yours_count = sum(1 for area in site_view.values() if area.status == "yours")
+
+    # Photo library count for the "Your photos" tile
+    photos = await photo_service.list_photos(db, auth)
+    photo_count = len(photos)
+
     return _render(
         request, "admin/dashboard.html", auth,
-        email=auth.email,
-        role=auth.role,
-        site_name=site.restaurant_name if site else None,
-        is_internal_admin=auth.is_internal_admin,
+        site=site,
+        site_view=site_view,
+        eligible=eligible,
+        reasons=reasons,
+        yours_count=yours_count,
+        total_areas=len(site_view),
+        photo_count=photo_count,
     )
 
 
@@ -197,7 +360,7 @@ async def publish_site(
 
     site = await site_service.get_owner_site_full(db, auth)
     role_images = await image_role_service.load_role_images(db, site.site_id)
-    site_view = resolve_site_view(site=site, role_images=role_images, mode="public")
+    site_view = resolve_site_view(site=site, role_images=role_images, mode="public", storage_url=storage_public_url)
 
     eligible, _reasons = site_service.can_publish(site_view)
     if not eligible:
@@ -275,6 +438,119 @@ async def details_save(
 
 # ---------------------------------------------------------------------------
 # Menu CRUD
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Menu add — method chooser + PDF upload flow (shared extract logic)
+# ---------------------------------------------------------------------------
+
+@router.get("/menu/add", response_class=HTMLResponse)
+async def menu_add(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+):
+    """Method chooser: upload PDF (primary) or build by hand (secondary)."""
+    return _render(request, "admin/menu_add.html", auth)
+
+
+@router.post("/menu/upload", response_class=HTMLResponse)
+async def menu_upload(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+):
+    """Accept a PDF upload, extract via Claude, render summary for confirmation."""
+    import json as _json
+
+    form_data = await request.form()
+    upload = form_data.get("file")
+
+    if not upload or not hasattr(upload, "read"):
+        return _render(
+            request, "admin/menu_add.html", auth,
+            errors=["Please select a PDF file."],
+            status_code=400,
+        )
+
+    content_type = getattr(upload, "content_type", "")
+    if content_type != "application/pdf":
+        return _render(
+            request, "admin/menu_add.html", auth,
+            errors=["That doesn't look like a PDF. Please upload a PDF of your menu."],
+            status_code=400,
+        )
+
+    file_data = await upload.read()
+
+    try:
+        extracted = await menu_extraction_service.extract_from_pdf(file_data)
+    except menu_extraction_service.ExtractionNotConfigured:
+        return _render(
+            request, "admin/menu_add.html", auth,
+            errors=["Menu reading is temporarily unavailable. Please try again later or build your menu by hand."],
+            status_code=503,
+        )
+    except menu_extraction_service.InvalidPDF as exc:
+        return _render(
+            request, "admin/menu_add.html", auth,
+            errors=[f"We couldn't read that file. {exc} Try another file."],
+            status_code=400,
+        )
+    except menu_extraction_service.ExtractionFailed:
+        return _render(
+            request, "admin/menu_add.html", auth,
+            errors=["We couldn't make sense of that menu. Try a clearer PDF or build your menu by hand."],
+            status_code=422,
+        )
+
+    dish_count = menu_extraction_service.count_dishes(extracted)
+    if len(extracted.sections) == 0 or dish_count == 0:
+        return _render(
+            request, "admin/menu_add.html", auth,
+            errors=["We couldn't find any menu items in that file. Try a different PDF."],
+            status_code=422,
+        )
+
+    extraction_json = _json.dumps(extracted.model_dump())
+    summary = menu_extraction_service.build_summary_context(extracted)
+    return _render(
+        request, "admin/menu_upload_summary.html", auth,
+        extraction_json=extraction_json,
+        **summary,
+    )
+
+
+@router.post("/menu/upload/confirm", response_class=HTMLResponse)
+async def menu_upload_confirm(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Commit the extracted menu as a new draft, redirect to menu list."""
+    import json as _json
+
+    form_data = await request.form()
+    raw = form_data.get("extraction_json", "")
+
+    try:
+        data = _json.loads(raw)
+        extracted = ExtractedMenu.model_validate(data)
+    except Exception:
+        return _render(
+            request, "admin/menu_add.html", auth,
+            errors=["Something went wrong. Please try uploading your menu again."],
+            status_code=400,
+        )
+
+    try:
+        await menu_coordinator.commit_extracted_menu(db, auth, extracted)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return RedirectResponse(url="/admin/menu", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Menu list + manual create
 # ---------------------------------------------------------------------------
 
 @router.get("/menu", response_class=HTMLResponse)

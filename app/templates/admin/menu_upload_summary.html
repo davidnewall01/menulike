@@ -1,0 +1,99 @@
+{% extends "admin/base.html" %}
+
+{% block title %}We found your menu{% endblock %}
+
+{% block content %}
+<style>
+  .ms { max-width: 480px; margin: 0 auto; }
+  .ms-back { font-size: 13px; color: #6E665B; text-decoration: none; display: inline-block; margin-bottom: 16px; }
+  .ms-back:hover { color: #1E5B52; }
+  .ms-icon { text-align: center; font-size: 2rem; margin-bottom: 6px; }
+  .ms h1 { text-align: center; font-size: 22px; font-weight: 800; margin: 0 0 20px; }
+  .ms-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .ms-stat { background: #FAF7F1; border: 1px solid #E5DCCD; border-radius: 10px; padding: 14px; text-align: center; }
+  .ms-stat-num { font-size: 1.5rem; font-weight: 800; color: #1E5B52; }
+  .ms-stat-lab { font-size: 12px; color: #6E665B; margin-top: 2px; }
+  .ms-sections { margin-bottom: 20px; }
+  .ms-sections-lab { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+  .ms-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ms-tag { background: #E5DCCD; border-radius: 6px; padding: 4px 10px; font-size: 13px; color: #3E3528; }
+  .ms-info { border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+  .ms-info-note { background: #E3F0EC; border: 1px solid #B8D9CE; color: #1E5B52; }
+  .ms-info-warn { background: #FFF8EB; border: 1px solid #E4CFA6; color: #8D6A2A; }
+  .ms-info strong { font-weight: 700; }
+  .ms-info ul { list-style: none; margin-top: 6px; }
+  .ms-info li { padding: 2px 0; }
+  .ms-info li::before { content: "\2022"; margin-right: 6px; }
+  .ms-confirm {
+    display: block; width: 100%; padding: 12px;
+    font-size: 15px; font-weight: 700; color: #fff; background: #1E5B52;
+    border: none; border-radius: 9px; cursor: pointer; text-align: center; margin-top: 16px;
+  }
+  .ms-confirm:hover { background: #163F39; }
+  .ms-alt { text-align: center; margin-top: 14px; font-size: 13px; color: #6E665B; }
+  .ms-alt a { color: #1E5B52; text-decoration: none; }
+  .ms-alt a:hover { text-decoration: underline; }
+</style>
+
+<div class="ms">
+  <a href="/admin/menu/add" class="ms-back">← Try a different file</a>
+  <div class="ms-icon">&#9989;</div>
+  <h1>We found your menu!</h1>
+
+  <div class="ms-stats">
+    <div class="ms-stat">
+      <div class="ms-stat-num">{{ section_count }}</div>
+      <div class="ms-stat-lab">section{{ 's' if section_count != 1 else '' }}</div>
+    </div>
+    <div class="ms-stat">
+      <div class="ms-stat-num">{{ dish_count }}</div>
+      <div class="ms-stat-lab">dish{{ 'es' if dish_count != 1 else '' }}</div>
+    </div>
+  </div>
+
+  <div class="ms-sections">
+    <p class="ms-sections-lab">Sections found:</p>
+    <div class="ms-tags">
+      {% for name in section_names %}
+      <span class="ms-tag">{{ name }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if menu_note %}
+  <div class="ms-info ms-info-note">
+    <strong>Menu note:</strong> {{ menu_note }}
+  </div>
+  {% endif %}
+
+  {% if ignored %}
+  <div class="ms-info ms-info-warn">
+    <strong>Skipped (not menu items):</strong>
+    <ul>
+    {% for item in ignored %}
+      <li>{{ item }}</li>
+    {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if priceless_items %}
+  <div class="ms-info ms-info-warn">
+    <strong>Items without a price (you can add prices later):</strong>
+    <ul>
+    {% for item in priceless_items %}
+      <li>{{ item }}</li>
+    {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/admin/menu/upload/confirm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="extraction_json" value="{{ extraction_json }}">
+    <button type="submit" class="ms-confirm">Looks good — save my menu</button>
+  </form>
+
+  <p class="ms-alt"><a href="/admin/menu/add">Upload a different file</a></p>
+</div>
+{% endblock %}

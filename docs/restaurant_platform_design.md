@@ -281,9 +281,14 @@ the Design surface.
 - `hero_heading` — text, single, optional (defaults to `restaurant_name`)
 - `hero_subheading` — short text, single, optional
 
-**About**
-- `about_story` — rich text, single, optional
-- `about_image` — image ref, 0..1, optional
+**About / narrative pages** ✅ **content-block primitive built (2026-06-20)**
+- `content_block` — the narrative primitive: an ordered list of blocks `{heading?, body?,
+  image_photo_id?, position}` keyed by `page_key`. ONE flexible shape — the render adapts to which
+  fields are present (heading+body+image → text beside an alternating-side image; body only → prose;
+  image only → full-width; heading only → divider). Body is multi-paragraph plain text rendered as
+  *escaped* paragraphs. v1 wires `page_key="our_story"`; 🔭 Events reuses it later (same table,
+  same editor). 🔭 Deferred: rich-text body, per-block layout control, arbitrary custom pages.
+  *(This generalises the old single `about_story`/`about_image` degenerate one-block case.)*
 
 **Menu** — nested entity, see §9
 
@@ -428,11 +433,11 @@ menu_item_variants(id, item_id, label?, price, position)
   structure** (decided 2026-06-19; see §3, §5).
 - [x] ~~**Name the flagship template.**~~ → **Linen** (flagship); siblings **Slate**, **Olive**.
   Named by material aesthetic, never per-client (decided 2026-06-20).
-- [~] **Flagship built (home + menu + visit + gallery).** Linen home (hero + logo roles), menu (§9),
-  Visit (on the hours model), and the **Gallery** (masonry, §8) all shipped. Only the **Our Story**
-  narrative page remains on Linen — the heavier one, since it needs the content-block primitive
-  designed first. After that, the site is content-complete and the work shifts to platform plumbing
-  (domains, billing, onboarding).
+- [x] ~~**Flagship built (home + menu + visit + gallery + our story).**~~ → **Linen is
+  content-complete.** Home (hero + logo roles), menu (§9), Visit (hours model), Gallery (masonry),
+  and **Our Story** (content-block primitive, §8) all shipped. The site is content-complete; work now
+  shifts to the **platform layer** (custom domains via Approximated, Stripe billing, onboarding,
+  internal admin) — deferrable behind concierge onboarding until there's a customer to charge.
 - [x] ~~Wireframe the 2 non-flagship templates for slot discovery.~~ → **Slate** (dark/vertical-nav)
   and **Olive** (split/carousel) built as full homes — the discovery pass. Divergence axes landed as
   centred-light / dark-vertical / split-carousel rather than the planned minimal/photo-heavy/
@@ -445,12 +450,23 @@ menu_item_variants(id, item_id, label?, price, position)
 - [ ] **Generalise the config form from `FEATURE_IMAGE_MODE`** — the single-vs-carousel mode map is
   the first atom of a template **slot manifest**; the manifest-driven config form grows from it once
   2–3 more slots need template-aware editing.
-- [ ] **Design the content-block primitive** — narrative pages (Our Story now, Events later); §3.
+- [x] ~~**Design the content-block primitive**~~ → **built** as `content_block` (one flexible
+  `{heading?, body?, image?}` shape, render adapts, keyed by `page_key`); Our Story shipped on it,
+  Events reuses it later (§8). (2026-06-20)
 - [x] ~~Confirm whether this lives in its own repo / stack instance~~ → **own standalone repo** (decided).
 
 ---
 
 ## Changelog
+
+- **2026-06-20** — **Our Story shipped + content-block primitive built → site content-complete.**
+  `content_block` is the narrative primitive: one flexible `{heading?, body?, image?}` shape (not a
+  typed-block system), ordered, keyed by `page_key`, render adapts to which fields are present, image
+  sides auto-alternate, body renders as escaped paragraphs. Image is a library ref with `ON DELETE
+  SET NULL`; `lazy="raise"` forces eager-loading. v1 wires `page_key="our_story"`; Events reuses the
+  same table + editor later. **This was the last content page** — Linen now has home, menu, visit,
+  gallery, and our story, so Porto's site is content-complete and the roadmap shifts to the platform
+  layer (domains, billing, onboarding).
 
 - **2026-06-20** — **Gallery shipped (§8).** A third ordered image role (`gallery`) reusing the
   multi-image-role machinery wholesale — managed on its own `/admin/gallery` page (kept as *content*,

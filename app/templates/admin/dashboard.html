@@ -129,8 +129,8 @@
   </div>
 </div>
 
-{# --- Core tiles --- #}
-<div class="seclab"><h2>Start here</h2><span class="hint">The two that matter most</span></div>
+{# --- Row 1: Add your content --- #}
+<div class="seclab"><h2>Add your content</h2></div>
 <div class="tile-grid core">
 
   {# Menu tile #}
@@ -156,29 +156,47 @@
     </div>
   </div>
 
-  {# Home & photos tile #}
-  {% set home_area = site_view["home"] %}
+  {# Photos tile (count-based, no sample/yours badge) #}
   <div class="tile is-core">
     <div class="tile-body">
       <div class="tile-head">
-        <span class="tile-name">Home &amp; photos</span>
-        <span class="st {{ home_area.status }}"><span class="dot"></span>
-          {% if home_area.status == "yours" %}Yours{% elif home_area.status == "partial" %}Partly yours{% else %}Still sample{% endif %}
+        <span class="tile-name">Your photos</span>
+        <span class="st {% if photo_count %}yours{% else %}sample{% endif %}"><span class="dot"></span>
+          {% if photo_count %}{{ photo_count }} photo{{ "s" if photo_count != 1 else "" }}{% else %}No photos yet{% endif %}
         </span>
       </div>
       <div class="tile-desc">
-        {% if home_area.status == "yours" %}Your hero image and tagline are set.{% elif home_area.status == "partial" %}Almost there — add your hero photo or tagline.{% else %}Add a great photo of your room or a dish to make the front page yours.{% endif %}
+        {% if photo_count %}Your photo library feeds hero, gallery, and more.{% else %}Upload photos to use across your site — hero, gallery, story.{% endif %}
       </div>
       <div class="tile-cta">
-        <a href="/admin/appearance" class="primary">{% if home_area.status == "yours" %}Edit photos{% else %}Add your photos{% endif %}</a>
+        <a href="/admin/photos" class="primary">{% if photo_count %}Manage photos{% else %}Add your photos{% endif %}</a>
       </div>
     </div>
   </div>
 </div>
 
-{# --- Secondary tiles --- #}
-<div class="seclab"><h2>The rest of your site</h2><span class="hint">Fill these in whenever you like</span></div>
+{# --- Row 2: Build your site --- #}
+<div class="seclab"><h2>Build your site</h2></div>
 <div class="tile-grid rest">
+
+  {# Front page tile (reads "home" area — hero + tagline status-bearing, logo value-only) #}
+  {% set home_area = site_view["home"] %}
+  <div class="tile">
+    <div class="tile-body">
+      <div class="tile-head">
+        <span class="tile-name">Front page</span>
+        <span class="st {{ home_area.status }}"><span class="dot"></span>
+          {% if home_area.status == "yours" %}Yours{% elif home_area.status == "partial" %}Partly yours{% else %}Still sample{% endif %}
+        </span>
+      </div>
+      <div class="tile-desc">
+        {% if home_area.status == "yours" %}Your hero, logo, and tagline are set.{% elif home_area.status == "partial" %}Almost there — set your hero photo and tagline.{% else %}Set your hero image, logo, and tagline to make the front page yours.{% endif %}
+      </div>
+      <div class="tile-cta">
+        <a href="/admin/appearance" class="ghost">{% if home_area.status == "yours" %}Edit front page{% else %}Set up front page{% endif %}</a>
+      </div>
+    </div>
+  </div>
 
   {# Our Story tile #}
   {% set story_area = site_view["our_story"] %}

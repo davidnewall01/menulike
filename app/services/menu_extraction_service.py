@@ -2,6 +2,11 @@
 
 Rasterises a PDF in-memory (PyMuPDF), sends page images to Claude, and
 validates the response into ExtractedMenu. No DB, no S3, no side effects.
+
+Also provides pure helpers for extraction post-processing (counting,
+summary context building) — shared between the first-run /setup flow
+and the dashboard /admin upload flow. Scope-agnostic: these functions
+operate on ExtractedMenu data, never on auth or tenant context.
 """
 
 import base64
@@ -182,3 +187,47 @@ async def extract_from_pdf(pdf_bytes: bytes) -> ExtractedMenu:
         raise ExtractionFailed(
             f"JSON did not match extraction schema: {e}", raw_text=raw_text
         )
+
+
+# ---------------------------------------------------------------------------
+# Post-extraction helpers (pure, scope-agnostic)
+# ---------------------------------------------------------------------------
+
+def count_dishes(extracted: ExtractedMenu) -> int:
+    """Count total items across all sections/subsections."""
+    return sum(
+        len(sub.items)
+        for sec in extracted.sections
+        for sub in sec.subsections
+    )
+
+
+def priceless_items(extracted: ExtractedMenu) -> list[str]:
+    """Find items where ALL variants have null/empty price."""
+    names: list[str] = []
+    for sec in extracted.sections:
+        for sub in sec.subsections:
+            for item in sub.items:
+                if item.variants and all(v.price is None for v in item.variants):
+                    names.append(item.name)
+                elif not item.variants:
+                    names.append(item.name)
+    return names
+
+
+def build_summary_context(extracted: ExtractedMenu) -> dict:
+    """Build the template context dict for the extraction summary page.
+
+    Single-sourced: both /setup and /admin summary templates use this.
+    Returns a dict with keys the summary template expects.
+    """
+    dish_count = count_dishes(extracted)
+    return {
+        "menu_name": extracted.menu_name,
+        "section_count": len(extracted.sections),
+        "dish_count": dish_count,
+        "section_names": [s.name for s in extracted.sections],
+        "ignored": extracted.ignored,
+        "menu_note": extracted.menu_note,
+        "priceless_items": priceless_items(extracted),
+    }

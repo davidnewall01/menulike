@@ -5,16 +5,22 @@
 {% endblock %}
 
 {% block content %}
+{% set menus_field = view.menu.fields.menus %}
+
 <div class="menu-page wrap">
 
-  {% if site.menus | length == 0 %}
+  {% if menus_field.source == "sample" %}
+  {# No menus yet — show the sample menu partial in preview #}
+  {% include "public/linen/_sample_menu.html" %}
+
+  {% elif not menus_field.value or menus_field.value | length == 0 %}
   <p class="menu-empty">No menus available.</p>
 
-  {% elif site.menus | length == 1 %}
+  {% elif menus_field.value | length == 1 %}
   {# Single menu — no tabs needed #}
-  {% set m = site.menus[0] %}
+  {% set m = menus_field.value[0] %}
   <div class="menu-head">
-    <h1 class="menu-title">{{ m.name }}</h1>
+    <h1 class="menu-title">{{ m.display_title or m.name }}</h1>
     {% if m.availability_note %}
     <p class="menu-avail">{{ m.availability_note }}</p>
     {% endif %}
@@ -25,16 +31,16 @@
 
   {% else %}
   {# Multiple menus — Alpine tabs #}
-  <div x-data="{ tab: 0 }">
+  <div x-data="{ tab: (() => { const h = location.hash.slice(1).toLowerCase(); const names = [{% for m in menus_field.value %}'{{ (m.display_title or m.name) | lower }}'{% if not loop.last %},{% endif %}{% endfor %}]; const i = names.indexOf(h); return i >= 0 ? i : 0; })() }">
     <div class="menu-tabs">
-      {% for m in site.menus %}
+      {% for m in menus_field.value %}
       <button class="menu-tab"
               :class="tab === {{ loop.index0 }} && 'menu-tab--on'"
-              @click="tab = {{ loop.index0 }}">{{ m.name }}</button>
+              @click="tab = {{ loop.index0 }}">{{ m.display_title or m.name }}</button>
       {% endfor %}
     </div>
 
-    {% for m in site.menus %}
+    {% for m in menus_field.value %}
     <div x-show="tab === {{ loop.index0 }}" x-cloak>
       {% if m.availability_note %}
       <p class="menu-avail">{{ m.availability_note }}</p>

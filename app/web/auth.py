@@ -171,26 +171,6 @@ async def setup_restaurant_submit(
 # Setup — upload your menu
 # ---------------------------------------------------------------------------
 
-def _count_dishes(extracted: ExtractedMenu) -> int:
-    """Count total items across all sections/subsections."""
-    return sum(
-        len(sub.items)
-        for sec in extracted.sections
-        for sub in sec.subsections
-    )
-
-
-def _priceless_items(extracted: ExtractedMenu) -> list[str]:
-    """Find items where ALL variants have null/empty price."""
-    names: list[str] = []
-    for sec in extracted.sections:
-        for sub in sec.subsections:
-            for item in sub.items:
-                if item.variants and all(v.price is None for v in item.variants):
-                    names.append(item.name)
-                elif not item.variants:
-                    names.append(item.name)
-    return names
 
 
 @router.get("/setup/menu", response_class=HTMLResponse)
@@ -282,7 +262,7 @@ async def setup_menu_submit(
         )
 
     # Empty/degenerate guard: 0 sections or 0 dishes → low-confidence message
-    dish_count = _count_dishes(extracted)
+    dish_count = menu_extraction_service.count_dishes(extracted)
     if len(extracted.sections) == 0 or dish_count == 0:
         return templates.TemplateResponse(
             "auth/setup_menu.html",
@@ -296,20 +276,14 @@ async def setup_menu_submit(
 
     # Success → render summary (NOT committed yet)
     extraction_json = _json.dumps(extracted.model_dump())
-    priceless = _priceless_items(extracted)
+    summary = menu_extraction_service.build_summary_context(extracted)
     return templates.TemplateResponse(
         "auth/setup_menu_summary.html",
         {
             "request": request,
             "csrf_token": generate_csrf_token(auth),
             "extraction_json": extraction_json,
-            "menu_name": extracted.menu_name,
-            "section_count": len(extracted.sections),
-            "dish_count": dish_count,
-            "section_names": [s.name for s in extracted.sections],
-            "ignored": extracted.ignored,
-            "menu_note": extracted.menu_note,
-            "priceless_items": priceless,
+            **summary,
         },
     )
 

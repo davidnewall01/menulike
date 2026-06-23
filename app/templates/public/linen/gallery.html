@@ -5,8 +5,8 @@
 {% endblock %}
 
 {% block content %}
-{% set logo_photo = role_images.get("logo", [])[0] if role_images.get("logo") else none %}
-{% set gallery_photos = role_images.get("gallery", []) %}
+{% set photos_field = view.gallery.fields.photos %}
+{% set gallery_photos = photos_field.value or [] %}
 
 <div class="gallery-page wrap" x-data="galleryLightbox()" @keydown.escape.window="close()" @keydown.arrow-left.window="prev()" @keydown.arrow-right.window="next()">
   <div class="gallery-header">
@@ -27,8 +27,8 @@
        class="masonry__item"
        style="grid-row: span {{ row_span }};"
        @click.prevent="open({{ loop.index0 }})">
-      <img src="{{ storage_url(photo.s3_key) }}"
-           alt="{{ photo.alt_text or '' }}"
+      <img src="{{ photo.url }}"
+           alt="{{ photo.alt_text }}"
            loading="{% if loop.index0 < 6 %}eager{% else %}lazy{% endif %}"
            width="{{ w }}" height="{{ h }}">
     </a>
@@ -56,7 +56,7 @@
 function galleryLightbox() {
   var photos = [
     {% for photo in gallery_photos %}
-    { src: {{ storage_url(photo.s3_key) | tojson }}, alt: {{ (photo.alt_text or "") | tojson }} }{% if not loop.last %},{% endif %}
+    { src: {{ photo.url | tojson }}, alt: {{ photo.alt_text | tojson }} }{% if not loop.last %},{% endif %}
     {% endfor %}
   ];
   return {

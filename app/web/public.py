@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
+from app.content.resolver import resolve_site_view
 from app.db.session import get_db
 from app.models.site import Site
 from app.services import image_role_service
@@ -29,12 +30,16 @@ async def home(
 ):
     template = resolve_template(site.template)
     role_images = await image_role_service.load_role_images(db, site.site_id)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="public",
+        storage_url=storage_public_url,
+    )
     return templates.TemplateResponse(
         page_path(template, "home"),
         {
             "request": request,
             "site": site,
-            "role_images": role_images,
+            "view": view,
             "storage_url": storage_public_url,
             "render_mode": "public",
         },
@@ -42,11 +47,22 @@ async def home(
 
 
 @router.get("/menu", response_class=HTMLResponse)
-async def menu(request: Request, site: Site = Depends(resolve_tenant)):
+async def menu(request: Request, site: Site = Depends(resolve_tenant), db: AsyncSession = Depends(get_db)):
     template = resolve_template(site.template)
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="public",
+        storage_url=storage_public_url,
+    )
     return templates.TemplateResponse(
         page_path(template, "menu"),
-        {"request": request, "site": site, "render_mode": "public"},
+        {
+            "request": request,
+            "site": site,
+            "view": view,
+            "storage_url": storage_public_url,
+            "render_mode": "public",
+        },
     )
 
 
@@ -58,12 +74,16 @@ async def gallery(
 ):
     template = resolve_template(site.template)
     role_images = await image_role_service.load_role_images(db, site.site_id)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="public",
+        storage_url=storage_public_url,
+    )
     return templates.TemplateResponse(
         page_path(template, "gallery"),
         {
             "request": request,
             "site": site,
-            "role_images": role_images,
+            "view": view,
             "storage_url": storage_public_url,
             "render_mode": "public",
         },
@@ -71,15 +91,19 @@ async def gallery(
 
 
 @router.get("/our-story", response_class=HTMLResponse)
-async def our_story(request: Request, site: Site = Depends(resolve_tenant)):
+async def our_story(request: Request, site: Site = Depends(resolve_tenant), db: AsyncSession = Depends(get_db)):
     template = resolve_template(site.template)
-    blocks = [b for b in site.content_blocks if b.page_key == "our_story"]
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="public",
+        storage_url=storage_public_url,
+    )
     return templates.TemplateResponse(
         page_path(template, "our_story"),
         {
             "request": request,
             "site": site,
-            "blocks": blocks,
+            "view": view,
             "storage_url": storage_public_url,
             "render_mode": "public",
         },
@@ -90,8 +114,13 @@ _DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 
 @router.get("/visit", response_class=HTMLResponse)
-async def visit(request: Request, site: Site = Depends(resolve_tenant)):
+async def visit(request: Request, site: Site = Depends(resolve_tenant), db: AsyncSession = Depends(get_db)):
     template = resolve_template(site.template)
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="public",
+        storage_url=storage_public_url,
+    )
     # Group eager-loaded regular_hours by day
     hours_by_day: dict[int, list] = {}
     for h in site.regular_hours:
@@ -107,9 +136,11 @@ async def visit(request: Request, site: Site = Depends(resolve_tenant)):
         {
             "request": request,
             "site": site,
+            "view": view,
             "hours_by_day": hours_by_day,
             "day_names": _DAY_NAMES,
             "hours_exceptions": active_exceptions,
+            "storage_url": storage_public_url,
             "render_mode": "public",
         },
     )

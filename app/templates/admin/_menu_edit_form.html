@@ -29,6 +29,10 @@
                 <input type="text" id="menu-name" name="name" value="{{ menu.name }}" required class="input input-bordered w-full">
             </div>
             <div class="form-control w-full">
+                <label class="label" for="menu-display-title"><span class="label-text">Public title</span></label>
+                <input type="text" id="menu-display-title" name="display_title" value="{{ menu.display_title or '' }}" class="input input-bordered w-full" placeholder="Leave blank to use the menu name">
+            </div>
+            <div class="form-control w-full">
                 <label class="label" for="menu-desc"><span class="label-text">Description</span></label>
                 <input type="text" id="menu-desc" name="description" value="{{ menu.description or '' }}" class="input input-bordered w-full">
             </div>

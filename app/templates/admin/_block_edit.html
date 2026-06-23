@@ -1,0 +1,27 @@
+<div class="p-3 bg-base-200 rounded-lg border border-primary" id="block-{{ block.block_id }}">
+    <form hx-post="/admin/our-story/{{ block.block_id }}/update"
+          hx-target="#block-list"
+          hx-swap="innerHTML"
+          class="space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+            <label class="label"><span class="label-text text-xs">Heading</span></label>
+            <input type="text" name="heading" value="{{ block.heading or '' }}"
+                   class="input input-bordered input-sm w-full" placeholder="Optional heading">
+        </div>
+        <div>
+            <label class="label"><span class="label-text text-xs">Body</span></label>
+            <textarea name="body" class="textarea textarea-bordered w-full" rows="4"
+                      placeholder="Write your story...">{{ block.body or '' }}</textarea>
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            <button type="button" class="btn btn-ghost btn-sm"
+                    hx-get="/admin/our-story"
+                    hx-target="main"
+                    hx-swap="innerHTML"
+                    hx-select="main > *"
+                    hx-push-url="false">Cancel</button>
+        </div>
+    </form>
+</div>

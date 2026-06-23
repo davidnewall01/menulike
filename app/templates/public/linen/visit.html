@@ -32,7 +32,13 @@
         {% endfor %}
       </dl>
       {% else %}
-      <p class="visit-card__empty">Hours not set</p>
+      <p class="visit-card__empty">
+        {% if render_mode == "preview" %}
+        <a href="/admin/hours">Add your hours →</a>
+        {% else %}
+        Hours not set
+        {% endif %}
+      </p>
       {% endif %}
 
       {% if hours_exceptions %}
@@ -69,7 +75,13 @@
       <p>{{ site.address_suburb }}{% if site.address_state %}, {{ site.address_state }}{% endif %}{% if site.address_postcode %} {{ site.address_postcode }}{% endif %}</p>
       {% endif %}
       {% else %}
-      <p class="visit-card__empty">Address not set</p>
+      <p class="visit-card__empty">
+        {% if render_mode == "preview" %}
+        <a href="/admin/details">Add your address →</a>
+        {% else %}
+        Address not set
+        {% endif %}
+      </p>
       {% endif %}
     </div>
 
@@ -86,7 +98,13 @@
       <p><a href="{{ site.booking_url }}" class="btn btn--ghost" style="margin-top:12px">Book a Table</a></p>
       {% endif %}
       {% if not site.phone and not site.email and not site.booking_url %}
-      <p class="visit-card__empty">Contact details not set</p>
+      <p class="visit-card__empty">
+        {% if render_mode == "preview" %}
+        <a href="/admin/details">Add contact details →</a>
+        {% else %}
+        Contact details not set
+        {% endif %}
+      </p>
       {% endif %}
     </div>
 

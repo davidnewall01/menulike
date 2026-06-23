@@ -16,7 +16,7 @@ Only the VALUE/SOURCE of each field changes by mode.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from app.content import samples
 
@@ -89,11 +89,18 @@ def resolve_site_view(
     site: Any,
     role_images: dict[str, list],
     mode: RenderMode,
+    storage_url: Callable[[str], str],
 ) -> SiteView:
     """Build a resolved view of all content areas.
 
     Pure function. Reads only already-loaded attributes — never triggers
     a DB query or lazy load. Deterministic.
+
+    Field values are normalised to uniform shapes so templates never
+    branch on source to read — only to mark (sample badge etc.):
+      - Images → URL strings (storage_url applied for real, static for sample)
+      - Gallery → list of {url, alt_text, width, height}
+      - Blocks → list of {heading, body, image_url, image_alt}
 
     Args:
         site: Site model with eager-loaded menus, regular_hours,
@@ -101,15 +108,16 @@ def resolve_site_view(
         role_images: dict from image_role_service.load_role_images —
                      {role: [Photo, ...]}. Already loaded.
         mode: "public" or "preview".
+        storage_url: Callable to resolve an S3 key to a public URL.
 
     Returns:
         SiteView — dict keyed by area name, each value an AreaView.
     """
     return {
-        "home": _resolve_home(site, role_images, mode),
-        "our_story": _resolve_our_story(site, mode),
+        "home": _resolve_home(site, role_images, mode, storage_url),
+        "our_story": _resolve_our_story(site, mode, storage_url),
         "visit": _resolve_visit(site, mode),
-        "gallery": _resolve_gallery(role_images, mode),
+        "gallery": _resolve_gallery(role_images, mode, storage_url),
         "menu": _resolve_menu(site, mode),
     }
 
@@ -159,14 +167,16 @@ def _compute_status(area_key: str, fields: dict[str, FieldView]) -> Status:
 
 def _resolve_home(
     site: Any, role_images: dict[str, list], mode: RenderMode,
+    storage_url: Callable[[str], str],
 ) -> AreaView:
     feature_images = role_images.get("feature_images", [])
     logo_images = role_images.get("logo", [])
 
     fields = {
+        # Uniform shape: URL string in both real and sample
         "hero": _resolve_field(
             has_real=len(feature_images) > 0,
-            real_value=feature_images[0] if feature_images else None,
+            real_value=storage_url(feature_images[0].s3_key) if feature_images else None,
             sample_value=samples.HERO_IMAGE_URL,
             mode=mode,
         ),
@@ -178,9 +188,10 @@ def _resolve_home(
         ),
         # Logo: resolved for value but NOT status-bearing (excluded from
         # _STATUS_FIELDS["home"]). Present/absent does not change home status.
+        # Uniform shape: URL string
         "logo": _resolve_field(
             has_real=len(logo_images) > 0,
-            real_value=logo_images[0] if logo_images else None,
+            real_value=storage_url(logo_images[0].s3_key) if logo_images else None,
             sample_value=samples.LOGO_IMAGE_URL,
             mode=mode,
         ),
@@ -188,22 +199,39 @@ def _resolve_home(
     return AreaView(status=_compute_status("home", fields), fields=fields)
 
 
-def _resolve_our_story(site: Any, mode: RenderMode) -> AreaView:
+def _resolve_our_story(
+    site: Any, mode: RenderMode,
+    storage_url: Callable[[str], str],
+) -> AreaView:
     story_blocks = [
         b for b in site.content_blocks if b.page_key == "our_story"
     ]
     has_blocks = len(story_blocks) > 0
 
-    sample_block = {
-        "heading": samples.OUR_STORY_HEADING,
-        "body": samples.OUR_STORY_BODY,
-    }
+    # Uniform shape: list of {heading, body, image_url, image_alt}
+    real_list = [
+        {
+            "heading": b.heading,
+            "body": b.body,
+            "image_url": storage_url(b.image.s3_key) if b.image else None,
+            "image_alt": (b.image.alt_text or "") if b.image else "",
+        }
+        for b in story_blocks
+    ]
+    sample_list = [
+        {
+            "heading": samples.OUR_STORY_HEADING,
+            "body": samples.OUR_STORY_BODY,
+            "image_url": None,
+            "image_alt": "",
+        },
+    ]
 
     fields = {
         "blocks": _resolve_field(
             has_real=has_blocks,
-            real_value=story_blocks,
-            sample_value=[sample_block],
+            real_value=real_list,
+            sample_value=sample_list,
             mode=mode,
         ),
     }
@@ -246,14 +274,30 @@ def _resolve_visit(site: Any, mode: RenderMode) -> AreaView:
 
 def _resolve_gallery(
     role_images: dict[str, list], mode: RenderMode,
+    storage_url: Callable[[str], str],
 ) -> AreaView:
     gallery_photos = role_images.get("gallery", [])
+
+    # Uniform shape: list of {url, alt_text, width, height}
+    real_list = [
+        {
+            "url": storage_url(p.s3_key),
+            "alt_text": p.alt_text or "",
+            "width": p.width,
+            "height": p.height,
+        }
+        for p in gallery_photos
+    ]
+    sample_list = [
+        {"url": u, "alt_text": "", "width": 400, "height": 300}
+        for u in samples.GALLERY_IMAGE_URLS
+    ]
 
     fields = {
         "photos": _resolve_field(
             has_real=len(gallery_photos) > 0,
-            real_value=gallery_photos,
-            sample_value=samples.GALLERY_IMAGE_URLS,
+            real_value=real_list,
+            sample_value=sample_list,
             mode=mode,
         ),
     }
