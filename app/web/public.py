@@ -36,6 +36,7 @@ async def home(
             "site": site,
             "role_images": role_images,
             "storage_url": storage_public_url,
+            "render_mode": "public",
         },
     )
 
@@ -45,7 +46,7 @@ async def menu(request: Request, site: Site = Depends(resolve_tenant)):
     template = resolve_template(site.template)
     return templates.TemplateResponse(
         page_path(template, "menu"),
-        {"request": request, "site": site},
+        {"request": request, "site": site, "render_mode": "public"},
     )
 
 
@@ -64,6 +65,23 @@ async def gallery(
             "site": site,
             "role_images": role_images,
             "storage_url": storage_public_url,
+            "render_mode": "public",
+        },
+    )
+
+
+@router.get("/our-story", response_class=HTMLResponse)
+async def our_story(request: Request, site: Site = Depends(resolve_tenant)):
+    template = resolve_template(site.template)
+    blocks = [b for b in site.content_blocks if b.page_key == "our_story"]
+    return templates.TemplateResponse(
+        page_path(template, "our_story"),
+        {
+            "request": request,
+            "site": site,
+            "blocks": blocks,
+            "storage_url": storage_public_url,
+            "render_mode": "public",
         },
     )
 
@@ -92,5 +110,6 @@ async def visit(request: Request, site: Site = Depends(resolve_tenant)):
             "hours_by_day": hours_by_day,
             "day_names": _DAY_NAMES,
             "hours_exceptions": active_exceptions,
+            "render_mode": "public",
         },
     )

@@ -148,7 +148,7 @@ async def preview_menu(
         {
             "request": request,
             "site": site,
-            "preview_mode": True,
+            "render_mode": "preview",
         },
     )
 
