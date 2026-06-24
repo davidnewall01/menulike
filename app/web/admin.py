@@ -386,6 +386,79 @@ async def unpublish_site(
 
 
 # ---------------------------------------------------------------------------
+# Front page (tagline + hero + logo)
+# ---------------------------------------------------------------------------
+
+@router.get("/front-page", response_class=HTMLResponse)
+async def front_page(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        site = await site_service.get_owner_site(db, auth)
+    except SiteNotFound:
+        raise HTTPException(status_code=400, detail="Scoped site not found")
+
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    mode = FEATURE_IMAGE_MODE.get(site.template, "single")
+    by_key = _roles_by_key(roles)
+    by_key_list = _roles_list_by_key(roles)
+
+    return _render(
+        request, "admin/front_page.html", auth,
+        site=site,
+        roles=by_key,
+        feature_image_mode=mode,
+        feature_images_list=by_key_list.get("feature_images", []),
+        storage_url=storage_public_url,
+        **_IMAGE_ROLE_URLS,
+    )
+
+
+@router.post("/front-page", response_class=HTMLResponse)
+async def front_page_save(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    tagline_raw = form_data.get("tagline", "")
+    tagline = tagline_raw.strip() or None
+
+    try:
+        site = await site_coordinator.update_tagline(db, auth, tagline)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except SiteNotFound:
+        raise HTTPException(status_code=400, detail="Scoped site not found")
+
+    try:
+        roles = await image_role_service.list_roles(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    mode = FEATURE_IMAGE_MODE.get(site.template, "single")
+    by_key = _roles_by_key(roles)
+    by_key_list = _roles_list_by_key(roles)
+
+    return _render(
+        request, "admin/front_page.html", auth,
+        site=site,
+        roles=by_key,
+        feature_image_mode=mode,
+        feature_images_list=by_key_list.get("feature_images", []),
+        storage_url=storage_public_url,
+        saved=True,
+        **_IMAGE_ROLE_URLS,
+    )
+
+
+# ---------------------------------------------------------------------------
 # SEO (search listing)
 # ---------------------------------------------------------------------------
 

@@ -30,7 +30,6 @@ class TestDetailsEditing:
             "/admin/details",
             data={
                 "restaurant_name": "Alpha Updated",
-                "tagline": "New tagline",
                 "phone": "0400 000 000",
                 "csrf_token": token,
             },
@@ -45,12 +44,10 @@ class TestDetailsEditing:
 
         # Site A was updated
         assert site_a.restaurant_name == "Alpha Updated"
-        assert site_a.tagline == "New tagline"
         assert site_a.phone == "0400 000 000"
 
         # Site B is untouched
         assert site_b.restaurant_name == "Beta Original"
-        assert site_b.tagline is None
 
     async def test_no_site_id_accepted_from_form(self, db_session, client):
         """Even if a site_id field is injected into the form, it's ignored —
@@ -84,7 +81,7 @@ class TestDetailsEditing:
     async def test_get_details_shows_current_values(self, db_session, client):
         site = await make_site(
             db_session, slug="preload", name="Preloaded",
-            tagline="Existing tagline", phone="1234",
+            phone="1234",
         )
         await make_owner(db_session, site, email="p@test.dev", password="pass")
 
@@ -93,13 +90,12 @@ class TestDetailsEditing:
         resp = await client.get("/admin/details", cookies={"session": cookie})
         assert resp.status_code == 200
         assert 'value="Preloaded"' in resp.text
-        assert 'value="Existing tagline"' in resp.text
         assert 'value="1234"' in resp.text
 
     async def test_empty_optional_fields_become_none(self, db_session, client):
         site = await make_site(
             db_session, slug="blanks", name="Blanks",
-            tagline="Old tagline", phone="9999",
+            phone="9999",
         )
         owner = await make_owner(db_session, site, email="b@test.dev", password="pass")
 
@@ -109,13 +105,12 @@ class TestDetailsEditing:
         # Submit with empty optional fields
         resp = await client.post(
             "/admin/details",
-            data={"restaurant_name": "Blanks", "tagline": "", "phone": "", "csrf_token": token},
+            data={"restaurant_name": "Blanks", "phone": "", "csrf_token": token},
             cookies={"session": cookie},
         )
         assert resp.status_code == 200
 
         await db_session.refresh(site)
-        assert site.tagline is None
         assert site.phone is None
 
     async def test_empty_restaurant_name_rejected(self, db_session, client):

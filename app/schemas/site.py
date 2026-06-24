@@ -18,7 +18,6 @@ class SiteDetailsForm(BaseModel):
     """
 
     restaurant_name: str
-    tagline: str | None = None
     address_street: str | None = None
     address_suburb: str | None = None
     address_state: str | None = None

@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Front Page{% endblock %}
+
+{% block content %}
+<style>
+  .fp { max-width: 600px; margin: 0 auto; }
+  .fp-back { font-size: 13px; color: #6E665B; text-decoration: none; display: inline-block; margin-bottom: 16px; }
+  .fp-back:hover { color: #1E5B52; }
+  .fp h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .fp .sub { font-size: 14px; color: #6E665B; margin-bottom: 20px; }
+  .fp-section { margin-bottom: 28px; }
+  .fp-section h2 { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .fp-section .hint { font-size: 13px; color: #6E665B; margin-bottom: 10px; }
+  .fp-field { margin-bottom: 12px; }
+  .fp-field label { display: block; font-size: 13px; font-weight: 600; color: #3E3528; margin-bottom: 4px; }
+  .fp-field input[type="text"] {
+    width: 100%; padding: 8px 10px; font-size: 14px;
+    border: 1px solid #D9C9AE; border-radius: 7px; background: #fff;
+  }
+  .fp-field input:focus { outline: none; border-color: #1E5B52; box-shadow: 0 0 0 2px rgba(30,91,82,.15); }
+  .fp-submit {
+    display: inline-block; padding: 9px 18px;
+    font-size: 14px; font-weight: 700; color: #fff; background: #1E5B52;
+    border: none; border-radius: 8px; cursor: pointer;
+  }
+  .fp-submit:hover { background: #163F39; }
+  .fp-saved { background: #E3F0EC; color: #1E5B52; border: 1px solid #B8D9CF; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+  .fp-divider { border: none; border-top: 1px solid #E5DCCD; margin: 24px 0; }
+</style>
+
+<div class="fp">
+  <a href="/admin/" class="fp-back">&larr; Back to dashboard</a>
+  <h1>Front page</h1>
+  <p class="sub">Your hero image, logo, and tagline &mdash; what visitors see first.</p>
+
+  {% if saved %}
+  <div class="fp-saved">Tagline saved.</div>
+  {% endif %}
+
+  {# --- Tagline --- #}
+  <div class="fp-section">
+    <h2>Tagline</h2>
+    <p class="hint">A short line below your name on the hero &mdash; e.g. your cuisine, vibe, or location.</p>
+    <form method="post" action="/admin/front-page">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="fp-field">
+        <label for="tagline">Tagline</label>
+        <input type="text" id="tagline" name="tagline" value="{{ site.tagline or '' }}" placeholder="e.g. Fresh Mediterranean flavours, harbourside">
+      </div>
+      <button type="submit" class="fp-submit">Save tagline</button>
+    </form>
+  </div>
+
+  <hr class="fp-divider">
+
+  {# --- Hero image --- #}
+  <div class="fp-section">
+    {% if feature_image_mode == "carousel" %}
+    <h2>Carousel Images</h2>
+    <p class="hint">Images cycle through in the carousel on your home page.</p>
+    <div id="slot-feature_images">
+      {% include "admin/_appearance_carousel.html" %}
+    </div>
+    {% else %}
+    <h2>Hero Image</h2>
+    <p class="hint">The full-bleed background photo on your home page.</p>
+    {% set role_key = "feature_images" %}
+    {% set assignment = roles.get("feature_images") %}
+    <div id="slot-feature_images">
+      {% include "admin/_appearance_slot.html" %}
+    </div>
+    {% endif %}
+  </div>
+
+  <hr class="fp-divider">
+
+  {# --- Logo --- #}
+  <div class="fp-section">
+    <h2>Logo</h2>
+    <p class="hint">Your restaurant logo &mdash; displayed in the header and hero. A white or transparent version works best.</p>
+    {% set role_key = "logo" %}
+    {% set assignment = roles.get("logo") %}
+    <div id="slot-logo">
+      {% include "admin/_appearance_slot.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

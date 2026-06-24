@@ -120,7 +120,7 @@
     </div>
   </div>
   <div class="right">
-    <a href="/admin/appearance" class="dash-chip"><span class="sw"></span> Look: Linen</a>
+    <a href="/admin/appearance" class="dash-chip"><span class="sw"></span> Look: {{ site.template | capitalize }}</a>
     <a href="/admin/preview" class="btn-preview">Preview your site</a>
   </div>
 </div>
@@ -199,7 +199,7 @@
         {% if home_area.status == "yours" %}Your hero, logo, and tagline are set.{% elif home_area.status == "partial" %}Almost there — set your hero photo and tagline.{% else %}Set your hero image, logo, and tagline to make the front page yours.{% endif %}
       </div>
       <div class="tile-cta">
-        <a href="/admin/appearance" class="ghost">{% if home_area.status == "yours" %}Edit front page{% else %}Set up front page{% endif %}</a>
+        <a href="/admin/front-page" class="ghost">{% if home_area.status == "yours" %}Edit front page{% else %}Set up front page{% endif %}</a>
       </div>
     </div>
   </div>

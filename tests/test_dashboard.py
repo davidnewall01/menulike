@@ -175,7 +175,7 @@ class TestTileLinks:
     async def test_all_tile_links_present(
         self, client: AsyncClient, db_session: AsyncSession,
     ):
-        """All six tile CTA links point to real CRUD pages."""
+        """All tile CTA links point to real CRUD pages."""
         site = await make_site(db_session, slug="links")
         await make_owner(db_session, site, email="links@test.dev")
         cookies = await _login(client, "links@test.dev")
@@ -185,10 +185,11 @@ class TestTileLinks:
 
         assert '/admin/menu"' in html
         assert '/admin/photos"' in html
-        assert '/admin/appearance"' in html
+        assert '/admin/front-page"' in html
         assert '/admin/our-story"' in html
         assert '/admin/hours"' in html
         assert '/admin/gallery"' in html
+        assert '/admin/seo"' in html
 
     async def test_tile_links_resolve(
         self, client: AsyncClient, db_session: AsyncSession,
@@ -198,8 +199,9 @@ class TestTileLinks:
         await make_owner(db_session, site, email="resolve@test.dev")
         cookies = await _login(client, "resolve@test.dev")
 
-        for path in ["/admin/menu", "/admin/photos", "/admin/appearance",
-                     "/admin/our-story", "/admin/hours", "/admin/gallery"]:
+        for path in ["/admin/menu", "/admin/photos", "/admin/front-page",
+                     "/admin/appearance", "/admin/our-story", "/admin/hours",
+                     "/admin/gallery", "/admin/seo"]:
             resp = await client.get(path, cookies=cookies, follow_redirects=False)
             assert resp.status_code == 200, f"{path} returned {resp.status_code}"
 

@@ -196,10 +196,29 @@ async def create_site(
 
 
 _DETAIL_FIELDS = [
-    "restaurant_name", "tagline",
+    "restaurant_name",
     "address_street", "address_suburb", "address_state", "address_postcode",
     "phone", "email",
 ]
+
+
+async def update_tagline(
+    db: AsyncSession, auth_ctx: AuthContext, tagline: str | None,
+) -> Site:
+    """Set the site tagline. Flush only."""
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+
+    result = await db.execute(
+        select(Site).where(Site.site_id == auth_ctx.scoped_site_id)
+    )
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
+
+    site.tagline = tagline
+    await db.flush()
+    return site
 
 
 async def update_site_details(
