@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.location import Location
     from app.models.site import Site
 
 
@@ -24,6 +25,12 @@ class HoursException(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    location_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("location.location_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     is_closed: Mapped[bool] = mapped_column(
@@ -36,3 +43,4 @@ class HoursException(TimestampMixin, Base):
 
     # Relationships
     site: Mapped["Site"] = relationship(back_populates="hours_exceptions")
+    location: Mapped["Location | None"] = relationship(back_populates="hours_exceptions")

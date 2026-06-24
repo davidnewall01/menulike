@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.location import Location
     from app.models.site import Site
 
 
@@ -23,6 +24,12 @@ class RegularHours(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    location_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("location.location_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     day_of_week: Mapped[int] = mapped_column(
         SmallInteger, nullable=False
     )  # 0=Mon .. 6=Sun
@@ -31,3 +38,4 @@ class RegularHours(TimestampMixin, Base):
 
     # Relationships
     site: Mapped["Site"] = relationship(back_populates="regular_hours")
+    location: Mapped["Location | None"] = relationship(back_populates="regular_hours")

@@ -6,6 +6,7 @@ Alembic imports this package so every model is registered on
 
 from app.models.content_block import ContentBlock
 from app.models.hours_exception import HoursException
+from app.models.location import Location
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
 from app.models.photo import Photo
 from app.models.regular_hours import RegularHours
@@ -16,6 +17,7 @@ from app.models.user import User
 __all__ = [
     "ContentBlock",
     "HoursException",
+    "Location",
     "Menu",
     "MenuItem",
     "MenuItemVariant",

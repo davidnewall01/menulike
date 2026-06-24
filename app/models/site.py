@@ -11,6 +11,7 @@ from app.db.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from app.models.content_block import ContentBlock
     from app.models.hours_exception import HoursException
+    from app.models.location import Location
     from app.models.menu import Menu
     from app.models.photo import Photo
     from app.models.regular_hours import RegularHours
@@ -96,6 +97,12 @@ class Site(TimestampMixin, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="HoursException.start_date",
+    )
+    locations: Mapped[list["Location"]] = relationship(
+        back_populates="site",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="Location.position",
     )
     content_blocks: Mapped[list["ContentBlock"]] = relationship(
         back_populates="site",
