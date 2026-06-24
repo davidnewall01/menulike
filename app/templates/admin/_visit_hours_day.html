@@ -1,0 +1,48 @@
+<div class="card bg-base-100 shadow-sm p-4">
+    <div class="flex items-start justify-between gap-4">
+        <h3 class="font-semibold text-sm w-24 pt-1">{{ day_name }}</h3>
+        <div class="flex-1">
+            {% if ranges %}
+            {% for r in ranges %}
+            <div class="flex items-center gap-2 mb-2">
+                <form class="flex items-center gap-2"
+                      hx-post="/admin/hours/{{ r.regular_hours_id }}/update"
+                      hx-target="#{{ day_target }}"
+                      hx-swap="innerHTML">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="day_of_week" value="{{ day }}">
+                    <input type="hidden" name="day_target" value="{{ day_target }}">
+                    <input type="hidden" name="location_id" value="{{ loc.location_id }}">
+                    <input type="time" name="open_time" value="{{ r.open_time.strftime('%H:%M') }}"
+                           class="input input-bordered input-xs w-28">
+                    <span class="text-xs text-base-content/50">to</span>
+                    <input type="time" name="close_time" value="{{ r.close_time.strftime('%H:%M') }}"
+                           class="input input-bordered input-xs w-28">
+                    <button type="submit" class="btn btn-outline btn-xs">Save</button>
+                </form>
+                <button class="btn btn-outline btn-error btn-xs"
+                        hx-post="/admin/hours/{{ r.regular_hours_id }}/delete"
+                        hx-target="#{{ day_target }}"
+                        hx-swap="innerHTML"
+                        hx-vals='{"csrf_token": "{{ csrf_token }}", "day_of_week": "{{ day }}", "day_target": "{{ day_target }}", "location_id": "{{ loc.location_id }}"}'
+                        hx-confirm="Remove this time range?">Remove</button>
+            </div>
+            {% endfor %}
+            {% else %}
+            <span class="text-sm text-base-content/40 italic">Closed</span>
+            {% endif %}
+        </div>
+        <form class="flex items-center gap-2"
+              hx-post="/admin/hours/add"
+              hx-target="#{{ day_target }}"
+              hx-swap="innerHTML">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="day_of_week" value="{{ day }}">
+            <input type="hidden" name="day_target" value="{{ day_target }}">
+            <input type="hidden" name="location_id" value="{{ loc.location_id }}">
+            <input type="hidden" name="open_time" value="09:00">
+            <input type="hidden" name="close_time" value="17:00">
+            <button type="submit" class="btn btn-outline btn-xs">+ Add</button>
+        </form>
+    </div>
+</div>

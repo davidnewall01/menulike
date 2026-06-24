@@ -13,8 +13,9 @@ from app.services import hours_service
 async def add_range(
     db: AsyncSession, auth_ctx: AuthContext,
     day_of_week: int, open_time: time, close_time: time,
+    location_id: uuid.UUID | None = None,
 ) -> RegularHours:
-    row = await hours_service.add_range(db, auth_ctx, day_of_week, open_time, close_time)
+    row = await hours_service.add_range(db, auth_ctx, day_of_week, open_time, close_time, location_id=location_id)
     await db.commit()
     return row
 

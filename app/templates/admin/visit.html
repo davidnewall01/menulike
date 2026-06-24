@@ -1,0 +1,281 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Visit & Contact{% endblock %}
+
+{% block content %}
+<style>
+  .visit { max-width: 640px; margin: 0 auto; }
+  .visit-back { font-size: 13px; color: #6E665B; text-decoration: none; display: inline-block; margin-bottom: 16px; }
+  .visit-back:hover { color: #1E5B52; }
+  .visit h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .visit .sub { font-size: 14px; color: #6E665B; margin-bottom: 20px; }
+  .visit-divider { border: none; border-top: 1px solid #E5DCCD; margin: 24px 0; }
+
+  /* Location block */
+  .loc-block { background: #fff; border: 1px solid #E5DCCD; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .loc-block h2 { font-size: 16px; font-weight: 700; margin: 0 0 14px; }
+  .loc-block .field { margin-bottom: 12px; }
+  .loc-block label { display: block; font-size: 13px; font-weight: 600; color: #3E3528; margin-bottom: 4px; }
+  .loc-block input[type="text"], .loc-block input[type="email"], .loc-block input[type="tel"] {
+    width: 100%; padding: 8px 10px; font-size: 14px;
+    border: 1px solid #D9C9AE; border-radius: 7px; background: #fff;
+  }
+  .loc-block input:focus { outline: none; border-color: #1E5B52; box-shadow: 0 0 0 2px rgba(30,91,82,.15); }
+  .loc-block .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .loc-submit {
+    display: inline-block; padding: 9px 18px;
+    font-size: 14px; font-weight: 700; color: #fff; background: #1E5B52;
+    border: none; border-radius: 8px; cursor: pointer; margin-top: 4px;
+  }
+  .loc-submit:hover { background: #163F39; }
+  .loc-remove {
+    font-size: 12px; color: #c44; background: none; border: 1px solid #c44;
+    border-radius: 6px; padding: 5px 12px; cursor: pointer; float: right;
+  }
+  .loc-remove:hover { background: #fbe8e8; }
+
+  /* Add location link */
+  .add-loc { display: inline-block; font-size: 13px; color: #6E665B; text-decoration: none; margin-top: 8px; }
+  .add-loc:hover { color: #1E5B52; text-decoration: underline; }
+
+  /* Hours section within location */
+  .loc-hours { margin-top: 16px; padding-top: 16px; border-top: 1px solid #E5DCCD; }
+  .loc-hours h3 { font-size: 14px; font-weight: 700; margin: 0 0 10px; }
+
+  /* Autocomplete dropdown positioning */
+  .pac-container { z-index: 10000 !important; }
+</style>
+
+<div class="visit">
+  <a href="/admin/" class="visit-back">&larr; Back to dashboard</a>
+  <h1>Visit &amp; contact</h1>
+  <p class="sub">Your address, phone, email, and opening hours.</p>
+
+  {% if is_internal_admin %}
+  <div class="alert alert-info">Internal admin — select a site to manage visit details.</div>
+  {% else %}
+
+  {% set multi = locations | length > 1 %}
+
+  {% for loc_item in locations %}
+  {% set loc = loc_item.location %}
+  {% set hours_by_day = loc_item.hours_by_day %}
+  {% set exceptions = loc_item.exceptions %}
+
+  <div class="loc-block">
+    {% if multi %}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h2>{{ loc.label or ("Location " ~ loop.index) }}</h2>
+      <form method="post" action="/admin/visit/remove-location" style="margin:0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="location_id" value="{{ loc.location_id }}">
+        <button type="submit" class="loc-remove"
+                onclick="return confirm('Remove this location and its hours?')">Remove</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/admin/visit"
+          x-data="addressAutocomplete('addr-street-{{ loop.index0 }}')"
+          x-init="init()">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="location_id" value="{{ loc.location_id }}">
+      <input type="hidden" name="latitude" x-model="lat">
+      <input type="hidden" name="longitude" x-model="lng">
+
+      {% if multi %}
+      <div class="field">
+        <label>Location name</label>
+        <input type="text" name="label" value="{{ loc.label or '' }}" placeholder="e.g. Gordon, Manly">
+      </div>
+      {% endif %}
+
+      <div class="field">
+        <label>Street address</label>
+        <input type="text" name="address_street" id="addr-street-{{ loop.index0 }}"
+               value="{{ loc.address_street or '' }}" placeholder="Start typing for suggestions..."
+               autocomplete="off" x-ref="streetInput">
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>Suburb</label>
+          <input type="text" name="address_suburb" value="{{ loc.address_suburb or '' }}" x-ref="suburb">
+        </div>
+        <div class="field">
+          <label>State</label>
+          <input type="text" name="address_state" value="{{ loc.address_state or '' }}" x-ref="state">
+        </div>
+      </div>
+      <div class="field" style="max-width:200px">
+        <label>Postcode</label>
+        <input type="text" name="address_postcode" value="{{ loc.address_postcode or '' }}" x-ref="postcode">
+      </div>
+
+      <hr class="visit-divider" style="margin:16px 0">
+
+      <div class="row-2">
+        <div class="field">
+          <label>Phone</label>
+          <input type="tel" name="phone" value="{{ loc.phone or '' }}">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" name="email" value="{{ loc.email or '' }}">
+        </div>
+      </div>
+
+      <button type="submit" class="loc-submit">Save</button>
+    </form>
+
+    {# --- Inline hours editor --- #}
+    {% set loc_prefix = loc.location_id | string %}
+    <div class="loc-hours">
+      <h3>Opening hours</h3>
+      <div class="space-y-1 mb-4">
+        {% for day_idx in range(7) %}
+        <div id="day-{{ loc_prefix }}-{{ day_idx }}">
+          {% set day = day_idx %}
+          {% set day_name = day_names[day_idx] %}
+          {% set day_target = "day-" ~ loc_prefix ~ "-" ~ day_idx %}
+          {% set ranges = hours_by_day.get(day_idx, []) %}
+          {% include "admin/_visit_hours_day.html" %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <details style="margin-top:12px">
+        <summary style="font-size:13px;font-weight:600;cursor:pointer;color:#6E665B;">Exceptions (holidays, closures)</summary>
+        <div style="margin-top:8px">
+          <div id="exceptions-list">
+            {% include "admin/_hours_exceptions.html" %}
+          </div>
+          <div class="mt-4 card bg-base-100 shadow-sm p-4">
+            <h3 class="font-semibold text-sm mb-3">Add exception</h3>
+            <form hx-post="/admin/hours/exceptions/add"
+                  hx-target="#exceptions-list"
+                  hx-swap="innerHTML"
+                  class="space-y-3">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <div class="flex flex-wrap gap-3 items-end">
+                <div>
+                  <label class="label label-text text-xs">Start date</label>
+                  <input type="date" name="start_date" required class="input input-bordered input-sm">
+                </div>
+                <div>
+                  <label class="label label-text text-xs">End date</label>
+                  <input type="date" name="end_date" required class="input input-bordered input-sm">
+                </div>
+                <div>
+                  <label class="label label-text text-xs">Label</label>
+                  <input type="text" name="label" placeholder="e.g. Christmas Day" class="input input-bordered input-sm">
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <label class="label cursor-pointer gap-2">
+                  <input type="checkbox" name="is_closed" checked class="checkbox checkbox-sm"
+                         onchange="this.closest('form').querySelector('.special-hours-fields').classList.toggle('hidden', this.checked)">
+                  <span class="label-text text-sm">Closed all day</span>
+                </label>
+              </div>
+              <div class="special-hours-fields hidden">
+                <label class="label label-text text-xs">Special hours (if not closed)</label>
+                <div class="flex gap-2 items-center">
+                  <input type="time" name="sh_open" value="09:00" class="input input-bordered input-xs w-28">
+                  <span class="text-xs">to</span>
+                  <input type="time" name="sh_close" value="17:00" class="input input-bordered input-xs w-28">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm">Add exception</button>
+            </form>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% if multi_location_enabled %}
+  {# Add another location — gated until Phase 4 ships multi-location public render #}
+  <form method="post" action="/admin/visit/add-location" style="margin-top:8px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="add-loc">+ Add another location</button>
+  </form>
+  {% endif %}
+
+  {% endif %}
+</div>
+
+{# --- Google Places Autocomplete (progressive enhancement) --- #}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% if google_places_key %}
+<script>
+// Intentionally client-exposed API key — protected by referrer/API restriction
+// in the Google Cloud console, not by secrecy.
+function initPlacesAutocomplete() {
+  document.querySelectorAll('[x-data]').forEach(el => {
+    if (el.__x) el.__x.$data._placesReady = true;
+  });
+  window._placesReady = true;
+}
+</script>
+<script async
+  src="https://maps.googleapis.com/maps/api/js?key={{ google_places_key }}&libraries=places&callback=initPlacesAutocomplete">
+</script>
+{% endif %}
+<script>
+// Alpine component for address autocomplete (degrades to plain inputs if Places unavailable)
+document.addEventListener('alpine:init', () => {
+  Alpine.data('addressAutocomplete', (inputId) => ({
+    lat: '',
+    lng: '',
+    _placesReady: false,
+    _autocomplete: null,
+    init() {
+      // Try to attach Places when ready (or immediately if already loaded)
+      const tryAttach = () => {
+        if (!window.google?.maps?.places) return false;
+        const input = document.getElementById(inputId);
+        if (!input) return false;
+        this._autocomplete = new google.maps.places.Autocomplete(input, {
+          types: ['address'],
+          componentRestrictions: { country: 'au' },
+          fields: ['address_components', 'geometry'],
+        });
+        this._autocomplete.addListener('place_changed', () => {
+          const place = this._autocomplete.getPlace();
+          if (!place.address_components) return;
+          // Parse structured address
+          const get = (type) => {
+            const c = place.address_components.find(c => c.types.includes(type));
+            return c ? c.long_name : '';
+          };
+          const streetNum = get('street_number');
+          const route = get('route');
+          const form = input.closest('form');
+          input.value = streetNum ? streetNum + ' ' + route : route;
+          const suburb = form.querySelector('[name="address_suburb"]');
+          const state = form.querySelector('[name="address_state"]');
+          const postcode = form.querySelector('[name="address_postcode"]');
+          if (suburb) suburb.value = get('locality') || get('sublocality_level_1');
+          if (state) state.value = get('administrative_area_level_1');
+          if (postcode) postcode.value = get('postal_code');
+          // Coords (for future schema.org / local SEO)
+          if (place.geometry?.location) {
+            this.lat = place.geometry.location.lat();
+            this.lng = place.geometry.location.lng();
+          }
+        });
+        return true;
+      };
+      if (!tryAttach()) {
+        // Places not loaded yet — retry when callback fires
+        const check = setInterval(() => {
+          if (tryAttach()) clearInterval(check);
+        }, 200);
+        setTimeout(() => clearInterval(check), 10000); // give up after 10s
+      }
+    },
+  }));
+});
+</script>
+{% endblock %}

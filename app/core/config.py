@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     MENU_EXTRACTION_MODEL: str = "claude-sonnet-4-6"
 
+    # Google Maps/Places API key for address autocomplete (client-side).
+    # Intentionally client-exposed in templates — protected by referrer/API
+    # restriction in the Google Cloud console, not by secrecy.
+    GOOGLE_MAPS_API_KEY: str = ""
+
+    # Multi-location editing. Off until Phase 4 ships the public render.
+    MULTI_LOCATION_ENABLED: bool = False
+
     # Emit SQL to logs when true.
     DB_ECHO: bool = False
 

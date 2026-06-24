@@ -187,7 +187,7 @@ class TestTileLinks:
         assert '/admin/photos"' in html
         assert '/admin/front-page"' in html
         assert '/admin/our-story"' in html
-        assert '/admin/hours"' in html
+        assert '/admin/visit"' in html
         assert '/admin/gallery"' in html
         assert '/admin/seo"' in html
 
@@ -200,7 +200,7 @@ class TestTileLinks:
         cookies = await _login(client, "resolve@test.dev")
 
         for path in ["/admin/menu", "/admin/photos", "/admin/front-page",
-                     "/admin/appearance", "/admin/our-story", "/admin/hours",
+                     "/admin/appearance", "/admin/our-story", "/admin/visit",
                      "/admin/gallery", "/admin/seo"]:
             resp = await client.get(path, cookies=cookies, follow_redirects=False)
             assert resp.status_code == 200, f"{path} returned {resp.status_code}"

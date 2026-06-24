@@ -12,7 +12,7 @@ from starlette.responses import Response
 
 from app.auth.context import AuthContext
 from app.auth.deps import SESSION_COOKIE, require_auth, require_csrf, require_csrf_owner_site, require_owner_site
-from app.coordinators import content_block_coordinator, hours_coordinator, hours_exception_coordinator, image_role_coordinator, menu_coordinator, photo_coordinator, site_coordinator
+from app.coordinators import content_block_coordinator, hours_coordinator, hours_exception_coordinator, image_role_coordinator, location_coordinator, menu_coordinator, photo_coordinator, site_coordinator
 from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
@@ -20,7 +20,7 @@ from app.db.session import get_db
 from app.schemas.extraction import ExtractedMenu
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm, parse_extras
 from app.schemas.site import SiteDetailsForm
-from app.services import auth_service, content_block_service, hours_exception_service, hours_service, image_role_service, menu_extraction_service, menu_service, photo_service, site_service
+from app.services import auth_service, content_block_service, hours_exception_service, hours_service, image_role_service, location_service, menu_extraction_service, menu_service, photo_service, site_service
 from app.services.hours_service import HoursRangeNotFound
 from app.services.hours_exception_service import HoursExceptionNotFound, InvalidDateRange
 from app.services.storage import public_url as storage_public_url
@@ -31,6 +31,7 @@ from app.services.exceptions import (
     InvalidRole,
     InvalidTemplate,
     ItemNotFound,
+    LocationNotFound,
     MenuNotFound,
     NoSiteInScope,
     PhotoNotFound,
@@ -2186,12 +2187,154 @@ def _hours_by_day(hours_list):
     return out
 
 
+@router.get("/visit", response_class=HTMLResponse)
+async def visit_page(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if auth.is_internal_admin:
+        return _render(
+            request, "admin/visit.html", auth,
+            locations=[], is_internal_admin=True,
+            day_names=DAY_NAMES,
+            google_places_key=settings.GOOGLE_MAPS_API_KEY,
+            multi_location_enabled=settings.MULTI_LOCATION_ENABLED,
+        )
+
+    try:
+        locations = await location_service.list_locations(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    # Load hours + exceptions per location
+    loc_data = []
+    for loc in locations:
+        hours = await hours_service.list_hours(db, auth, location_id=loc.location_id)
+        exceptions = await hours_exception_service.list_exceptions(
+            db, auth, location_id=loc.location_id,
+        )
+        loc_data.append({
+            "location": loc,
+            "hours_by_day": _hours_by_day(hours),
+            "exceptions": exceptions,
+        })
+
+    return _render(
+        request, "admin/visit.html", auth,
+        locations=loc_data,
+        is_internal_admin=False,
+        day_names=DAY_NAMES,
+        google_places_key=settings.GOOGLE_MAPS_API_KEY,
+        multi_location_enabled=settings.MULTI_LOCATION_ENABLED,
+    )
+
+
+@router.post("/visit", response_class=HTMLResponse)
+async def visit_save_location(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save address + contact for a location."""
+    form_data = await request.form()
+    location_id_str = form_data.get("location_id", "")
+
+    try:
+        location_id = uuid.UUID(location_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid location_id")
+
+    kwargs = {
+        "label": form_data.get("label", "").strip() or None,
+        "address_street": form_data.get("address_street", "").strip() or None,
+        "address_suburb": form_data.get("address_suburb", "").strip() or None,
+        "address_state": form_data.get("address_state", "").strip() or None,
+        "address_postcode": form_data.get("address_postcode", "").strip() or None,
+        "phone": form_data.get("phone", "").strip() or None,
+        "email": form_data.get("email", "").strip() or None,
+    }
+
+    # Lat/lng from Places autocomplete (coords stored when user selects a suggestion)
+    lat_str = form_data.get("latitude", "").strip()
+    lng_str = form_data.get("longitude", "").strip()
+    if lat_str and lng_str:
+        try:
+            from decimal import Decimal
+            kwargs["latitude"] = Decimal(lat_str)
+            kwargs["longitude"] = Decimal(lng_str)
+        except Exception:
+            pass  # manual entry — no coords, that's fine
+
+    try:
+        await location_coordinator.update_location(db, auth, location_id, **kwargs)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except LocationNotFound:
+        raise HTTPException(status_code=400, detail="Location not found")
+
+    return RedirectResponse(url="/admin/visit", status_code=303)
+
+
+@router.post("/visit/add-location", response_class=HTMLResponse)
+async def visit_add_location(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a new (empty) location. Gated by MULTI_LOCATION_ENABLED."""
+    if not settings.MULTI_LOCATION_ENABLED:
+        return RedirectResponse(url="/admin/visit", status_code=303)
+
+    form_data = await request.form()
+    label = form_data.get("label", "").strip() or None
+
+    try:
+        await location_coordinator.create_location(db, auth, label=label)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return RedirectResponse(url="/admin/visit", status_code=303)
+
+
+@router.post("/visit/remove-location", response_class=HTMLResponse)
+async def visit_remove_location(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a location."""
+    form_data = await request.form()
+    location_id_str = form_data.get("location_id", "")
+
+    try:
+        location_id = uuid.UUID(location_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid location_id")
+
+    try:
+        await location_coordinator.delete_location(db, auth, location_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except LocationNotFound:
+        raise HTTPException(status_code=400, detail="Location not found")
+
+    return RedirectResponse(url="/admin/visit", status_code=303)
+
+
 @router.get("/hours", response_class=HTMLResponse)
+async def hours_redirect():
+    """Legacy URL — redirect to /admin/visit."""
+    return RedirectResponse(url="/admin/visit", status_code=301)
+
+
+@router.get("/hours-legacy", response_class=HTMLResponse)
 async def hours_page(
     request: Request,
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
+    """Legacy hours page — kept for the hours HTMX partials that still POST to /admin/hours/*."""
     if auth.is_internal_admin:
         return _render(
             request, "admin/hours.html", auth,
@@ -2231,12 +2374,22 @@ async def hours_add_range(
     if day < 0 or day > 6:
         raise HTTPException(status_code=400, detail="Invalid day")
 
+    # Optional location_id for visit-page scoping
+    loc_id_str = form_data.get("location_id", "")
+    loc_id = None
+    if loc_id_str:
+        try:
+            loc_id = uuid.UUID(loc_id_str)
+        except (ValueError, AttributeError):
+            pass
+
     try:
-        await hours_coordinator.add_range(db, auth, day, open_time, close_time)
+        await hours_coordinator.add_range(db, auth, day, open_time, close_time, location_id=loc_id)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
 
-    return await _render_hours_day(request, auth, db, day)
+    day_target = form_data.get("day_target", None)
+    return await _render_hours_day(request, auth, db, day, location_id=loc_id, day_target=day_target)
 
 
 @router.post("/hours/{range_id}/update", response_class=HTMLResponse)
@@ -2264,7 +2417,10 @@ async def hours_update_range(
     except HoursRangeNotFound:
         raise HTTPException(status_code=404, detail="Range not found")
 
-    return await _render_hours_day(request, auth, db, day)
+    day_target = form_data.get("day_target", None)
+    loc_id_str = form_data.get("location_id", "")
+    loc_id = uuid.UUID(loc_id_str) if loc_id_str else None
+    return await _render_hours_day(request, auth, db, day, location_id=loc_id, day_target=day_target)
 
 
 @router.post("/hours/{range_id}/delete", response_class=HTMLResponse)
@@ -2284,16 +2440,28 @@ async def hours_delete_range(
     except HoursRangeNotFound:
         raise HTTPException(status_code=404, detail="Range not found")
 
-    return await _render_hours_day(request, auth, db, day)
+    day_target = form_data.get("day_target", None)
+    loc_id_str = form_data.get("location_id", "")
+    loc_id = uuid.UUID(loc_id_str) if loc_id_str else None
+    return await _render_hours_day(request, auth, db, day, location_id=loc_id, day_target=day_target)
 
 
-async def _render_hours_day(request, auth, db, day):
+async def _render_hours_day(request, auth, db, day, location_id=None, day_target=None):
     """Re-render a single day's hours partial after a mutation."""
     try:
-        hours = await hours_service.list_hours(db, auth)
+        hours = await hours_service.list_hours(db, auth, location_id=location_id)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
     day_hours = [h for h in hours if h.day_of_week == day]
+
+    if day_target and location_id:
+        # Visit-page context: use location-scoped partial
+        loc = await location_service.get_owner_location(db, auth, location_id)
+        return _render(
+            request, "admin/_visit_hours_day.html", auth,
+            day=day, day_name=DAY_NAMES[day], ranges=day_hours,
+            day_target=day_target, loc=loc,
+        )
     return _render(
         request, "admin/_hours_day.html", auth,
         day=day, day_name=DAY_NAMES[day], ranges=day_hours,
