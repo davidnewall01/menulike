@@ -110,6 +110,22 @@ async def make_site(
     site = Site(**fields)
     db_session.add(site)
     await db_session.flush()
+
+    # Every site gets a default location (matches migration 013 backfill)
+    from app.models.location import Location
+    default_loc = Location(
+        site_id=site.site_id,
+        address_street=site.address_street,
+        address_suburb=site.address_suburb,
+        address_state=getattr(site, "address_state", None),
+        address_postcode=getattr(site, "address_postcode", None),
+        phone=site.phone,
+        email=site.email,
+        position=0,
+    )
+    db_session.add(default_loc)
+    await db_session.flush()
+
     return site
 
 

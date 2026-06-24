@@ -65,6 +65,10 @@ class DuplicateEmail(Exception):
     """An account with this email already exists."""
 
 
+class LocationNotFound(Exception):
+    """The location_id didn't resolve within the owner's scoped site."""
+
+
 class AlreadyHasSite(Exception):
     """The owner already has a site bound — cannot create a second one."""
 

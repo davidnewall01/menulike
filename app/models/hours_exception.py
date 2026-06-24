@@ -25,10 +25,10 @@ class HoursException(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
-    location_id: Mapped[uuid.UUID | None] = mapped_column(
+    location_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("location.location_id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -43,4 +43,4 @@ class HoursException(TimestampMixin, Base):
 
     # Relationships
     site: Mapped["Site"] = relationship(back_populates="hours_exceptions")
-    location: Mapped["Location | None"] = relationship(back_populates="hours_exceptions")
+    location: Mapped["Location"] = relationship(back_populates="hours_exceptions")

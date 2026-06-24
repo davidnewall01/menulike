@@ -24,10 +24,10 @@ class RegularHours(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
-    location_id: Mapped[uuid.UUID | None] = mapped_column(
+    location_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("location.location_id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     day_of_week: Mapped[int] = mapped_column(
@@ -38,4 +38,4 @@ class RegularHours(TimestampMixin, Base):
 
     # Relationships
     site: Mapped["Site"] = relationship(back_populates="regular_hours")
-    location: Mapped["Location | None"] = relationship(back_populates="regular_hours")
+    location: Mapped["Location"] = relationship(back_populates="regular_hours")
