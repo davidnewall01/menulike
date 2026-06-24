@@ -21,40 +21,6 @@
             <button type="submit" class="btn btn-primary btn-sm">Apply</button>
         </form>
     </div>
-
-    <div class="divider"></div>
-
-    {% if feature_image_mode == "carousel" %}
-    <div>
-        <h2 class="text-lg font-semibold mb-2">Carousel Images</h2>
-        <p class="text-sm text-base-content/60 mb-3">Images cycle through in the carousel on your home page.</p>
-        <div id="slot-feature_images">
-            {% include "admin/_appearance_carousel.html" %}
-        </div>
-    </div>
-    {% else %}
-    <div>
-        <h2 class="text-lg font-semibold mb-2">Hero Image</h2>
-        <p class="text-sm text-base-content/60 mb-3">The full-bleed background photo on your home page.</p>
-        {% set role_key = "feature_images" %}
-        {% set assignment = roles.get("feature_images") %}
-        <div id="slot-feature_images">
-            {% include "admin/_appearance_slot.html" %}
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="divider"></div>
-
-    <div>
-        <h2 class="text-lg font-semibold mb-2">Logo</h2>
-        <p class="text-sm text-base-content/60 mb-3">Your restaurant logo — displayed in the header and hero. Upload a white/transparent version for best results.</p>
-        {% set role_key = "logo" %}
-        {% set assignment = roles.get("logo") %}
-        <div id="slot-logo">
-            {% include "admin/_appearance_slot.html" %}
-        </div>
-    </div>
 </div>
 
 {% endif %}

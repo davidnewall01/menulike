@@ -1535,23 +1535,6 @@ _IMAGE_ROLE_URLS = dict(
 )
 
 
-def _appearance_context(site, roles, auth):
-    """Build the shared context dict for the appearance page."""
-    mode = FEATURE_IMAGE_MODE.get(site.template, "single")
-    by_key = _roles_by_key(roles)
-    by_key_list = _roles_list_by_key(roles)
-    return dict(
-        roles=by_key,
-        is_internal_admin=False,
-        storage_url=storage_public_url,
-        available_templates=AVAILABLE_TEMPLATES,
-        current_template=site.template,
-        feature_image_mode=mode,
-        feature_images_list=by_key_list.get("feature_images", []),
-        **_IMAGE_ROLE_URLS,
-    )
-
-
 @router.get("/appearance", response_class=HTMLResponse)
 async def appearance_page(
     request: Request,
@@ -1561,9 +1544,8 @@ async def appearance_page(
     if auth.is_internal_admin:
         return _render(
             request, "admin/appearance.html", auth,
-            roles={}, is_internal_admin=True, storage_url=None,
+            is_internal_admin=True,
             available_templates=AVAILABLE_TEMPLATES, current_template=None,
-            feature_image_mode="single", feature_images_list=[],
         )
 
     try:
@@ -1571,14 +1553,11 @@ async def appearance_page(
     except SiteNotFound:
         raise HTTPException(status_code=400, detail="Scoped site not found")
 
-    try:
-        roles = await image_role_service.list_roles(db, auth)
-    except NoSiteInScope:
-        raise HTTPException(status_code=400, detail="No site in scope")
-
     return _render(
         request, "admin/appearance.html", auth,
-        **_appearance_context(site, roles, auth),
+        is_internal_admin=False,
+        available_templates=AVAILABLE_TEMPLATES,
+        current_template=site.template,
     )
 
 
