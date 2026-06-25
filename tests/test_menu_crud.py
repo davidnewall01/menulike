@@ -149,9 +149,10 @@ class TestMenuDelete:
             f"/admin/menu/{menu_id}",
             data={"_action": "delete", "csrf_token": csrf},
             cookies={"session": token},
+            follow_redirects=False,
         )
-        assert resp.status_code == 200
-        assert "Menu deleted" in resp.text
+        assert resp.status_code == 303
+        assert resp.headers["location"] == "/admin/menu"
 
         result = await db_session.execute(
             select(Menu).where(Menu.menu_id == menu_id)

@@ -91,6 +91,7 @@
   <form method="post" action="/admin/menu/upload/confirm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="extraction_json" value="{{ extraction_json }}">
+    <input type="hidden" name="display_title" value="{{ display_title }}">
     <button type="submit" class="ms-confirm">Looks good — save my menu</button>
   </form>
 

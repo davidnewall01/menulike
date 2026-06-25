@@ -1,17 +1,18 @@
 {% set single_price = item.variants[0].price if item.variants | length == 1 and not item.variants[0].label else none %}
+{% set multi_vars = item.variants | length > 1 or (item.variants | length == 1 and item.variants[0].label) %}
 <div id="item-{{ item.menu_item_id }}" data-id="{{ item.menu_item_id }}" class="border border-base-200/60 rounded p-2 mb-1">
     <div class="flex justify-between items-center">
         <div class="flex items-center gap-1">
             <span class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60 select-none text-xs" title="Drag to reorder">⠿</span>
             <button type="button" data-collapse="item-body-{{ item.menu_item_id }}" class="btn btn-ghost btn-xs px-1">
-                <span class="chevron">▾</span>
+                <span class="chevron">▸</span>
             </button>
             <span class="font-medium text-sm {% if item.featured %}text-warning{% endif %}">{{ item.name }}</span>
             {% if item.featured %}
             <span class="badge badge-warning badge-sm">Featured</span>
             {% endif %}
-            <span class="collapse-summary hidden text-base-content/50 text-sm">
-                {% if single_price is not none %}· ${{ "%.2f" | format(single_price) }}{% endif %}
+            <span class="collapse-summary text-base-content/50 text-sm">
+                {% if single_price is not none %}· ${{ "%.2f" | format(single_price) }}{% elif multi_vars %}· {% for v in item.variants %}{% if v.label %}{{ v.label }}: {% endif %}${{ "%.2f" | format(v.price) }}{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}
             </span>
         </div>
         <div class="flex gap-1 ml-2 shrink-0">
@@ -28,7 +29,7 @@
         </div>
     </div>
 
-    <div id="item-body-{{ item.menu_item_id }}" class="ml-6 mt-1">
+    <div id="item-body-{{ item.menu_item_id }}" class="ml-6 mt-1 hidden">
         {% if item.description %}
         <p class="text-sm text-base-content/60">{{ item.description }}</p>
         {% endif %}
@@ -46,7 +47,10 @@
             {% endfor %}
             </div>
 
-            <form method="post" action="/admin/variant" class="flex items-center gap-2 mt-1 pt-1">
+            <form hx-post="/admin/variant"
+                  hx-target="#item-{{ item.menu_item_id }}"
+                  hx-swap="outerHTML"
+                  class="flex items-center gap-2 mt-1 pt-1">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="item_id" value="{{ item.menu_item_id }}">
                 <input type="hidden" name="menu_id" value="{{ menu_id }}">
@@ -56,7 +60,10 @@
             </form>
 
             {% if all_subsections is defined and all_subsections | length > 1 %}
-            <form method="post" action="/admin/item/{{ item.menu_item_id }}/move" class="flex items-center gap-2 mt-1 pt-1 border-t border-base-200">
+            <form hx-post="/admin/item/{{ item.menu_item_id }}/move"
+                  hx-target="#item-{{ item.menu_item_id }}"
+                  hx-swap="outerHTML"
+                  class="flex items-center gap-2 mt-1 pt-1 border-t border-base-200">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="menu_id" value="{{ menu_id }}">
                 <span class="text-xs text-base-content/60">Move to:</span>

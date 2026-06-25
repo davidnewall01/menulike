@@ -25,10 +25,35 @@
             <label class="label py-0"><span class="label-text text-xs">Note (shown below heading on public site)</span></label>
             <input type="text" name="note" value="{{ section.note or '' }}" class="input input-bordered input-sm w-full" placeholder="e.g. All pastas available gluten-free">
         </div>
+        <div class="form-control">
+            <label class="label py-0"><span class="label-text text-xs">Variant pricing layout</span></label>
+            <select name="variant_display" class="select select-bordered select-sm w-full">
+                <option value="inline"{% if section.variant_display == 'inline' %} selected{% endif %}>Inline — sizes under each item</option>
+                <option value="columnar"{% if section.variant_display == 'columnar' %} selected{% endif %}>Columns — sizes as column headers</option>
+            </select>
+        </div>
         <div class="flex gap-2">
             <button type="submit" class="btn btn-primary btn-xs">Save</button>
             <button type="button" class="btn btn-outline btn-xs"
                     onclick="location.reload()">Cancel</button>
         </div>
     </form>
+
+    {% if other_menus is defined %}
+    <div class="border-t border-base-300 mt-3 pt-3">
+        <form method="post" action="/admin/section/{{ section.section_id }}/move"
+              class="flex items-center gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="menu_id" value="{{ menu_id }}">
+            <span class="text-xs text-base-content/60">Move to:</span>
+            <select name="target_menu_id" class="select select-bordered select-xs">
+                <option value="_new">→ New menu</option>
+                {% for m in other_menus %}
+                <option value="{{ m.menu_id }}">{{ m.display_title or m.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline btn-xs">Move</button>
+        </form>
+    </div>
+    {% endif %}
 </div>

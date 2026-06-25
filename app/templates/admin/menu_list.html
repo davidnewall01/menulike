@@ -47,7 +47,7 @@
   <a href="/admin/menu/add" class="ml-add-link">+ Add another menu</a>
   {% endif %}
 
-  <div id="menu-list" class="space-y-2 mb-6">
+  <div id="menu-list" class="space-y-2 mb-6" data-sortable data-reorder-url="/admin/menu/reorder">
     {% for menu in menus %}
     {% include "admin/_menu_row.html" %}
     {% endfor %}

@@ -260,7 +260,7 @@ class TestVariantCreate:
             cookies={"session": token},
             follow_redirects=False,
         )
-        assert resp.status_code == 303
+        assert resp.status_code == 200
 
         result = await db_session.execute(
             select(MenuItemVariant).where(MenuItemVariant.menu_item_id == item.menu_item_id)

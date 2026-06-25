@@ -421,7 +421,7 @@ class TestMoveItem:
             cookies={"session": token},
             follow_redirects=False,
         )
-        assert resp.status_code == 303
+        assert resp.status_code == 200
 
         await db_session.refresh(item)
         assert item.subsection_id == sub_b.subsection_id
@@ -448,7 +448,7 @@ class TestMoveItem:
             cookies={"session": token},
             follow_redirects=False,
         )
-        assert resp.status_code == 303
+        assert resp.status_code == 200
 
         await db_session.refresh(item)
         assert item.subsection_id == sub_b.subsection_id

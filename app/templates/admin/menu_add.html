@@ -86,6 +86,15 @@
 
   <form method="post" action="/admin/menu/upload" enctype="multipart/form-data" id="upload-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <div class="ma-field" style="margin-bottom: 20px;">
+      <label for="display_title" style="display:block; font-size:13px; font-weight:600; color:#3E3528; margin-bottom:4px;">Public name <span style="font-weight:400; color:#6E665B;">(optional)</span></label>
+      <input type="text" id="display_title" name="display_title" value=""
+             placeholder="e.g. Lunch, Dinner, Dessert, Drinks"
+             style="width:100%; padding:8px 10px; font-size:14px; border:1px solid #D9C9AE; border-radius:7px; background:#fff;">
+      <p style="font-size:12px; color:#6E665B; margin-top:4px;">This is the name your customers will see on your site. Leave blank to use the menu's internal name.</p>
+    </div>
+
     <div class="upload-zone" id="upload-zone">
       <div class="uz-icon">&#128196;</div>
       <p class="uz-title">Drop your menu PDF here, or browse</p>

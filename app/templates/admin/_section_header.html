@@ -3,7 +3,7 @@
     <div class="flex items-center gap-1">
         <span class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60 select-none" title="Drag to reorder">⠿</span>
         <button type="button" data-collapse="section-body-{{ section.section_id }}" class="btn btn-ghost btn-xs px-1">
-            <span class="chevron">▾</span>
+            <span class="chevron">▸</span>
         </button>
         <div>
             <h3 class="text-lg font-bold">{{ section.name }}</h3>
@@ -14,7 +14,7 @@
             <p class="text-base-content/50 text-xs italic">{{ section.note }}</p>
             {% endif %}
         </div>
-        <span class="collapse-summary hidden text-base-content/50 text-sm ml-1">· {{ item_count }} dish{{ "es" if item_count != 1 else "" }}</span>
+        <span class="collapse-summary text-base-content/50 text-sm ml-1">· {{ item_count }} dish{{ "es" if item_count != 1 else "" }}</span>
     </div>
     <div class="flex gap-1 shrink-0">
         <button class="btn btn-outline btn-xs"

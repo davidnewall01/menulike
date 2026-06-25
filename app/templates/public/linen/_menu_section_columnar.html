@@ -1,0 +1,117 @@
+{# Collect variant column order from the item with the most variants #}
+{% set ns = namespace(labels=[], max_count=0) %}
+{% for subsection in section.subsections %}
+  {% for item in subsection.items %}
+    {% set labelled = item.variants | selectattr("label") | list %}
+    {% if labelled | length > ns.max_count %}
+      {% set ns.max_count = labelled | length %}
+      {% set ns.labels = labelled | map(attribute="label") | list %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+{# Append any labels from other items not already covered #}
+{% for subsection in section.subsections %}
+  {% for item in subsection.items %}
+    {% for v in item.variants %}
+      {% if v.label and v.label not in ns.labels %}
+        {% set ns.labels = ns.labels + [v.label] %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+{% endfor %}
+
+<div class="m-section">
+{% if ns.labels | length > 0 %}
+  {# Columnar layout — one table for the whole section #}
+  <table class="m-col-table">
+    <thead>
+      <tr>
+        <th class="m-col-table__section-hdr">
+          <h2 class="m-section__name">{{ section.name }}</h2>
+        </th>
+        {% for lbl in ns.labels %}
+        <th class="m-col-table__var-hdr">{{ lbl }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% if section.description %}
+      <tr><td class="m-col-table__meta" colspan="{{ ns.labels | length + 1 }}"><p class="m-section__desc">{{ section.description }}</p></td></tr>
+      {% endif %}
+      {% if section.note %}
+      <tr><td class="m-col-table__meta" colspan="{{ ns.labels | length + 1 }}"><p class="m-section__note">{{ section.note }}</p></td></tr>
+      {% endif %}
+
+      {% for subsection in section.subsections %}
+        {% if subsection.name %}
+        <tr><td class="m-col-table__sub-hdr" colspan="{{ ns.labels | length + 1 }}"><h3 class="m-sub__name">{{ subsection.name }}</h3></td></tr>
+        {% endif %}
+        {% if subsection.description %}
+        <tr><td class="m-col-table__meta" colspan="{{ ns.labels | length + 1 }}"><p class="m-sub__desc">{{ subsection.description }}</p></td></tr>
+        {% endif %}
+
+        {% for item in subsection.items %}
+        <tr class="m-col-table__row{% if item.featured %} m-col-table__row--feat{% endif %}">
+          <td class="m-col-table__item">
+            <span class="m-item__name">{{ item.name }}{% if item.dietary_tags %} <span class="m-item__tags">{{ item.dietary_tags | join(", ") }}</span>{% endif %}</span>
+            {% if item.description %}
+            <span class="m-col-table__desc">{{ item.description }}</span>
+            {% endif %}
+            {% if item.extras %}
+            <span class="m-col-table__extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</span>
+            {% endif %}
+          </td>
+          {# Build a label->price lookup for this item #}
+          {% set price_map = {} %}
+          {% for v in item.variants %}
+            {% if v.label %}
+              {% set _ = price_map.update({v.label: v.price}) %}
+            {% endif %}
+          {% endfor %}
+          {% for lbl in ns.labels %}
+          <td class="m-col-table__price">{% if lbl in price_map %}${{ "%.2f" | format(price_map[lbl]) }}{% endif %}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% else %}
+  {# No labelled variants — render like inline #}
+  <h2 class="m-section__name">{{ section.name }}</h2>
+  {% if section.description %}
+  <p class="m-section__desc">{{ section.description }}</p>
+  {% endif %}
+  {% if section.note %}
+  <p class="m-section__note">{{ section.note }}</p>
+  {% endif %}
+
+  {% for subsection in section.subsections %}
+  <div class="m-sub">
+    {% if subsection.name %}
+    <h3 class="m-sub__name">{{ subsection.name }}</h3>
+    {% endif %}
+    {% if subsection.description %}
+    <p class="m-sub__desc">{{ subsection.description }}</p>
+    {% endif %}
+    {% for item in subsection.items %}
+    <div class="m-item{% if item.featured %} m-item--feat{% endif %}">
+      <div class="m-item__head">
+        <span class="m-item__name">{{ item.name }}</span>
+        {% if item.variants | length == 1 %}
+        <span class="m-item__price">${{ "%.2f" | format(item.variants[0].price) }}</span>
+        {% endif %}
+      </div>
+      {% if item.description %}
+      <p class="m-item__desc">{{ item.description }}</p>
+      {% endif %}
+      {% if item.dietary_tags %}
+      <span class="m-item__tags">{{ item.dietary_tags | join(", ") }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+{% endif %}
+</div>

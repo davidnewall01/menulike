@@ -208,6 +208,7 @@ async def create_section(
         name=form.name,
         description=form.description,
         note=form.note,
+        variant_display=form.variant_display,
         position=max_pos + 10,
     )
     db.add(section)
@@ -224,6 +225,7 @@ async def update_section(
     section.name = form.name
     section.description = form.description
     section.note = form.note
+    section.variant_display = form.variant_display
     await db.flush()
     return section
 
@@ -422,6 +424,52 @@ async def delete_item(
     await db.flush()
 
 
+async def move_section(
+    db: AsyncSession, auth_ctx: AuthContext,
+    section_id: uuid.UUID, target_menu_id: uuid.UUID | None = None,
+) -> tuple[Section, Menu]:
+    """Move a section to a different menu, or to a new auto-named menu.
+
+    If target_menu_id is given, move to that existing menu (must be owned).
+    If target_menu_id is None, create a new menu named after the section.
+
+    Returns (section, target_menu).
+    """
+    section = await get_owner_section(db, auth_ctx, section_id)
+
+    if target_menu_id is not None:
+        target_menu = await get_owner_menu(db, auth_ctx, target_menu_id)
+    else:
+        # Create a new menu named after the section
+        if auth_ctx.scoped_site_id is None:
+            raise NoSiteInScope()
+        result = await db.execute(
+            select(func.coalesce(func.max(Menu.position), 0))
+            .where(Menu.site_id == auth_ctx.scoped_site_id)
+        )
+        max_pos = result.scalar_one()
+        target_menu = Menu(
+            site_id=auth_ctx.scoped_site_id,
+            name=section.name,
+            is_published=False,
+            position=max_pos + 10,
+        )
+        db.add(target_menu)
+        await db.flush()
+
+    # Append at end of target menu's sections
+    result = await db.execute(
+        select(func.coalesce(func.max(Section.position), 0))
+        .where(Section.menu_id == target_menu.menu_id)
+    )
+    max_pos = result.scalar_one()
+
+    section.menu_id = target_menu.menu_id
+    section.position = max_pos + 10
+    await db.flush()
+    return section, target_menu
+
+
 async def move_item(
     db: AsyncSession, auth_ctx: AuthContext,
     item_id: uuid.UUID, target_subsection_id: uuid.UUID
@@ -555,6 +603,19 @@ async def _reorder_children(db, parent_col, parent_id, pk_col, model, ordered_id
     await db.flush()
 
 
+async def reorder_menus(
+    db: AsyncSession, auth_ctx: AuthContext,
+    ordered_ids: list[uuid.UUID]
+) -> None:
+    """Reorder menus within the owner's site."""
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+    await _reorder_children(
+        db, Menu.site_id, auth_ctx.scoped_site_id,
+        Menu.menu_id, Menu, ordered_ids,
+    )
+
+
 async def reorder_sections(
     db: AsyncSession, auth_ctx: AuthContext,
     menu_id: uuid.UUID, ordered_ids: list[uuid.UUID]
@@ -624,7 +685,8 @@ def _parse_price(raw: str | None) -> Decimal | None:
 
 
 async def commit_extracted_menu(
-    db: AsyncSession, auth_ctx: AuthContext, extracted: ExtractedMenu
+    db: AsyncSession, auth_ctx: AuthContext, extracted: ExtractedMenu,
+    *, display_title: str | None = None,
 ) -> Menu:
     """Build a full menu tree from extraction JSON and flush (don't commit).
 
@@ -646,6 +708,7 @@ async def commit_extracted_menu(
     menu = Menu(
         site_id=auth_ctx.scoped_site_id,
         name=extracted.menu_name,
+        display_title=display_title,
         is_published=False,
         position=max_pos + 10,
     )
@@ -692,5 +755,66 @@ async def commit_extracted_menu(
                     item.variants.append(variant)
 
     db.add(menu)
+    await db.flush()
+    return menu
+
+
+# ---------------------------------------------------------------------------
+# Bulk case transform
+# ---------------------------------------------------------------------------
+
+async def apply_case_transforms(
+    db: AsyncSession, auth_ctx: AuthContext,
+    menu_id: uuid.UUID,
+    *,
+    section_name: str = "none",
+    section_description: str = "none",
+    section_note: str = "none",
+    subsection_name: str = "none",
+    subsection_description: str = "none",
+    item_name: str = "none",
+    item_description: str = "none",
+    dietary_tags: str = "none",
+    variant_label: str = "none",
+) -> Menu:
+    """Apply case transforms to all text fields in a menu tree. Flush only."""
+    from app.utils.case_transform import TRANSFORMS
+
+    menu = await get_owner_menu_with_tree(db, auth_ctx, menu_id)
+
+    tf_sec_name = TRANSFORMS[section_name]
+    tf_sec_desc = TRANSFORMS[section_description]
+    tf_sec_note = TRANSFORMS[section_note]
+    tf_sub_name = TRANSFORMS[subsection_name]
+    tf_sub_desc = TRANSFORMS[subsection_description]
+    tf_item_name = TRANSFORMS[item_name]
+    tf_item_desc = TRANSFORMS[item_description]
+    tf_tags = TRANSFORMS[dietary_tags]
+    tf_var_label = TRANSFORMS[variant_label]
+
+    for section in menu.sections:
+        section.name = tf_sec_name(section.name)
+        if section.description:
+            section.description = tf_sec_desc(section.description)
+        if section.note:
+            section.note = tf_sec_note(section.note)
+
+        for subsection in section.subsections:
+            if subsection.name:
+                subsection.name = tf_sub_name(subsection.name)
+            if subsection.description:
+                subsection.description = tf_sub_desc(subsection.description)
+
+            for item in subsection.items:
+                item.name = tf_item_name(item.name)
+                if item.description:
+                    item.description = tf_item_desc(item.description)
+                if item.dietary_tags:
+                    item.dietary_tags = [tf_tags(t) for t in item.dietary_tags]
+
+                for variant in item.variants:
+                    if variant.label:
+                        variant.label = tf_var_label(variant.label)
+
     await db.flush()
     return menu

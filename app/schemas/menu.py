@@ -58,6 +58,7 @@ class SectionForm(BaseModel):
     name: str
     description: str | None = None
     note: str | None = None
+    variant_display: str = "inline"
 
     @field_validator("description", "note", mode="before")
     @classmethod
@@ -73,6 +74,14 @@ class SectionForm(BaseModel):
         if not stripped:
             raise ValueError("Section name is required")
         return stripped
+
+    @field_validator("variant_display")
+    @classmethod
+    def valid_variant_display(cls, v: str) -> str:
+        allowed = {"inline", "columnar"}
+        if v not in allowed:
+            return "inline"
+        return v
 
 
 class SubsectionForm(BaseModel):

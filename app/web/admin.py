@@ -597,6 +597,7 @@ async def menu_upload(
 
     form_data = await request.form()
     upload = form_data.get("file")
+    display_title = (form_data.get("display_title") or "").strip() or None
 
     if not upload or not hasattr(upload, "read"):
         return _render(
@@ -649,6 +650,7 @@ async def menu_upload(
     return _render(
         request, "admin/menu_upload_summary.html", auth,
         extraction_json=extraction_json,
+        display_title=display_title or "",
         **summary,
     )
 
@@ -664,6 +666,7 @@ async def menu_upload_confirm(
 
     form_data = await request.form()
     raw = form_data.get("extraction_json", "")
+    display_title = (form_data.get("display_title") or "").strip() or None
 
     try:
         data = _json.loads(raw)
@@ -676,7 +679,7 @@ async def menu_upload_confirm(
         )
 
     try:
-        await menu_coordinator.commit_extracted_menu(db, auth, extracted)
+        await menu_coordinator.commit_extracted_menu(db, auth, extracted, display_title=display_title)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
 
@@ -738,6 +741,28 @@ async def menu_create(
         raise HTTPException(status_code=400, detail="No site in scope")
 
     return RedirectResponse(url="/admin/menu", status_code=303)
+
+
+@router.post("/menu/reorder")
+async def reorder_menus(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    try:
+        ordered = _parse_ordered_ids(form_data)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid ids")
+
+    try:
+        await menu_coordinator.reorder_menus(db, auth, ordered)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ReorderMismatch:
+        raise HTTPException(status_code=400, detail="Id set mismatch")
+
+    return Response(status_code=204)
 
 
 @router.post("/menu/{menu_id}/publish", response_class=HTMLResponse)
@@ -805,10 +830,7 @@ async def menu_update_or_delete(
         except MenuNotFound:
             raise HTTPException(status_code=404, detail="Menu not found")
 
-        return _render(
-            request, "admin/_menu_edit_form.html", auth,
-            menu=None, deleted=True, saved=False, errors=None,
-        )
+        return RedirectResponse(url="/admin/menu", status_code=303)
 
     # update
     try:
@@ -837,6 +859,77 @@ async def menu_update_or_delete(
         request, "admin/_menu_edit_form.html", auth,
         menu=menu, saved=True, errors=None, deleted=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Case manager
+# ---------------------------------------------------------------------------
+
+@router.get("/menu/{menu_id}/case", response_class=HTMLResponse)
+async def case_manager_modal(
+    request: Request,
+    menu_id: uuid.UUID,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the case manager modal with a sample from the menu's real data."""
+    try:
+        menu = await menu_service.get_owner_menu_with_tree(db, auth, menu_id)
+    except (NoSiteInScope, MenuNotFound) as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    # Fixed sample — always the same so the preview is clean and predictable
+    sample = {
+        "section_name": "Pizza",
+        "section_description": "Hand built and beautiful",
+        "section_note": "Half and half available",
+        "subsection_name": "Pizza Bianca",
+        "subsection_description": "Rich, creamy sauce",
+        "item_name": "Prosciutto Crudo E Rucola",
+        "item_description": "Fresh Rocket & Flaky Parmesan",
+        "dietary_tags": "VEG",
+        "variant_label": "Large",
+    }
+
+    from app.utils.case_transform import TRANSFORM_LABELS
+    options = list(TRANSFORM_LABELS.items())
+
+    return _render(
+        request, "admin/_case_manager.html", auth,
+        menu=menu, sample=sample, options=options,
+    )
+
+
+@router.post("/menu/{menu_id}/case", response_class=HTMLResponse)
+async def case_manager_apply(
+    request: Request,
+    menu_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Apply case transforms to all text in the menu."""
+    form_data = await request.form()
+
+    field_names = [
+        "section_name", "section_description", "section_note",
+        "subsection_name", "subsection_description",
+        "item_name", "item_description", "dietary_tags", "variant_label",
+    ]
+    kwargs = {}
+    for field in field_names:
+        val = form_data.get(field, "none")
+        if val not in ("none", "title", "sentence", "upper", "lower"):
+            val = "none"
+        kwargs[field] = val
+
+    try:
+        await menu_coordinator.apply_case_transforms(db, auth, menu_id, **kwargs)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except MenuNotFound:
+        raise HTTPException(status_code=404, detail="Menu not found")
+
+    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -982,7 +1075,9 @@ async def variant_create(
     except (NoSiteInScope, ItemNotFound) as exc:
         _not_found(exc)
 
-    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+    # Re-render the item row in-place (HTMX swap)
+    item = await menu_service.get_owner_item_with_variants(db, auth, uuid.UUID(item_id))
+    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id)
 
 
 @router.get("/variant/{variant_id}", response_class=HTMLResponse)
@@ -1093,12 +1188,16 @@ async def section_edit_form(
 ):
     try:
         section = await menu_service.get_owner_section(db, auth, section_id)
+        menus = await menu_service.list_owner_menus(db, auth)
     except (NoSiteInScope, SectionNotFound) as exc:
         _not_found(exc)
 
+    # Other menus the section could be moved to
+    other_menus = [m for m in menus if m.menu_id != menu_id]
+
     return _render(
         request, "admin/_section_edit_form.html", auth,
-        section=section, menu_id=menu_id,
+        section=section, menu_id=menu_id, other_menus=other_menus,
     )
 
 
@@ -1145,6 +1244,40 @@ async def section_update_or_delete(
     return _render(
         request, "admin/_section_header.html", auth,
         section=section, menu_id=menu_id,
+    )
+
+
+@router.post("/section/{section_id}/move", response_class=HTMLResponse)
+async def section_move(
+    request: Request,
+    section_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    target_menu_id_raw = form_data.get("target_menu_id", "")
+    source_menu_id = form_data.get("menu_id")
+
+    # "_new" means create a new menu; otherwise it's an existing menu UUID
+    if target_menu_id_raw == "_new":
+        target_menu_id = None
+    else:
+        try:
+            target_menu_id = uuid.UUID(target_menu_id_raw)
+        except (ValueError, AttributeError):
+            raise HTTPException(status_code=400, detail="Invalid target menu")
+
+    try:
+        section, target_menu = await menu_coordinator.move_section(
+            db, auth, section_id, target_menu_id,
+        )
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except (SectionNotFound, MenuNotFound):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    return RedirectResponse(
+        url=f"/admin/menu/{source_menu_id}", status_code=303,
     )
 
 
@@ -1266,7 +1399,55 @@ async def item_move(
     except (ItemNotFound, SubsectionNotFound):
         raise HTTPException(status_code=404, detail="Not found")
 
-    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+    # Re-render destination subsection items via out-of-band swap
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload as _sel
+    from app.models.menu import MenuItem, Subsection
+    target_id = uuid.UUID(target_subsection_id)
+    result = await db.execute(
+        select(Subsection)
+        .where(Subsection.subsection_id == target_id)
+        .options(_sel(Subsection.items).selectinload(MenuItem.variants))
+    )
+    target_sub = result.scalar_one()
+    sorted_items = sorted(target_sub.items, key=lambda i: i.position)
+
+    # Render each item row via the template engine
+    csrf = generate_csrf_token(auth)
+    item_rows = []
+    for item in sorted_items:
+        rendered = templates.get_template("admin/_item_row.html").render(
+            item=item, menu_id=menu_id, csrf_token=csrf,
+        )
+        item_rows.append(rendered)
+
+    # Build the OOB swap for the destination subsection body
+    items_html = "\n".join(item_rows)
+    # Wrap sortable container + add-item form for the destination
+    dest_inner = (
+        f'<div data-sortable data-reorder-url="/admin/subsection/{target_id}/reorder-items">'
+        f'{items_html}</div>'
+        f'<details class="mt-2">'
+        f'<summary class="btn btn-outline btn-xs list-none [&::-webkit-details-marker]:hidden">+ Add item</summary>'
+        f'<form method="post" action="/admin/item" class="border border-dashed border-base-300 rounded-lg p-3 mt-1 space-y-2">'
+        f'<input type="hidden" name="csrf_token" value="{csrf}">'
+        f'<input type="hidden" name="subsection_id" value="{target_id}">'
+        f'<input type="hidden" name="menu_id" value="{menu_id}">'
+        f'<div class="form-control"><input type="text" name="name" required class="input input-bordered input-sm w-full" placeholder="Item name *"></div>'
+        f'<div class="form-control"><input type="text" name="description" class="input input-bordered input-sm w-full" placeholder="Description"></div>'
+        f'<div class="form-control"><input type="text" name="dietary_tags" class="input input-bordered input-sm w-full" placeholder="Dietary tags (comma-separated)"></div>'
+        f'<button type="submit" class="btn btn-primary btn-xs">Add item</button>'
+        f'</form></details>'
+    )
+    dest_oob = f'<div id="subsection-body-{target_id}" class="hidden" hx-swap-oob="true">{dest_inner}</div>'
+
+    # Primary response: replace the moved item with "Moved ✓"
+    primary = '<div class="text-xs text-success italic p-2">Moved ✓</div>'
+
+    return Response(
+        content=primary + dest_oob,
+        headers={"Content-Type": "text/html"},
+    )
 
 
 # ---------------------------------------------------------------------------

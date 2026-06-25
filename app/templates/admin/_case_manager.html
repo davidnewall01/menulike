@@ -1,0 +1,149 @@
+<div id="case-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onclick="if(event.target===this)this.remove()">
+  <div class="bg-base-100 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4" onclick="event.stopPropagation()">
+    <div class="p-5">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold">Fix text case</h2>
+        <button type="button" onclick="document.getElementById('case-modal').remove()" class="btn btn-ghost btn-sm btn-circle">✕</button>
+      </div>
+
+      <p class="text-sm text-base-content/60 mb-4">Choose a case style for each text field. The preview updates live — click Apply to save.</p>
+
+      <form method="post" action="/admin/menu/{{ menu.menu_id }}/case">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        {% macro case_select(name) %}
+        <select name="{{ name }}" class="select select-bordered select-xs w-32" data-case-control="{{ name }}">
+          {% for val, label in options %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select>
+        {% endmacro %}
+
+        {# Aligned rows: preview on left, dropdown on right #}
+        <div class="bg-base-200 rounded-lg px-4 py-3">
+          <table class="w-full" style="border-collapse:separate; border-spacing:0 2px;">
+            {# --- Section --- #}
+            <tr>
+              <td class="py-1"><span data-case-preview="section_name" class="font-bold text-base">{{ sample.section_name }}</span></td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("section_name") }}</td>
+            </tr>
+            <tr>
+              <td class="py-1 pl-3"><span data-case-preview="section_description" class="text-base-content/60 text-xs italic">{{ sample.section_description }}</span></td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("section_description") }}</td>
+            </tr>
+            <tr>
+              <td class="py-1 pl-3"><span data-case-preview="section_note" class="text-base-content/50 text-xs italic">{{ sample.section_note }}</span></td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("section_note") }}</td>
+            </tr>
+
+            {# --- Subsection --- #}
+            <tr><td class="pt-2" colspan="2"></td></tr>
+            <tr>
+              <td class="py-1 pl-4"><span data-case-preview="subsection_name" class="font-semibold text-sm text-primary">{{ sample.subsection_name }}</span></td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("subsection_name") }}</td>
+            </tr>
+            <tr>
+              <td class="py-1 pl-6"><span data-case-preview="subsection_description" class="text-base-content/60 text-xs italic">{{ sample.subsection_description }}</span></td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("subsection_description") }}</td>
+            </tr>
+
+            {# --- Item --- #}
+            <tr><td class="pt-2" colspan="2"></td></tr>
+            <tr>
+              <td class="py-1 pl-8">
+                <span data-case-preview="item_name" class="font-medium text-sm">{{ sample.item_name }}</span>
+              </td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("item_name") }}</td>
+            </tr>
+            <tr>
+              <td class="py-1 pl-10"><span data-case-preview="item_description" class="text-base-content/60 text-xs">{{ sample.item_description }}</span></td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("item_description") }}</td>
+            </tr>
+            <tr>
+              <td class="py-1 pl-10"><span data-case-preview="dietary_tags" class="text-base-content/50 text-xs uppercase tracking-wide">{{ sample.dietary_tags }}</span></td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("dietary_tags") }}</td>
+            </tr>
+
+            {# --- Variant --- #}
+            <tr>
+              <td class="py-1 pl-12"><span data-case-preview="variant_label" class="text-xs text-base-content/50">{{ sample.variant_label }}</span></td>
+              <td class="py-1 pl-4 text-right whitespace-nowrap">{{ case_select("variant_label") }}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-5 pt-4 border-t">
+          <button type="button" onclick="document.getElementById('case-modal').remove()" class="btn btn-ghost btn-sm">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Apply to entire menu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var originals = {};
+  document.querySelectorAll("[data-case-preview]").forEach(function(el) {
+    originals[el.getAttribute("data-case-preview")] = el.textContent;
+  });
+
+  var JOINERS = new Set(["a","an","and","as","at","but","by","for","in","of","on","or","the","to","with","via","vs"]);
+  var KNOWN = new Set(["gf","df","vg","vn","nf","v","nv","nz","nsw","wa","sa","qld","vic","tas","nt","act","ipa","ibu","abv","fr","it","us","uk"]);
+
+  function isAllUpper(text) {
+    var alpha = text.replace(/[^A-Za-z]/g, "");
+    return alpha.length > 0 && alpha === alpha.toUpperCase();
+  }
+
+  function isAbbrev(word, allUpper) {
+    var stripped = word.replace(/[^A-Za-z]/g, "");
+    if (!stripped) return false;
+    if (KNOWN.has(stripped.toLowerCase())) return true;
+    if (allUpper) return false;
+    return stripped.length >= 2 && stripped.length <= 3 && stripped === stripped.toUpperCase();
+  }
+
+  function capWord(w) {
+    for (var j = 0; j < w.length; j++) {
+      if (/[A-Za-z]/.test(w[j])) return w.slice(0, j) + w[j].toUpperCase() + w.slice(j+1).toLowerCase();
+    }
+    return w;
+  }
+
+  function titleCase(text) {
+    if (!text) return text;
+    var au = isAllUpper(text);
+    return text.split(/\s+/).map(function(w, i) {
+      if (isAbbrev(w, au)) return w.toUpperCase();
+      if (i > 0 && JOINERS.has(w.toLowerCase())) return w.toLowerCase();
+      return capWord(w);
+    }).join(" ");
+  }
+
+  function sentenceCase(text) {
+    if (!text) return text;
+    var au = isAllUpper(text);
+    return text.split(/\s+/).map(function(w, i) {
+      if (isAbbrev(w, au)) return w.toUpperCase();
+      if (i === 0) return capWord(w);
+      return w.toLowerCase();
+    }).join(" ");
+  }
+
+  var transforms = {
+    none: function(t) { return t; },
+    title: titleCase,
+    sentence: sentenceCase,
+    upper: function(t) { return t ? t.toUpperCase() : t; },
+    lower: function(t) { return t ? t.toLowerCase() : t; }
+  };
+
+  document.querySelectorAll("[data-case-control]").forEach(function(sel) {
+    sel.addEventListener("change", function() {
+      var field = sel.getAttribute("data-case-control");
+      var preview = document.querySelector('[data-case-preview="' + field + '"]');
+      if (!preview || !originals[field]) return;
+      preview.textContent = (transforms[sel.value] || transforms.none)(originals[field]);
+    });
+  });
+})();
+</script>

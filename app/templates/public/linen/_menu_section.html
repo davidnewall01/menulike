@@ -1,3 +1,6 @@
+{% if section.variant_display == "columnar" %}
+{% include "public/linen/_menu_section_columnar.html" %}
+{% else %}
 <div class="m-section">
   <h2 class="m-section__name">{{ section.name }}</h2>
   {% if section.description %}
@@ -19,16 +22,13 @@
     {% for item in subsection.items %}
     <div class="m-item{% if item.featured %} m-item--feat{% endif %}">
       <div class="m-item__head">
-        <span class="m-item__name">{{ item.name }}</span>
+        <span class="m-item__name">{{ item.name }}{% if item.dietary_tags %} <span class="m-item__tags">{{ item.dietary_tags | join(", ") }}</span>{% endif %}</span>
         {% if item.variants | length == 1 and not item.variants[0].label %}
         <span class="m-item__price">${{ "%.2f" | format(item.variants[0].price) }}</span>
         {% endif %}
       </div>
       {% if item.description %}
       <p class="m-item__desc">{{ item.description }}</p>
-      {% endif %}
-      {% if item.dietary_tags %}
-      <span class="m-item__tags">{{ item.dietary_tags | join(", ") }}</span>
       {% endif %}
       {% if item.extras %}
       <span class="m-item__extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</span>
@@ -45,3 +45,4 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}

@@ -3,12 +3,6 @@
     <span>Menu updated.</span>
 </div>
 {% endif %}
-{% if deleted %}
-<div class="alert alert-success mb-4">
-    <span>Menu deleted. Redirecting…</span>
-</div>
-<script>setTimeout(function(){ window.location = "/admin/menu"; }, 800);</script>
-{% endif %}
 {% if errors %}
 <div class="alert alert-error mb-4">
     <ul class="list-disc list-inside">
@@ -18,9 +12,9 @@
     </ul>
 </div>
 {% endif %}
-{% if not deleted %}
-<div class="card bg-base-100 shadow">
-    <div class="card-body space-y-3">
+<details class="bg-base-100 shadow mb-2 rounded-lg group">
+    <summary class="cursor-pointer text-sm font-medium py-3 px-4 flex items-center gap-1 text-base-content/60 hover:text-base-content list-none [&::-webkit-details-marker]:hidden"><span class="group-open:hidden">▸</span><span class="hidden group-open:inline">▾</span> Menu details</summary>
+    <div class="px-4 pb-4">
         <form hx-post="/admin/menu/{{ menu.menu_id }}" hx-target="#menu-edit-container" hx-swap="innerHTML">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="_action" value="update">
@@ -44,13 +38,5 @@
                 <button type="submit" class="btn btn-primary">Save</button>
             </div>
         </form>
-        <div class="divider my-1"></div>
-        <form hx-post="/admin/menu/{{ menu.menu_id }}" hx-target="#menu-edit-container" hx-swap="innerHTML"
-              hx-confirm="Delete this menu and all its sections/items? This cannot be undone.">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="_action" value="delete">
-            <button type="submit" class="btn btn-error btn-outline btn-sm">Delete menu</button>
-        </form>
     </div>
-</div>
-{% endif %}
+</details>

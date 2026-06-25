@@ -131,6 +131,17 @@ async def delete_item(
     await db.commit()
 
 
+async def move_section(
+    db: AsyncSession, auth_ctx: AuthContext,
+    section_id: uuid.UUID, target_menu_id: uuid.UUID | None = None,
+) -> tuple:
+    section, target_menu = await menu_service.move_section(
+        db, auth_ctx, section_id, target_menu_id,
+    )
+    await db.commit()
+    return section, target_menu
+
+
 async def move_item(
     db: AsyncSession, auth_ctx: AuthContext,
     item_id: uuid.UUID, target_subsection_id: uuid.UUID
@@ -173,6 +184,14 @@ async def delete_variant(
 # Reorder
 # ---------------------------------------------------------------------------
 
+async def reorder_menus(
+    db: AsyncSession, auth_ctx: AuthContext,
+    ordered_ids: list[uuid.UUID]
+) -> None:
+    await menu_service.reorder_menus(db, auth_ctx, ordered_ids)
+    await db.commit()
+
+
 async def reorder_sections(
     db: AsyncSession, auth_ctx: AuthContext,
     menu_id: uuid.UUID, ordered_ids: list[uuid.UUID]
@@ -210,9 +229,19 @@ async def reorder_variants(
 # ---------------------------------------------------------------------------
 
 async def commit_extracted_menu(
-    db: AsyncSession, auth_ctx: AuthContext, extracted: ExtractedMenu
+    db: AsyncSession, auth_ctx: AuthContext, extracted: ExtractedMenu,
+    *, display_title: str | None = None,
 ) -> Menu:
     """Build a full menu tree from extraction JSON in one transaction."""
-    menu = await menu_service.commit_extracted_menu(db, auth_ctx, extracted)
+    menu = await menu_service.commit_extracted_menu(db, auth_ctx, extracted, display_title=display_title)
+    await db.commit()
+    return menu
+
+
+async def apply_case_transforms(
+    db: AsyncSession, auth_ctx: AuthContext,
+    menu_id: uuid.UUID, **kwargs,
+) -> Menu:
+    menu = await menu_service.apply_case_transforms(db, auth_ctx, menu_id, **kwargs)
     await db.commit()
     return menu

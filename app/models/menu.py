@@ -58,6 +58,9 @@ class Section(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    variant_display: Mapped[str] = mapped_column(
+        String, nullable=False, default="inline", server_default="inline"
+    )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Relationships

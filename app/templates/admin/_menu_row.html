@@ -1,16 +1,22 @@
-<div class="card bg-base-100 shadow" id="menu-row-{{ menu.menu_id }}">
+<div class="card bg-base-100 shadow" id="menu-row-{{ menu.menu_id }}" data-id="{{ menu.menu_id }}">
     <div class="card-body py-3 flex-row items-center justify-between">
-        <div>
-            <a href="/admin/menu/{{ menu.menu_id }}" class="font-semibold text-lg link link-hover">{{ menu.name }}</a>
-            {% if not menu.is_published %}
-            <span class="badge badge-warning badge-sm ml-2">Draft</span>
-            {% endif %}
-            {% if menu.availability_note %}
-            <span class="text-sm text-base-content/60 ml-2">{{ menu.availability_note }}</span>
-            {% endif %}
-            {% if menu.description %}
-            <p class="text-sm text-base-content/60 mt-0.5">{{ menu.description }}</p>
-            {% endif %}
+        <div class="flex items-center gap-2">
+            <span class="drag-handle cursor-grab text-base-content/30 hover:text-base-content/60" title="Drag to reorder">⠿</span>
+            <div>
+                <a href="/admin/menu/{{ menu.menu_id }}" class="font-semibold text-lg link link-hover">{{ menu.display_title or menu.name }}</a>
+                {% if not menu.is_published %}
+                <span class="badge badge-warning badge-sm ml-2">Draft</span>
+                {% endif %}
+                {% if menu.availability_note %}
+                <span class="text-sm text-base-content/60 ml-2">{{ menu.availability_note }}</span>
+                {% endif %}
+                {% if menu.display_title and menu.display_title != menu.name %}
+                <p class="text-xs text-base-content/40 mt-0.5">{{ menu.name }}</p>
+                {% endif %}
+                {% if menu.description %}
+                <p class="text-sm text-base-content/60 mt-0.5">{{ menu.description }}</p>
+                {% endif %}
+            </div>
         </div>
         <div class="flex items-center gap-2">
             {% if menu.is_published %}
@@ -25,6 +31,12 @@
             </form>
             {% endif %}
             <a href="/admin/menu/{{ menu.menu_id }}" class="btn btn-ghost btn-sm">Edit</a>
+            <form method="post" action="/admin/menu/{{ menu.menu_id }}"
+                  onsubmit="return confirm('Delete this menu and all its sections/items? This cannot be undone.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="_action" value="delete">
+                <button type="submit" class="btn btn-error btn-outline btn-sm">Del</button>
+            </form>
         </div>
     </div>
 </div>

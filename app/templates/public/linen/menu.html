@@ -31,7 +31,15 @@
 
   {% else %}
   {# Multiple menus — Alpine tabs #}
-  <div x-data="{ tab: (() => { const h = location.hash.slice(1).toLowerCase(); const names = [{% for m in menus_field.value %}'{{ (m.display_title or m.name) | lower }}'{% if not loop.last %},{% endif %}{% endfor %}]; const i = names.indexOf(h); return i >= 0 ? i : 0; })() }">
+  <script>
+    function menuTabs() {
+      const names = [{% for m in menus_field.value %}{{ (m.display_title or m.name) | lower | tojson }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const h = location.hash.slice(1).toLowerCase();
+      const i = names.indexOf(h);
+      return { tab: i >= 0 ? i : 0 };
+    }
+  </script>
+  <div x-data="menuTabs()">
     <div class="menu-tabs">
       {% for m in menus_field.value %}
       <button class="menu-tab"

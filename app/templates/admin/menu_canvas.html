@@ -16,6 +16,11 @@
     <div class="divider flex-1">Menu contents</div>
     {% if menu.sections %}
     <div class="flex gap-1 ml-4 shrink-0">
+        <button type="button"
+                hx-get="/admin/menu/{{ menu.menu_id }}/case"
+                hx-target="body"
+                hx-swap="beforeend"
+                class="btn btn-outline btn-xs">Aa Fix case</button>
         <button type="button" onclick="toggleAll(false)" class="btn btn-outline btn-xs">Collapse all</button>
         <button type="button" onclick="toggleAll(true)" class="btn btn-outline btn-xs">Expand all</button>
     </div>
@@ -41,14 +46,14 @@
         {% set section_item_count = section_item_count.n %}
         {% include "admin/_section_header.html" %}
 
-        <div id="section-body-{{ section.section_id }}">
+        <div id="section-body-{{ section.section_id }}" class="hidden">
             <div data-sortable data-reorder-url="/admin/section/{{ section.section_id }}/reorder-subsections">
             {% for subsection in section.subsections %}
             <div class="ml-2 mt-3 border-l-2 border-base-200 pl-3" data-id="{{ subsection.subsection_id }}">
                 {% set subsection_item_count = subsection.items | length %}
                 {% include "admin/_subsection_header.html" %}
 
-                <div id="subsection-body-{{ subsection.subsection_id }}">
+                <div id="subsection-body-{{ subsection.subsection_id }}" class="hidden">
                     <div data-sortable data-reorder-url="/admin/subsection/{{ subsection.subsection_id }}/reorder-items">
                     {% for item in subsection.items %}
                     {% include "admin/_item_row.html" %}

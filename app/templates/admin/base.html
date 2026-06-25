@@ -113,14 +113,18 @@
                             ids.push(child.getAttribute("data-id"));
                         });
                         var meta = document.querySelector('meta[name="csrf-token"]');
-                        if (!meta) return;
+                        if (!meta) { console.error("reorder: no csrf meta tag"); return; }
                         var body = new URLSearchParams();
                         body.append("csrf_token", meta.content);
                         ids.forEach(function (id) { body.append("ordered_ids", id); });
                         fetch(url, { method: "POST", body: body, credentials: "same-origin" })
                             .then(function (resp) {
-                                if (!resp.ok) window.location.reload();
-                            });
+                                if (!resp.ok) {
+                                    console.error("reorder failed:", resp.status, url);
+                                    resp.text().then(function(t) { console.error(t); });
+                                }
+                            })
+                            .catch(function (err) { console.error("reorder fetch error:", err); });
                     }
                 });
             });
