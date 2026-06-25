@@ -473,6 +473,24 @@ async def move_section(
         db.add(target_menu)
         await db.flush()
 
+        # Copy source menu's footer blocks to the new menu
+        source_menu = await get_owner_menu(db, auth_ctx, section.menu_id)
+        result = await db.execute(
+            select(MenuFooterBlock)
+            .where(MenuFooterBlock.menu_id == source_menu.menu_id)
+            .order_by(MenuFooterBlock.position)
+        )
+        for block in result.scalars().all():
+            copy = MenuFooterBlock(
+                menu_id=target_menu.menu_id,
+                block_type=block.block_type,
+                title=block.title,
+                entries=block.entries,
+                position=block.position,
+            )
+            db.add(copy)
+        await db.flush()
+
     # Append at end of target menu's sections
     result = await db.execute(
         select(func.coalesce(func.max(Section.position), 0))
