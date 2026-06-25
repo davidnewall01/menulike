@@ -238,4 +238,15 @@ pytest
 
 # Rebuild DB from scratch (drop + recreate manually, then)
 alembic upgrade head
+
+# Rebuild admin CSS (after changing Tailwind classes in admin templates)
+tools/tailwindcss -i app/static/admin/input.css -o app/static/admin/admin.css --minify
+
+# Watch mode (auto-rebuild admin CSS on save)
+tools/tailwindcss -i app/static/admin/input.css -o app/static/admin/admin.css --watch
 ```
+
+**Admin CSS:** compiled via Tailwind standalone CLI (`tools/tailwindcss.exe`, gitignored).
+DaisyUI loaded as a pre-compiled local CSS file (`app/static/admin/daisyui.min.css`).
+The compiled `admin.css` is committed — Railway serves it statically, no build step in deploy.
+Public templates do NOT use Tailwind — they have hand-written CSS in `/static/themes/`.
