@@ -770,6 +770,19 @@ async def commit_extracted_menu(
                     )
                     item.variants.append(variant)
 
+    # Footer blocks
+    for fb_idx, ext_fb in enumerate(extracted.footer_blocks):
+        block = MenuFooterBlock(
+            block_type=ext_fb.block_type,
+            title=ext_fb.title,
+            entries=[
+                {"label": e.label, "description": e.description}
+                for e in ext_fb.entries
+            ],
+            position=(fb_idx + 1) * 10,
+        )
+        menu.footer_blocks.append(block)
+
     db.add(menu)
     await db.flush()
     return menu

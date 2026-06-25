@@ -69,7 +69,9 @@ no prose, no code fences. Schema:
 { "menu_name": str, "sections": [ { "name": str, "note": str|null, "subsections": [ { "name": \
 str|null, "items": [ { "name": str, "description": str|null, "dietary_tags": [str], \
 "variants": [ { "label": str|null, "price": str|null } ], "extras": [ { "label": str, "price": \
-str|null } ] } ] } ] } ], "menu_note": str|null, "ignored": [str] }
+str|null } ] } ] } ], "menu_note": str|null, "footer_blocks": [ { "block_type": \
+"info"|"charges"|"legend"|"glossary", "title": str|null, "entries": [ { "label": str|null, \
+"description": str|null } ] } ], "ignored": [str] }
 
 Rules:
 - The images are sequential pages of one menu; a section may continue across a page break — \
@@ -84,8 +86,19 @@ free base +$6 per pizza", "Basic extras 4.00 / Meats 6.00", "NO HALF PIZZAS") �
 - Dietary tags → canonical codes only: V, VGN, GF, DF. An unrecognised or conditional tag (e.g. \
 "VGN on request") stays as text in the item description, not in dietary_tags.
 - Most subsections are unnamed → name:null (passthrough).
-- NOT menu items: glossaries, allergy disclaimers, contact details, addresses. Do not invent \
-items for them; list what you deliberately skipped in "ignored".
+
+Footer blocks — non-menu-item text that should be preserved (NOT put in "ignored"):
+- "charges": surcharges, payment info, corkage fees. Each entry has label + description \
+(e.g. {"label": "Public holidays", "description": "+20%"}).
+- "legend": dietary symbol definitions (e.g. {"label": "GF", "description": "Gluten Free"}).
+- "glossary": term definitions (e.g. {"label": "Primi", "description": "first course of a meal"}).
+- "info": house rules, allergy warnings, general notices. Entries have description only, label:null.
+Use a descriptive "title" when the menu has a heading for the block (e.g. "Important", "Glossary").
+
+"ignored" is ONLY for truly irrelevant text: logos, branding graphics, cover page text, \
+decorative elements, restaurant name/address/phone when they appear as page headers. \
+Do not put useful informational text in "ignored" — classify it into a footer_block instead.
+
 - Preserve item names and descriptions verbatim; do not paraphrase.
 """
 
@@ -230,4 +243,5 @@ def build_summary_context(extracted: ExtractedMenu) -> dict:
         "ignored": extracted.ignored,
         "menu_note": extracted.menu_note,
         "priceless_items": priceless_items(extracted),
+        "footer_blocks": extracted.footer_blocks,
     }

@@ -88,6 +88,17 @@
   </div>
   {% endif %}
 
+  {% if footer_blocks %}
+  <div class="ms-sections" style="margin-top: 16px;">
+    <p class="ms-sections-lab">Menu info found:</p>
+    <div class="ms-tags">
+      {% for fb in footer_blocks %}
+      <span class="ms-tag">{{ fb.title or fb.block_type }}{% if fb.entries %} ({{ fb.entries | length }}){% endif %}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <form method="post" action="/admin/menu/upload/confirm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="extraction_json" value="{{ extraction_json }}">

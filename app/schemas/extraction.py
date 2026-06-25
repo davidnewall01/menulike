@@ -32,8 +32,20 @@ class ExtractedSection(BaseModel):
     subsections: list[ExtractedSubsection] = []
 
 
+class ExtractedFooterEntry(BaseModel):
+    label: str | None = None
+    description: str | None = None
+
+
+class ExtractedFooterBlock(BaseModel):
+    block_type: str = "info"   # info | charges | legend | glossary
+    title: str | None = None
+    entries: list[ExtractedFooterEntry] = []
+
+
 class ExtractedMenu(BaseModel):
     menu_name: str
     sections: list[ExtractedSection] = []
     menu_note: str | None = None
+    footer_blocks: list[ExtractedFooterBlock] = []
     ignored: list[str] = []
