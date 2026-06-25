@@ -69,9 +69,12 @@ no prose, no code fences. Schema:
 { "menu_name": str, "sections": [ { "name": str, "note": str|null, "subsections": [ { "name": \
 str|null, "items": [ { "name": str, "description": str|null, "dietary_tags": [str], \
 "variants": [ { "label": str|null, "price": str|null } ], "extras": [ { "label": str, "price": \
-str|null } ] } ] } ], "menu_note": str|null, "footer_blocks": [ { "block_type": \
+str|null } ] } ] } ], "menu_note": str|null, "footer_blocks": [ { "type": \
 "info"|"charges"|"legend"|"glossary", "title": str|null, "entries": [ { "label": str|null, \
 "description": str|null } ] } ], "ignored": [str] }
+
+IMPORTANT: menu_note, footer_blocks, and ignored are TOP-LEVEL keys (siblings of menu_name and \
+sections), NOT nested inside sections.
 
 Rules:
 - The images are sequential pages of one menu; a section may continue across a page break — \
@@ -87,18 +90,14 @@ free base +$6 per pizza", "Basic extras 4.00 / Meats 6.00", "NO HALF PIZZAS") �
 "VGN on request") stays as text in the item description, not in dietary_tags.
 - Most subsections are unnamed → name:null (passthrough).
 
-Footer blocks — non-menu-item text that should be preserved (NOT put in "ignored"):
-- "charges": surcharges, payment info, corkage fees. Each entry has label + description \
-(e.g. {"label": "Public holidays", "description": "+20%"}).
-- "legend": dietary symbol definitions (e.g. {"label": "GF", "description": "Gluten Free"}).
+Footer blocks — non-menu-item text to preserve (NOT in "ignored"):
+- "charges": surcharges, corkage, card fees, public holiday/weekend surcharges, GST notes. \
+Each entry: {"label": "Corkage", "description": "$5.00 per person"}.
+- "legend": dietary symbol key (e.g. {"label": "GF", "description": "Gluten Free"}).
 - "glossary": term definitions (e.g. {"label": "Primi", "description": "first course of a meal"}).
-- "info": house rules, allergy warnings, general notices. Entries have description only, label:null.
-Use a descriptive "title" when the menu has a heading for the block (e.g. "Important", "Glossary").
+- "info": house rules, allergy warnings, sharing notices. Entries have label:null.
 
-"ignored" is ONLY for truly irrelevant text: logos, branding graphics, cover page text, \
-decorative elements, restaurant name/address/phone when they appear as page headers. \
-Do not put useful informational text in "ignored" — classify it into a footer_block instead.
-
+"ignored" — ONLY truly decorative text: logos, branding, cover page titles, repeated headers.
 - Preserve item names and descriptions verbatim; do not paraphrase.
 """
 
@@ -173,6 +172,7 @@ async def extract_from_pdf(pdf_bytes: bytes) -> ExtractedMenu:
     response = await client.messages.create(
         model=settings.MENU_EXTRACTION_MODEL,
         max_tokens=16000,
+        temperature=0,
         messages=[{"role": "user", "content": content}],
     )
 
@@ -193,6 +193,14 @@ async def extract_from_pdf(pdf_bytes: bytes) -> ExtractedMenu:
         raise ExtractionFailed(
             f"Model returned invalid JSON: {e}", raw_text=raw_text
         )
+
+    # The AI sometimes nests menu_note/ignored/footer_blocks inside the
+    # last section instead of at the top level. Hoist them if found.
+    if "sections" in data and data["sections"]:
+        last_sec = data["sections"][-1]
+        for key in ("menu_note", "ignored", "footer_blocks"):
+            if key in last_sec and key not in data:
+                data[key] = last_sec.pop(key)
 
     try:
         return ExtractedMenu.model_validate(data)

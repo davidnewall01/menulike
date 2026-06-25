@@ -1,6 +1,6 @@
 """Pydantic models for the menu extraction contract (vision model output)."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExtractedExtra(BaseModel):
@@ -38,7 +38,9 @@ class ExtractedFooterEntry(BaseModel):
 
 
 class ExtractedFooterBlock(BaseModel):
-    block_type: str = "info"   # info | charges | legend | glossary
+    model_config = ConfigDict(populate_by_name=True)
+
+    block_type: str = Field(default="info", alias="type")
     title: str | None = None
     entries: list[ExtractedFooterEntry] = []
 
