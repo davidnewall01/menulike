@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.auth.context import AuthContext
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
@@ -66,9 +66,18 @@ async def get_owner_menu_with_tree(
         )
         .options(
             selectinload(Menu.sections)
+            .joinedload(Section.photo),
+            selectinload(Menu.sections)
+            .selectinload(Section.subsections)
+            .joinedload(Subsection.photo),
+            selectinload(Menu.sections)
             .selectinload(Section.subsections)
             .selectinload(Subsection.items)
-            .selectinload(MenuItem.variants)
+            .joinedload(MenuItem.photo),
+            selectinload(Menu.sections)
+            .selectinload(Section.subsections)
+            .selectinload(Subsection.items)
+            .selectinload(MenuItem.variants),
         )
     )
     menu = result.scalar_one_or_none()

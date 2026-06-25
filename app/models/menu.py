@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.photo import Photo
     from app.models.site import Site
 
 
@@ -61,10 +62,16 @@ class Section(TimestampMixin, Base):
     variant_display: Mapped[str] = mapped_column(
         String, nullable=False, default="inline", server_default="inline"
     )
+    photo_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("photos.photo_id", ondelete="SET NULL"),
+        nullable=True,
+    )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Relationships
     menu: Mapped["Menu"] = relationship(back_populates="sections")
+    photo: Mapped["Photo | None"] = relationship(foreign_keys=[photo_id])
     subsections: Mapped[list["Subsection"]] = relationship(
         back_populates="section",
         cascade="all, delete-orphan",
@@ -87,10 +94,16 @@ class Subsection(TimestampMixin, Base):
     )
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    photo_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("photos.photo_id", ondelete="SET NULL"),
+        nullable=True,
+    )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Relationships
     section: Mapped["Section"] = relationship(back_populates="subsections")
+    photo: Mapped["Photo | None"] = relationship(foreign_keys=[photo_id])
     items: Mapped[list["MenuItem"]] = relationship(
         back_populates="subsection",
         cascade="all, delete-orphan",
@@ -122,10 +135,16 @@ class MenuItem(TimestampMixin, Base):
     featured: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    photo_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("photos.photo_id", ondelete="SET NULL"),
+        nullable=True,
+    )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Relationships
     subsection: Mapped["Subsection"] = relationship(back_populates="items")
+    photo: Mapped["Photo | None"] = relationship(foreign_keys=[photo_id])
     variants: Mapped[list["MenuItemVariant"]] = relationship(
         back_populates="menu_item",
         cascade="all, delete-orphan",
