@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
 from app.models.content_block import ContentBlock
+from app.models.location import Location
 from app.models.menu import Menu, MenuFooterBlock, MenuItem, MenuItemVariant, Section, Subsection
 from app.models.site import Site
 from app.models.user import User
@@ -21,7 +22,7 @@ from app.web.template_resolver import AVAILABLE_TEMPLATES
 async def get_site_by_slug(db: AsyncSession, slug: str) -> Site | None:
     """Load a site with all public-render data eager-loaded.
 
-    Eager-loads: menus tree, regular_hours, hours_exceptions,
+    Eager-loads: menus tree, locations (with regular_hours + hours_exceptions),
     content_blocks (+ nested image).
     Read-only — no flush, no commit.
     """
@@ -36,8 +37,10 @@ async def get_site_by_slug(db: AsyncSession, slug: str) -> Site | None:
             .selectinload(MenuItem.variants),
             selectinload(Site.menus.and_(Menu.is_published.is_(True)))
             .selectinload(Menu.footer_blocks),
-            selectinload(Site.regular_hours),
-            selectinload(Site.hours_exceptions),
+            selectinload(Site.locations)
+            .selectinload(Location.regular_hours),
+            selectinload(Site.locations)
+            .selectinload(Location.hours_exceptions),
             selectinload(Site.content_blocks)
             .selectinload(ContentBlock.image),
         )
@@ -101,9 +104,9 @@ async def get_owner_site_full(
 ) -> Site:
     """Load the owner's site with all relationships the resolver needs.
 
-    Eager-loads menus, regular_hours, hours_exceptions, content_blocks
-    (with images). Used by the publish route to feed the resolver for
-    can_publish eligibility checks.
+    Eager-loads menus, locations (with regular_hours + hours_exceptions),
+    content_blocks (with images). Used by the publish route to feed the
+    resolver for can_publish eligibility checks.
     """
     if auth_ctx.scoped_site_id is None:
         raise NoSiteInScope()
@@ -113,8 +116,10 @@ async def get_owner_site_full(
         .where(Site.site_id == auth_ctx.scoped_site_id)
         .options(
             selectinload(Site.menus),
-            selectinload(Site.regular_hours),
-            selectinload(Site.hours_exceptions),
+            selectinload(Site.locations)
+            .selectinload(Location.regular_hours),
+            selectinload(Site.locations)
+            .selectinload(Location.hours_exceptions),
             selectinload(Site.content_blocks)
             .selectinload(ContentBlock.image),
         )
@@ -131,9 +136,9 @@ async def get_owner_site_preview(
 ) -> Site:
     """Load the owner's site with everything needed for preview rendering.
 
-    Combines the full menu tree (including drafts) with regular_hours,
-    hours_exceptions, and content_blocks (+ nested image). Used by the
-    preview routes to feed the resolver in preview mode.
+    Combines the full menu tree (including drafts) with locations (hours),
+    and content_blocks (+ nested image). Used by the preview routes to
+    feed the resolver in preview mode.
     """
     if auth_ctx.scoped_site_id is None:
         raise NoSiteInScope()
@@ -149,8 +154,10 @@ async def get_owner_site_preview(
             .selectinload(MenuItem.variants),
             selectinload(Site.menus)
             .selectinload(Menu.footer_blocks),
-            selectinload(Site.regular_hours),
-            selectinload(Site.hours_exceptions),
+            selectinload(Site.locations)
+            .selectinload(Location.regular_hours),
+            selectinload(Site.locations)
+            .selectinload(Location.hours_exceptions),
             selectinload(Site.content_blocks)
             .selectinload(ContentBlock.image),
         )
@@ -192,6 +199,10 @@ async def create_site(
     db.add(site)
     await db.flush()  # site_id is now assigned
 
+    # Every site must have at least one location (the default)
+    default_location = Location(site_id=site.site_id, position=0)
+    db.add(default_location)
+
     # Bind the user to the new site
     result = await db.execute(select(User).where(User.user_id == auth_ctx.user_id))
     user = result.scalar_one()
@@ -203,8 +214,6 @@ async def create_site(
 
 _DETAIL_FIELDS = [
     "restaurant_name",
-    "address_street", "address_suburb", "address_state", "address_postcode",
-    "phone", "email",
 ]
 
 

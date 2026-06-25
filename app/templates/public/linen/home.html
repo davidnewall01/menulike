@@ -33,13 +33,15 @@
       <a href="{{ nav_prefix }}/menu#drinks">Drink</a>
     </div>
   </div>
-  {% if site.address_street or site.phone %}
+  {% set addr = view["visit"].fields.address.value %}
+  {% set contact = view["visit"].fields.contact.value %}
+  {% if addr or (contact and contact.phone) %}
   <div class="hero__contact">
-    {% if site.address_street %}
-    <span>{{ site.address_street }}{% if site.address_suburb %}, {{ site.address_suburb }}{% endif %}</span>
+    {% if addr %}
+    <span>{{ addr.street }}{% if addr.suburb %}, {{ addr.suburb }}{% endif %}</span>
     {% endif %}
-    {% if site.phone %}
-    <span>{{ site.phone }}</span>
+    {% if contact and contact.phone %}
+    <span>{{ contact.phone }}</span>
     {% endif %}
   </div>
   {% endif %}

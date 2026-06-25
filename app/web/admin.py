@@ -268,12 +268,14 @@ async def preview_visit(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
     )
+    location = site.locations[0] if site.locations else None
     hours_by_day: dict[int, list] = {}
-    for h in site.regular_hours:
-        hours_by_day.setdefault(h.day_of_week, []).append(h)
+    if location:
+        for h in location.regular_hours:
+            hours_by_day.setdefault(h.day_of_week, []).append(h)
     today = date.today()
     active_exceptions = [
-        exc for exc in site.hours_exceptions
+        exc for exc in (location.hours_exceptions if location else [])
         if exc.end_date >= today
     ]
     return templates.TemplateResponse(

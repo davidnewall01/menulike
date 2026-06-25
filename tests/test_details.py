@@ -25,12 +25,11 @@ class TestDetailsEditing:
         cookie = await self._login(client, "a@test.dev", "pass")
         token = csrf_token_for(owner)
 
-        # Edit site A's details
+        # Edit site A's details (phone/email now on /admin/visit, not here)
         resp = await client.post(
             "/admin/details",
             data={
                 "restaurant_name": "Alpha Updated",
-                "phone": "0400 000 000",
                 "csrf_token": token,
             },
             cookies={"session": cookie},
@@ -44,7 +43,6 @@ class TestDetailsEditing:
 
         # Site A was updated
         assert site_a.restaurant_name == "Alpha Updated"
-        assert site_a.phone == "0400 000 000"
 
         # Site B is untouched
         assert site_b.restaurant_name == "Beta Original"
@@ -81,7 +79,6 @@ class TestDetailsEditing:
     async def test_get_details_shows_current_values(self, db_session, client):
         site = await make_site(
             db_session, slug="preload", name="Preloaded",
-            phone="1234",
         )
         await make_owner(db_session, site, email="p@test.dev", password="pass")
 
@@ -90,28 +87,27 @@ class TestDetailsEditing:
         resp = await client.get("/admin/details", cookies={"session": cookie})
         assert resp.status_code == 200
         assert 'value="Preloaded"' in resp.text
-        assert 'value="1234"' in resp.text
 
-    async def test_empty_optional_fields_become_none(self, db_session, client):
+    async def test_details_only_updates_restaurant_name(self, db_session, client):
+        """Details form now only handles restaurant_name (address/phone/email
+        moved to /admin/visit). Extra fields in the POST are ignored."""
         site = await make_site(
             db_session, slug="blanks", name="Blanks",
-            phone="9999",
         )
         owner = await make_owner(db_session, site, email="b@test.dev", password="pass")
 
         cookie = await self._login(client, "b@test.dev", "pass")
         token = csrf_token_for(owner)
 
-        # Submit with empty optional fields
         resp = await client.post(
             "/admin/details",
-            data={"restaurant_name": "Blanks", "phone": "", "csrf_token": token},
+            data={"restaurant_name": "Blanks Updated", "csrf_token": token},
             cookies={"session": cookie},
         )
         assert resp.status_code == 200
 
         await db_session.refresh(site)
-        assert site.phone is None
+        assert site.restaurant_name == "Blanks Updated"
 
     async def test_empty_restaurant_name_rejected(self, db_session, client):
         """Empty or whitespace-only restaurant_name must trigger a validation

@@ -14,16 +14,10 @@ class SiteDetailsForm(BaseModel):
     """Validates the restaurant-details edit form.
 
     restaurant_name is required and must be non-empty after stripping.
-    URLs must use http/https if a scheme is present. Everything else optional.
+    Address/phone/email are now edited on /admin/visit (location-level).
     """
 
     restaurant_name: str
-    address_street: str | None = None
-    address_suburb: str | None = None
-    address_state: str | None = None
-    address_postcode: str | None = None
-    phone: str | None = None
-    email: str | None = None
 
     @field_validator("*", mode="before")
     @classmethod

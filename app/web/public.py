@@ -121,14 +121,16 @@ async def visit(request: Request, site: Site = Depends(resolve_tenant), db: Asyn
         site=site, role_images=role_images, mode="public",
         storage_url=storage_public_url,
     )
-    # Group eager-loaded regular_hours by day
+    # Group hours from the default (first) location
+    location = site.locations[0] if site.locations else None
     hours_by_day: dict[int, list] = {}
-    for h in site.regular_hours:
-        hours_by_day.setdefault(h.day_of_week, []).append(h)
+    if location:
+        for h in location.regular_hours:
+            hours_by_day.setdefault(h.day_of_week, []).append(h)
     # Filter exceptions: active + upcoming only (end_date >= today)
     today = date.today()
     active_exceptions = [
-        exc for exc in site.hours_exceptions
+        exc for exc in (location.hours_exceptions if location else [])
         if exc.end_date >= today
     ]
     return templates.TemplateResponse(

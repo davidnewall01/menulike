@@ -67,17 +67,18 @@
     </div>
 
     {# --- Where card --- #}
+    {% set addr = view["visit"].fields.address.value %}
     <div class="visit-card">
       <h2 class="visit-card__title">Where</h2>
-      {% if site.address_street %}
-      <p>{{ site.address_street }}</p>
-      {% if site.address_suburb %}
-      <p>{{ site.address_suburb }}{% if site.address_state %}, {{ site.address_state }}{% endif %}{% if site.address_postcode %} {{ site.address_postcode }}{% endif %}</p>
+      {% if addr %}
+      <p>{{ addr.street }}</p>
+      {% if addr.suburb %}
+      <p>{{ addr.suburb }}{% if addr.state %}, {{ addr.state }}{% endif %}{% if addr.postcode %} {{ addr.postcode }}{% endif %}</p>
       {% endif %}
       {% else %}
       <p class="visit-card__empty">
         {% if render_mode == "preview" %}
-        <a href="/admin/details">Add your address →</a>
+        <a href="/admin/visit">Add your address →</a>
         {% else %}
         Address not set
         {% endif %}
@@ -86,21 +87,22 @@
     </div>
 
     {# --- Reserve card --- #}
+    {% set contact = view["visit"].fields.contact.value %}
     <div class="visit-card">
       <h2 class="visit-card__title">Reserve</h2>
-      {% if site.phone %}
-      <p><a href="tel:{{ site.phone }}">{{ site.phone }}</a></p>
+      {% if contact and contact.phone %}
+      <p><a href="tel:{{ contact.phone }}">{{ contact.phone }}</a></p>
       {% endif %}
-      {% if site.email %}
-      <p><a href="mailto:{{ site.email }}">{{ site.email }}</a></p>
+      {% if contact and contact.email %}
+      <p><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></p>
       {% endif %}
       {% if site.booking_url %}
       <p><a href="{{ site.booking_url }}" class="btn btn--ghost" style="margin-top:12px">Book a Table</a></p>
       {% endif %}
-      {% if not site.phone and not site.email and not site.booking_url %}
+      {% if (not contact or (not contact.phone and not contact.email)) and not site.booking_url %}
       <p class="visit-card__empty">
         {% if render_mode == "preview" %}
-        <a href="/admin/details">Add contact details →</a>
+        <a href="/admin/visit">Add contact details →</a>
         {% else %}
         Contact details not set
         {% endif %}

@@ -34,6 +34,29 @@ def _fake_storage_url(key: str) -> str:
     return f"https://cdn/{key}"
 
 
+def make_location(
+    *,
+    address_street: str | None = None,
+    address_suburb: str | None = None,
+    address_state: str | None = None,
+    address_postcode: str | None = None,
+    phone: str | None = None,
+    email: str | None = None,
+    regular_hours: list | None = None,
+    hours_exceptions: list | None = None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        address_street=address_street,
+        address_suburb=address_suburb,
+        address_state=address_state,
+        address_postcode=address_postcode,
+        phone=phone,
+        email=email,
+        regular_hours=regular_hours or [],
+        hours_exceptions=hours_exceptions or [],
+    )
+
+
 def make_site(
     *,
     restaurant_name: str = "Test Restaurant",
@@ -48,18 +71,30 @@ def make_site(
     meta_title: str | None = None,
     meta_description: str | None = None,
 ) -> SimpleNamespace:
+    # Build a default location from address/phone/email/hours params
+    # so the resolver (which reads site.locations[0]) works correctly.
+    has_location_data = any([
+        address_street, address_suburb, phone, email, regular_hours,
+    ])
+    if has_location_data:
+        locations = [make_location(
+            address_street=address_street,
+            address_suburb=address_suburb,
+            phone=phone,
+            email=email,
+            regular_hours=regular_hours,
+        )]
+    else:
+        locations = [make_location()]
+
     return SimpleNamespace(
         restaurant_name=restaurant_name,
         tagline=tagline,
-        address_street=address_street,
-        address_suburb=address_suburb,
-        phone=phone,
-        email=email,
-        regular_hours=regular_hours or [],
         content_blocks=content_blocks or [],
         menus=menus or [],
         meta_title=meta_title,
         meta_description=meta_description,
+        locations=locations,
     )
 
 

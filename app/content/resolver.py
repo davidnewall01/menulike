@@ -84,6 +84,14 @@ _NEVER_SAMPLE_FIELDS: frozenset[str] = frozenset({
 # Public API
 # ---------------------------------------------------------------------------
 
+def _get_default_location(site: Any) -> Any | None:
+    """Return the site's first location (by position), or None."""
+    locations = getattr(site, "locations", None)
+    if locations:
+        return locations[0]
+    return None
+
+
 def resolve_site_view(
     *,
     site: Any,
@@ -103,8 +111,8 @@ def resolve_site_view(
       - Blocks → list of {heading, body, image_url, image_alt}
 
     Args:
-        site: Site model with eager-loaded menus, regular_hours,
-              content_blocks.
+        site: Site model with eager-loaded menus, locations (with
+              regular_hours + hours_exceptions), content_blocks.
         role_images: dict from image_role_service.load_role_images —
                      {role: [Photo, ...]}. Already loaded.
         mode: "public" or "preview".
@@ -113,13 +121,14 @@ def resolve_site_view(
     Returns:
         SiteView — dict keyed by area name, each value an AreaView.
     """
+    location = _get_default_location(site)
     return {
         "home": _resolve_home(site, role_images, mode, storage_url),
         "our_story": _resolve_our_story(site, mode, storage_url),
-        "visit": _resolve_visit(site, mode),
+        "visit": _resolve_visit(site, location, mode),
         "gallery": _resolve_gallery(role_images, mode, storage_url),
         "menu": _resolve_menu(site, mode),
-        "seo": _resolve_seo(site),
+        "seo": _resolve_seo(site, location),
     }
 
 
@@ -239,10 +248,22 @@ def _resolve_our_story(
     return AreaView(status=_compute_status("our_story", fields), fields=fields)
 
 
-def _resolve_visit(site: Any, mode: RenderMode) -> AreaView:
-    has_address = bool(site.address_street)
-    has_hours = len(site.regular_hours) > 0
-    has_contact = bool(site.phone or site.email)
+def _resolve_visit(site: Any, location: Any | None, mode: RenderMode) -> AreaView:
+    has_address = bool(location and location.address_street)
+    has_hours = bool(location and len(location.regular_hours) > 0)
+    has_contact = bool(location and (location.phone or location.email))
+
+    address_value = {
+        "street": location.address_street,
+        "suburb": location.address_suburb,
+        "state": location.address_state,
+        "postcode": location.address_postcode,
+    } if has_address else None
+
+    contact_value = {
+        "phone": location.phone,
+        "email": location.email,
+    } if location else {"phone": None, "email": None}
 
     fields = {
         # Name is always real post-signup
@@ -250,21 +271,21 @@ def _resolve_visit(site: Any, mode: RenderMode) -> AreaView:
         # Factual fields: never_sample=True — empty-but-prompting in preview
         "address": _resolve_field(
             has_real=has_address,
-            real_value=site.address_street,
+            real_value=address_value,
             sample_value=None,
             mode=mode,
             never_sample=True,
         ),
         "hours": _resolve_field(
             has_real=has_hours,
-            real_value=list(site.regular_hours),
+            real_value=list(location.regular_hours) if location else [],
             sample_value=None,
             mode=mode,
             never_sample=True,
         ),
         "contact": _resolve_field(
             has_real=has_contact,
-            real_value={"phone": site.phone, "email": site.email},
+            real_value=contact_value,
             sample_value=None,
             mode=mode,
             never_sample=True,
@@ -325,10 +346,10 @@ def _resolve_menu(site: Any, mode: RenderMode) -> AreaView:
 _META_TITLE_MAX = 60
 
 
-def _derive_meta_title(site: Any) -> str | None:
+def _derive_meta_title(site: Any, location: Any | None) -> str | None:
     """Derive a meta title from name + suburb. None if too thin."""
     name = site.restaurant_name
-    suburb = getattr(site, "address_suburb", None)
+    suburb = getattr(location, "address_suburb", None) if location else None
     if suburb:
         candidate = f"{name} — {suburb}"
         if len(candidate) <= _META_TITLE_MAX:
@@ -336,7 +357,7 @@ def _derive_meta_title(site: Any) -> str | None:
     return name
 
 
-def _derive_meta_description(site: Any) -> str | None:
+def _derive_meta_description(site: Any, location: Any | None) -> str | None:
     """Derive a meta description from tagline + suburb.
 
     Degrade ladder:
@@ -346,7 +367,7 @@ def _derive_meta_description(site: Any) -> str | None:
       neither      → None (omit — better no description than a bad one)
     """
     tagline = getattr(site, "tagline", None)
-    suburb = getattr(site, "address_suburb", None)
+    suburb = getattr(location, "address_suburb", None) if location else None
     name = site.restaurant_name
 
     if tagline and suburb:
@@ -361,7 +382,7 @@ def _derive_meta_description(site: Any) -> str | None:
     return desc[:155] if len(desc) > 155 else desc
 
 
-def _resolve_seo(site: Any) -> AreaView:
+def _resolve_seo(site: Any, location: Any | None) -> AreaView:
     """Resolve SEO meta fields with derive-with-override.
 
     Mode-independent: derived values are always computed (not sample content).
@@ -373,13 +394,13 @@ def _resolve_seo(site: Any) -> AreaView:
     if has_title:
         title_field = FieldView(value=site.meta_title, source="real")
     else:
-        derived = _derive_meta_title(site)
+        derived = _derive_meta_title(site, location)
         title_field = FieldView(value=derived, source="derived")
 
     if has_desc:
         desc_field = FieldView(value=site.meta_description, source="real")
     else:
-        derived = _derive_meta_description(site)
+        derived = _derive_meta_description(site, location)
         if derived:
             desc_field = FieldView(value=derived, source="derived")
         else:

@@ -27,16 +27,18 @@
     {% include "public/slate/_nav.html" %}
   </div>
 
-  {# Info block (bottom-left): address/phone. Hours slot noted as a gap — no hours model yet. #}
-  {% if site.address_street or site.phone %}
+  {# Info block (bottom-left): address/phone from default location. #}
+  {% set addr = view["visit"].fields.address.value %}
+  {% set contact = view["visit"].fields.contact.value %}
+  {% if addr or (contact and contact.phone) %}
   <div class="info">
-    {% if site.address_street %}
-    <b>{{ site.address_street }}</b>
-    {% if site.address_suburb %}<br>{{ site.address_suburb }}{% endif %}
+    {% if addr %}
+    <b>{{ addr.street }}</b>
+    {% if addr.suburb %}<br>{{ addr.suburb }}{% endif %}
     {% endif %}
-    {% if site.phone %}
-    {% if site.address_street %}<span class="gap"></span>{% endif %}
-    {{ site.phone }}
+    {% if contact and contact.phone %}
+    {% if addr %}<span class="gap"></span>{% endif %}
+    {{ contact.phone }}
     {% endif %}
   </div>
   {% endif %}

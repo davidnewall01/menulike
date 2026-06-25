@@ -23,39 +23,8 @@
                 <input type="text" id="restaurant_name" name="restaurant_name" value="{{ site.restaurant_name }}" required class="input input-bordered w-full">
             </div>
 
-            <div class="divider"></div>
-            <h2 class="card-title text-lg">Address</h2>
-            <div class="form-control w-full">
-                <label class="label" for="address_street"><span class="label-text">Street</span></label>
-                <input type="text" id="address_street" name="address_street" value="{{ site.address_street or '' }}" class="input input-bordered w-full">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="form-control">
-                    <label class="label" for="address_suburb"><span class="label-text">Suburb</span></label>
-                    <input type="text" id="address_suburb" name="address_suburb" value="{{ site.address_suburb or '' }}" class="input input-bordered w-full">
-                </div>
-                <div class="form-control">
-                    <label class="label" for="address_state"><span class="label-text">State</span></label>
-                    <input type="text" id="address_state" name="address_state" value="{{ site.address_state or '' }}" class="input input-bordered w-full">
-                </div>
-            </div>
-            <div class="form-control w-full">
-                <label class="label" for="address_postcode"><span class="label-text">Postcode</span></label>
-                <input type="text" id="address_postcode" name="address_postcode" value="{{ site.address_postcode or '' }}" class="input input-bordered w-full">
-            </div>
 
-            <div class="divider"></div>
-            <h2 class="card-title text-lg">Contact</h2>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="form-control">
-                    <label class="label" for="phone"><span class="label-text">Phone</span></label>
-                    <input type="text" id="phone" name="phone" value="{{ site.phone or '' }}" class="input input-bordered w-full">
-                </div>
-                <div class="form-control">
-                    <label class="label" for="email"><span class="label-text">Email</span></label>
-                    <input type="text" id="email" name="email" value="{{ site.email or '' }}" class="input input-bordered w-full">
-                </div>
-            </div>
+            <p class="text-sm text-base-content/60 mt-2">Address, phone and email are now edited on the <a href="/admin/visit" class="link">Visit &amp; hours</a> page.</p>
             <div class="card-actions justify-end pt-4">
                 <button type="submit" class="btn btn-primary">Save details</button>
             </div>
