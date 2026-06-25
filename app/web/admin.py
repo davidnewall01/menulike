@@ -809,7 +809,7 @@ async def menu_canvas(
     except MenuNotFound:
         raise HTTPException(status_code=404, detail="Menu not found")
 
-    return _render(request, "admin/menu_canvas.html", auth, menu=menu)
+    return _render(request, "admin/menu_canvas.html", auth, menu=menu, storage_url=storage_public_url)
 
 
 @router.post("/menu/{menu_id}", response_class=HTMLResponse)
@@ -933,6 +933,91 @@ async def case_manager_apply(
 
 
 # ---------------------------------------------------------------------------
+# Menu entity photo picker (section / subsection / item)
+# ---------------------------------------------------------------------------
+
+_PHOTO_ENTITY_LOADERS = {
+    "section": ("section_id", menu_service.get_owner_section),
+    "subsection": ("subsection_id", menu_service.get_owner_subsection),
+    "item": ("menu_item_id", menu_service.get_owner_item),
+}
+
+
+@router.get("/{entity_type}/{entity_id}/photo-picker", response_class=HTMLResponse)
+async def photo_picker_modal(
+    request: Request,
+    entity_type: str,
+    entity_id: uuid.UUID,
+    menu_id: uuid.UUID | None = None,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if entity_type not in _PHOTO_ENTITY_LOADERS:
+        raise HTTPException(status_code=400, detail="Invalid entity type")
+
+    pk_attr, loader = _PHOTO_ENTITY_LOADERS[entity_type]
+    try:
+        entity = await loader(db, auth, entity_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    photos = await photo_service.list_photos(db, auth)
+
+    return _render(
+        request, "admin/_photo_picker.html", auth,
+        photos=photos,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        menu_id=menu_id,
+        current_photo_id=entity.photo_id,
+        storage_url=storage_public_url,
+    )
+
+
+@router.post("/{entity_type}/{entity_id}/photo", response_class=HTMLResponse)
+async def photo_set(
+    request: Request,
+    entity_type: str,
+    entity_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if entity_type not in _PHOTO_ENTITY_LOADERS:
+        raise HTTPException(status_code=400, detail="Invalid entity type")
+
+    form_data = await request.form()
+    photo_id_raw = form_data.get("photo_id", "")
+    menu_id = form_data.get("menu_id")
+
+    pk_attr, loader = _PHOTO_ENTITY_LOADERS[entity_type]
+    try:
+        entity = await loader(db, auth, entity_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Empty string = remove photo
+    if photo_id_raw:
+        # Validate the photo belongs to the owner's site
+        photo = await photo_service.get_owner_photo(db, auth, uuid.UUID(photo_id_raw))
+        entity.photo_id = photo.photo_id
+    else:
+        entity.photo_id = None
+
+    await db.commit()
+    db.expire_all()
+
+    # For items, return the re-rendered item row (HTMX swap, no page reload)
+    if entity_type == "item":
+        item = await menu_service.get_owner_item_with_variants(db, auth, entity_id)
+        return _render(
+            request, "admin/_item_row.html", auth,
+            item=item, menu_id=menu_id, storage_url=storage_public_url,
+        )
+
+    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+
+# ---------------------------------------------------------------------------
 # Item CRUD
 # ---------------------------------------------------------------------------
 
@@ -985,7 +1070,7 @@ async def item_display(
     except (NoSiteInScope, ItemNotFound) as exc:
         _not_found(exc)
 
-    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id)
+    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id, storage_url=storage_public_url)
 
 
 @router.get("/item/{item_id}/edit", response_class=HTMLResponse)
@@ -1048,7 +1133,7 @@ async def item_update_or_delete(
     # Reload with variants for the display partial
     item = await menu_service.get_owner_item_with_variants(db, auth, item_id)
     menu_id = form_data.get("menu_id")
-    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id)
+    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id, storage_url=storage_public_url)
 
 
 # ---------------------------------------------------------------------------
@@ -1077,7 +1162,7 @@ async def variant_create(
 
     # Re-render the item row in-place (HTMX swap)
     item = await menu_service.get_owner_item_with_variants(db, auth, uuid.UUID(item_id))
-    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id)
+    return _render(request, "admin/_item_row.html", auth, item=item, menu_id=menu_id, storage_url=storage_public_url)
 
 
 @router.get("/variant/{variant_id}", response_class=HTMLResponse)
@@ -1198,6 +1283,7 @@ async def section_edit_form(
     return _render(
         request, "admin/_section_edit_form.html", auth,
         section=section, menu_id=menu_id, other_menus=other_menus,
+        storage_url=storage_public_url,
     )
 
 
@@ -1232,6 +1318,7 @@ async def section_update_or_delete(
         return _render(
             request, "admin/_section_edit_form.html", auth,
             section=section, menu_id=menu_id, errors=errors,
+            storage_url=storage_public_url,
         )
 
     try:
@@ -1278,6 +1365,104 @@ async def section_move(
 
     return RedirectResponse(
         url=f"/admin/menu/{source_menu_id}", status_code=303,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Footer block CRUD
+# ---------------------------------------------------------------------------
+
+
+def _parse_entries_text(text: str) -> list[dict]:
+    """Parse entries from textarea — one per line, 'label | description' or just text."""
+    entries = []
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if "|" in line:
+            parts = line.split("|", 1)
+            entries.append({"label": parts[0].strip(), "description": parts[1].strip()})
+        else:
+            entries.append({"label": None, "description": line})
+    return entries
+
+
+@router.post("/footer-block", response_class=HTMLResponse)
+async def footer_block_create(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    menu_id = form_data.get("menu_id")
+    block_type = form_data.get("block_type", "info")
+    title = (form_data.get("title") or "").strip() or None
+    entries = _parse_entries_text(form_data.get("entries_text", ""))
+
+    try:
+        await menu_coordinator.create_footer_block(
+            db, auth, uuid.UUID(menu_id), block_type, title, entries,
+        )
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except MenuNotFound:
+        raise HTTPException(status_code=404, detail="Menu not found")
+
+    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+
+
+@router.get("/footer-block/{block_id}/edit", response_class=HTMLResponse)
+async def footer_block_edit_form(
+    request: Request,
+    block_id: uuid.UUID,
+    menu_id: uuid.UUID | None = None,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        block = await menu_service.get_owner_footer_block(db, auth, block_id)
+    except (NoSiteInScope, MenuNotFound):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    return _render(
+        request, "admin/_footer_block_edit.html", auth,
+        block=block, menu_id=menu_id,
+    )
+
+
+@router.post("/footer-block/{block_id}", response_class=HTMLResponse)
+async def footer_block_update_or_delete(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    action = form_data.get("_action", "update")
+    menu_id = form_data.get("menu_id")
+
+    if action == "delete":
+        try:
+            await menu_coordinator.delete_footer_block(db, auth, block_id)
+        except (NoSiteInScope, MenuNotFound):
+            raise HTTPException(status_code=404, detail="Not found")
+        return Response(status_code=200)
+
+    block_type = form_data.get("block_type", "info")
+    title = (form_data.get("title") or "").strip() or None
+    entries = _parse_entries_text(form_data.get("entries_text", ""))
+
+    try:
+        block = await menu_coordinator.update_footer_block(
+            db, auth, block_id, block_type, title, entries,
+        )
+    except (NoSiteInScope, MenuNotFound):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    return _render(
+        request, "admin/_footer_block_row.html", auth,
+        block=block, menu_id=menu_id,
     )
 
 
@@ -1418,6 +1603,7 @@ async def item_move(
     for item in sorted_items:
         rendered = templates.get_template("admin/_item_row.html").render(
             item=item, menu_id=menu_id, csrf_token=csrf,
+            storage_url=storage_public_url,
         )
         item_rows.append(rendered)
 

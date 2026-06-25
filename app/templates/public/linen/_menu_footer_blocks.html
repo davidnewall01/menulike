@@ -1,0 +1,38 @@
+{% if m.footer_blocks %}
+<div class="m-footer">
+  {% for block in m.footer_blocks %}
+  <div class="m-footer__block m-footer__block--{{ block.block_type }}">
+    {% if block.title %}
+    <h3 class="m-footer__title">{{ block.title }}</h3>
+    {% endif %}
+
+    {% if block.block_type in ('charges', 'legend', 'glossary') %}
+    {# Label-value pairs — render as a definition list or badge row #}
+    {% if block.block_type == 'charges' %}
+    <div class="m-footer__badges">
+      {% for entry in block.entries %}
+      <span class="m-footer__badge">{% if entry.label %}{{ entry.label }} {{ entry.description or '' }}{% else %}{{ entry.description or '' }}{% endif %}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <dl class="m-footer__defs">
+      {% for entry in block.entries %}
+      <div class="m-footer__def">
+        {% if entry.label %}<dt>{{ entry.label }}</dt><dd>{{ entry.description or '' }}</dd>{% else %}<dd>{{ entry.description or '' }}</dd>{% endif %}
+      </div>
+      {% endfor %}
+    </dl>
+    {% endif %}
+
+    {% else %}
+    {# Info/house rules — render as centered text lines #}
+    <div class="m-footer__text">
+      {% for entry in block.entries %}
+      <p>{{ entry.description or '' }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

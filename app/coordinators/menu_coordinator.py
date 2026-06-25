@@ -238,6 +238,37 @@ async def commit_extracted_menu(
     return menu
 
 
+async def create_footer_block(
+    db: AsyncSession, auth_ctx: AuthContext,
+    menu_id: uuid.UUID, block_type: str, title: str | None,
+    entries: list[dict],
+):
+    block = await menu_service.create_footer_block(
+        db, auth_ctx, menu_id, block_type, title, entries,
+    )
+    await db.commit()
+    return block
+
+
+async def update_footer_block(
+    db: AsyncSession, auth_ctx: AuthContext,
+    block_id: uuid.UUID, block_type: str, title: str | None,
+    entries: list[dict],
+):
+    block = await menu_service.update_footer_block(
+        db, auth_ctx, block_id, block_type, title, entries,
+    )
+    await db.commit()
+    return block
+
+
+async def delete_footer_block(
+    db: AsyncSession, auth_ctx: AuthContext, block_id: uuid.UUID,
+):
+    await menu_service.delete_footer_block(db, auth_ctx, block_id)
+    await db.commit()
+
+
 async def apply_case_transforms(
     db: AsyncSession, auth_ctx: AuthContext,
     menu_id: uuid.UUID, **kwargs,

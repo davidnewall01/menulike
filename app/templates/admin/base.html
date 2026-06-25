@@ -131,6 +131,17 @@
         }
         document.addEventListener("DOMContentLoaded", initSortables);
         document.body.addEventListener("htmx:afterSwap", initSortables);
+
+        /* Lightbox — show a full-size image overlay. Click or Escape to dismiss. */
+        function showLightbox(src) {
+            var d = document.createElement("div");
+            d.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 cursor-pointer";
+            d.innerHTML = '<img src="' + src + '" class="max-w-[80vw] max-h-[80vh] rounded-lg shadow-2xl">';
+            d.onclick = function() { d.remove(); };
+            function onKey(e) { if (e.key === "Escape") { d.remove(); document.removeEventListener("keydown", onKey); } }
+            document.addEventListener("keydown", onKey);
+            document.body.appendChild(d);
+        }
     </script>
 </body>
 </html>

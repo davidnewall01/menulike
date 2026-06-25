@@ -1,0 +1,51 @@
+<div id="photo-picker-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onclick="if(event.target===this)this.remove()">
+  <div class="bg-base-100 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto mx-4" onclick="event.stopPropagation()">
+    <div class="p-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold">Choose a photo</h2>
+        <button type="button" onclick="document.getElementById('photo-picker-modal').remove()" class="btn btn-ghost btn-sm btn-circle">✕</button>
+      </div>
+
+      {% if photos %}
+      <div class="grid grid-cols-4 gap-2">
+        {% for photo in photos %}
+        {% if entity_type == "item" %}
+        <form hx-post="/admin/{{ entity_type }}/{{ entity_id }}/photo"
+              hx-target="#item-{{ entity_id }}" hx-swap="outerHTML"
+              class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="photo_id" value="{{ photo.photo_id }}">
+          <input type="hidden" name="menu_id" value="{{ menu_id }}">
+          <button type="submit" class="w-full aspect-square rounded-lg overflow-hidden border-2 hover:border-primary transition-colors
+                  {% if current_photo_id and photo.photo_id == current_photo_id %}border-primary{% else %}border-transparent{% endif %}">
+            <img src="{{ storage_url(photo.s3_key) }}" alt="{{ photo.alt_text or '' }}"
+                 class="w-full h-full object-cover">
+          </button>
+        </form>
+        {% else %}
+        <form method="post" action="/admin/{{ entity_type }}/{{ entity_id }}/photo" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="photo_id" value="{{ photo.photo_id }}">
+          <input type="hidden" name="menu_id" value="{{ menu_id }}">
+          <button type="submit" class="w-full aspect-square rounded-lg overflow-hidden border-2 hover:border-primary transition-colors
+                  {% if current_photo_id and photo.photo_id == current_photo_id %}border-primary{% else %}border-transparent{% endif %}">
+            <img src="{{ storage_url(photo.s3_key) }}" alt="{{ photo.alt_text or '' }}"
+                 class="w-full h-full object-cover">
+          </button>
+        </form>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-base-content/60 py-4 text-center">No photos uploaded yet. <a href="/admin/photos" class="link">Upload photos</a> first.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+// Remove the modal after any HTMX request fires from within it
+document.getElementById('photo-picker-modal').addEventListener('htmx:afterRequest', function() {
+    this.remove();
+});
+</script>

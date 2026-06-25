@@ -5,6 +5,10 @@
         <button type="button" data-collapse="subsection-body-{{ subsection.subsection_id }}" class="btn btn-ghost btn-xs px-1">
             <span class="chevron">▸</span>
         </button>
+        {% if subsection.photo and storage_url is defined %}
+        <img src="{{ storage_url(subsection.photo.s3_key) }}" alt="" class="w-6 h-6 rounded object-cover cursor-pointer"
+             onclick="showLightbox('{{ storage_url(subsection.photo.s3_key) }}')">
+        {% endif %}
         <div>
             {% if subsection.name %}
             <h4 class="text-sm font-semibold text-base-content/80 inline">{{ subsection.name }}</h4>

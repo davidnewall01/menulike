@@ -134,4 +134,21 @@
         </div>
     </div>
 </details>
+
+{# --- Footer blocks --- #}
+<div class="divider mt-8">Menu footer</div>
+
+<div id="footer-blocks">
+{% for block in menu.footer_blocks %}
+    {% set menu_id = menu.menu_id %}
+    {% include "admin/_footer_block_row.html" %}
+{% endfor %}
+</div>
+
+<details class="mt-2">
+    <summary class="btn btn-outline btn-sm list-none [&::-webkit-details-marker]:hidden">+ Add footer block</summary>
+    {% set block = none %}
+    {% set menu_id = menu.menu_id %}
+    {% include "admin/_footer_block_edit.html" %}
+</details>
 {% endblock %}

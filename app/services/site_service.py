@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
 from app.models.content_block import ContentBlock
-from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
+from app.models.menu import Menu, MenuFooterBlock, MenuItem, MenuItemVariant, Section, Subsection
 from app.models.site import Site
 from app.models.user import User
 from app.schemas.site import SiteDetailsForm
@@ -34,6 +34,8 @@ async def get_site_by_slug(db: AsyncSession, slug: str) -> Site | None:
             .selectinload(Section.subsections)
             .selectinload(Subsection.items)
             .selectinload(MenuItem.variants),
+            selectinload(Site.menus.and_(Menu.is_published.is_(True)))
+            .selectinload(Menu.footer_blocks),
             selectinload(Site.regular_hours),
             selectinload(Site.hours_exceptions),
             selectinload(Site.content_blocks)
@@ -83,6 +85,8 @@ async def get_owner_site_with_drafts(
             .selectinload(Section.subsections)
             .selectinload(Subsection.items)
             .selectinload(MenuItem.variants),
+            selectinload(Site.menus)
+            .selectinload(Menu.footer_blocks),
         )
     )
     result = await db.execute(stmt)
@@ -143,6 +147,8 @@ async def get_owner_site_preview(
             .selectinload(Section.subsections)
             .selectinload(Subsection.items)
             .selectinload(MenuItem.variants),
+            selectinload(Site.menus)
+            .selectinload(Menu.footer_blocks),
             selectinload(Site.regular_hours),
             selectinload(Site.hours_exceptions),
             selectinload(Site.content_blocks)

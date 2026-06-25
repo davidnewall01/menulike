@@ -1,0 +1,56 @@
+<div id="footer-block-{{ block.footer_block_id if block else 'new' }}" class="card bg-base-100 shadow mb-2">
+    <div class="card-body py-3">
+        {% if errors is defined and errors %}
+        <div class="alert alert-error alert-sm mb-2">
+            <ul class="list-disc list-inside text-sm">
+                {% for err in errors %}<li>{{ err }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <form {% if block %}
+              hx-post="/admin/footer-block/{{ block.footer_block_id }}"
+              hx-target="#footer-block-{{ block.footer_block_id }}"
+              {% else %}
+              method="post" action="/admin/footer-block"
+              {% endif %}
+              hx-swap="outerHTML"
+              class="space-y-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="menu_id" value="{{ menu_id }}">
+            {% if block %}
+            <input type="hidden" name="_action" value="update">
+            {% endif %}
+
+            <div class="flex gap-2">
+                <div class="form-control flex-1">
+                    <label class="label py-0"><span class="label-text text-xs">Type</span></label>
+                    <select name="block_type" class="select select-bordered select-sm w-full">
+                        <option value="info"{% if (block and block.block_type == 'info') or not block %} selected{% endif %}>Info / house rules</option>
+                        <option value="charges"{% if block and block.block_type == 'charges' %} selected{% endif %}>Charges & surcharges</option>
+                        <option value="legend"{% if block and block.block_type == 'legend' %} selected{% endif %}>Dietary legend</option>
+                        <option value="glossary"{% if block and block.block_type == 'glossary' %} selected{% endif %}>Glossary</option>
+                    </select>
+                </div>
+                <div class="form-control flex-1">
+                    <label class="label py-0"><span class="label-text text-xs">Title (optional)</span></label>
+                    <input type="text" name="title" value="{{ block.title or '' if block else '' }}" class="input input-bordered input-sm w-full" placeholder="e.g. Important, Dietary Guide">
+                </div>
+            </div>
+
+            <div class="form-control">
+                <label class="label py-0"><span class="label-text text-xs">Entries (one per line — use "label | description" for labelled entries)</span></label>
+                <textarea name="entries_text" rows="4" class="textarea textarea-bordered textarea-sm w-full" placeholder="GF | Gluten Free&#10;V | Vegan&#10;Or just plain text lines">{% if block and block.entries %}{% for e in block.entries %}{% if e.label %}{{ e.label }} | {{ e.description or '' }}{% else %}{{ e.description or '' }}{% endif %}{{ "\n" if not loop.last }}{% endfor %}{% endif %}</textarea>
+            </div>
+
+            <div class="flex gap-2">
+                {% if block %}
+                <button type="submit" class="btn btn-primary btn-xs">Save</button>
+                <button type="button" class="btn btn-outline btn-xs" onclick="location.reload()">Cancel</button>
+                {% else %}
+                <button type="submit" class="btn btn-primary btn-xs">Add block</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>

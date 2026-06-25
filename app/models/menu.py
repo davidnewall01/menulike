@@ -42,6 +42,12 @@ class Menu(TimestampMixin, Base):
         passive_deletes=True,
         order_by="Section.position",
     )
+    footer_blocks: Mapped[list["MenuFooterBlock"]] = relationship(
+        back_populates="menu",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="MenuFooterBlock.position",
+    )
 
 
 class Section(TimestampMixin, Base):
@@ -171,3 +177,28 @@ class MenuItemVariant(TimestampMixin, Base):
 
     # Relationships
     menu_item: Mapped["MenuItem"] = relationship(back_populates="variants")
+
+
+class MenuFooterBlock(TimestampMixin, Base):
+    __tablename__ = "menu_footer_blocks"
+
+    footer_block_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    menu_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("menus.menu_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    block_type: Mapped[str] = mapped_column(
+        String, nullable=False, default="info"
+    )
+    title: Mapped[str | None] = mapped_column(String, nullable=True)
+    entries: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Relationships
+    menu: Mapped["Menu"] = relationship(back_populates="footer_blocks")

@@ -340,6 +340,38 @@ body.home .burger span { background: var(--cream); }
 }
 .m-item--feat .m-item__name { color: var(--azure); }
 
+/* Menu footer blocks */
+.m-footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line-2); }
+.m-footer__block { margin-bottom: 24px; text-align: center; }
+.m-footer__title {
+  font-family: var(--serif); font-weight: 500;
+  font-size: 1.1rem; letter-spacing: .04em;
+  font-style: italic; margin-bottom: 8px;
+}
+.m-footer__text p {
+  color: var(--ink-3); font-size: .82rem;
+  line-height: 1.6; margin: 0;
+}
+.m-footer__badges {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 6px 16px;
+}
+.m-footer__badge {
+  font-family: var(--sans); font-size: .78rem;
+  color: var(--ink-2); letter-spacing: .04em;
+}
+.m-footer__defs {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 4px 20px; font-size: .82rem;
+}
+.m-footer__def { display: flex; gap: 4px; }
+.m-footer__def dt {
+  font-weight: 600; color: var(--ink-2);
+}
+.m-footer__def dd {
+  color: var(--ink-3); margin: 0;
+}
+
 /* Columnar variant table */
 .m-col-table {
   width: 100%; border-collapse: collapse;

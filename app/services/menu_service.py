@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.auth.context import AuthContext
-from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
+from app.models.menu import Menu, MenuFooterBlock, MenuItem, MenuItemVariant, Section, Subsection
 from app.schemas.extraction import ExtractedMenu
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm
 from app.services.exceptions import (
@@ -78,6 +78,7 @@ async def get_owner_menu_with_tree(
             .selectinload(Section.subsections)
             .selectinload(Subsection.items)
             .selectinload(MenuItem.variants),
+            selectinload(Menu.footer_blocks),
         )
     )
     menu = result.scalar_one_or_none()
@@ -192,6 +193,7 @@ async def get_owner_section(
             Section.section_id == section_id,
             Menu.site_id == auth_ctx.scoped_site_id,
         )
+        .options(joinedload(Section.photo))
     )
     section = result.scalar_one_or_none()
     if section is None:
@@ -319,6 +321,7 @@ async def get_owner_subsection(
             Subsection.subsection_id == subsection_id,
             Menu.site_id == auth_ctx.scoped_site_id,
         )
+        .options(joinedload(Subsection.photo))
     )
     sub = result.scalar_one_or_none()
     if sub is None:
@@ -345,6 +348,7 @@ async def get_owner_item(
             MenuItem.menu_item_id == item_id,
             Menu.site_id == auth_ctx.scoped_site_id,
         )
+        .options(joinedload(MenuItem.photo))
     )
     item = result.scalar_one_or_none()
     if item is None:
@@ -368,7 +372,10 @@ async def get_owner_item_with_variants(
             MenuItem.menu_item_id == item_id,
             Menu.site_id == auth_ctx.scoped_site_id,
         )
-        .options(selectinload(MenuItem.variants))
+        .options(
+            selectinload(MenuItem.variants),
+            joinedload(MenuItem.photo),
+        )
     )
     item = result.scalar_one_or_none()
     if item is None:
@@ -766,6 +773,82 @@ async def commit_extracted_menu(
     db.add(menu)
     await db.flush()
     return menu
+
+
+# ---------------------------------------------------------------------------
+# Footer block CRUD
+# ---------------------------------------------------------------------------
+
+async def create_footer_block(
+    db: AsyncSession, auth_ctx: AuthContext,
+    menu_id: uuid.UUID, block_type: str, title: str | None,
+    entries: list[dict],
+) -> MenuFooterBlock:
+    """Create a footer block on a menu. Scoped-load the parent first."""
+    menu = await get_owner_menu(db, auth_ctx, menu_id)
+
+    result = await db.execute(
+        select(func.coalesce(func.max(MenuFooterBlock.position), 0))
+        .where(MenuFooterBlock.menu_id == menu.menu_id)
+    )
+    max_pos = result.scalar_one()
+
+    block = MenuFooterBlock(
+        menu_id=menu.menu_id,
+        block_type=block_type,
+        title=title,
+        entries=entries,
+        position=max_pos + 10,
+    )
+    db.add(block)
+    await db.flush()
+    return block
+
+
+async def get_owner_footer_block(
+    db: AsyncSession, auth_ctx: AuthContext,
+    block_id: uuid.UUID,
+) -> MenuFooterBlock:
+    """Load a footer block, scoped to the owner's site."""
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+
+    result = await db.execute(
+        select(MenuFooterBlock)
+        .join(Menu, MenuFooterBlock.menu_id == Menu.menu_id)
+        .where(
+            MenuFooterBlock.footer_block_id == block_id,
+            Menu.site_id == auth_ctx.scoped_site_id,
+        )
+    )
+    block = result.scalar_one_or_none()
+    if block is None:
+        raise MenuNotFound(f"footer_block_id={block_id}")
+    return block
+
+
+async def update_footer_block(
+    db: AsyncSession, auth_ctx: AuthContext,
+    block_id: uuid.UUID, block_type: str, title: str | None,
+    entries: list[dict],
+) -> MenuFooterBlock:
+    """Update a footer block. Scoped-load first."""
+    block = await get_owner_footer_block(db, auth_ctx, block_id)
+    block.block_type = block_type
+    block.title = title
+    block.entries = entries
+    await db.flush()
+    return block
+
+
+async def delete_footer_block(
+    db: AsyncSession, auth_ctx: AuthContext,
+    block_id: uuid.UUID,
+) -> None:
+    """Delete a footer block. Scoped-load first."""
+    block = await get_owner_footer_block(db, auth_ctx, block_id)
+    await db.delete(block)
+    await db.flush()
 
 
 # ---------------------------------------------------------------------------

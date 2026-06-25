@@ -1,0 +1,38 @@
+<div id="footer-block-{{ block.footer_block_id }}" class="card bg-base-100 shadow mb-2">
+    <div class="card-body py-3">
+        <div class="flex justify-between items-start">
+            <div>
+                <span class="badge badge-sm
+                    {% if block.block_type == 'charges' %}badge-warning
+                    {% elif block.block_type == 'legend' %}badge-info
+                    {% elif block.block_type == 'glossary' %}badge-accent
+                    {% else %}badge-ghost{% endif %}">{{ block.block_type }}</span>
+                {% if block.title %}
+                <span class="font-semibold text-sm ml-1">{{ block.title }}</span>
+                {% endif %}
+            </div>
+            <div class="flex gap-1 shrink-0">
+                <button class="btn btn-outline btn-xs"
+                        hx-get="/admin/footer-block/{{ block.footer_block_id }}/edit?menu_id={{ menu_id }}"
+                        hx-target="#footer-block-{{ block.footer_block_id }}"
+                        hx-swap="outerHTML">Edit</button>
+                <button class="btn btn-outline btn-error btn-xs"
+                        hx-post="/admin/footer-block/{{ block.footer_block_id }}"
+                        hx-target="#footer-block-{{ block.footer_block_id }}"
+                        hx-swap="outerHTML"
+                        hx-vals='{"_action": "delete", "csrf_token": "{{ csrf_token }}"}'
+                        hx-confirm="Delete this footer block?">Del</button>
+            </div>
+        </div>
+        <div class="mt-1 text-sm text-base-content/70">
+            {% for entry in block.entries %}
+            <div>
+                {% if entry.label %}<span class="font-medium">{{ entry.label }}</span> — {% endif %}{{ entry.description or '' }}
+            </div>
+            {% endfor %}
+            {% if not block.entries %}
+            <span class="text-base-content/40 italic">No entries</span>
+            {% endif %}
+        </div>
+    </div>
+</div>

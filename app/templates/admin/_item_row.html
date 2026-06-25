@@ -7,6 +7,10 @@
             <button type="button" data-collapse="item-body-{{ item.menu_item_id }}" class="btn btn-ghost btn-xs px-1">
                 <span class="chevron">▸</span>
             </button>
+            {% if item.photo %}
+            <img src="{{ storage_url(item.photo.s3_key) }}" alt="" class="w-6 h-6 rounded object-cover cursor-pointer"
+                 onclick="showLightbox('{{ storage_url(item.photo.s3_key) }}')">
+            {% endif %}
             <span class="font-medium text-sm {% if item.featured %}text-warning{% endif %}">{{ item.name }}</span>
             {% if item.featured %}
             <span class="badge badge-warning badge-sm">Featured</span>
@@ -39,6 +43,25 @@
         {% if item.extras %}
         <p class="text-xs text-base-content/50 mt-1">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>
         {% endif %}
+
+        <div class="flex items-center gap-2 mt-1">
+            {% if item.photo %}
+            <button type="button" class="btn btn-ghost btn-xs text-base-content/50"
+                    hx-get="/admin/item/{{ item.menu_item_id }}/photo-picker?menu_id={{ menu_id }}"
+                    hx-target="body" hx-swap="beforeend">Change photo</button>
+            <form hx-post="/admin/item/{{ item.menu_item_id }}/photo"
+                  hx-target="#item-{{ item.menu_item_id }}" hx-swap="outerHTML" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="photo_id" value="">
+                <input type="hidden" name="menu_id" value="{{ menu_id }}">
+                <button type="submit" class="btn btn-ghost btn-xs text-error">Remove photo</button>
+            </form>
+            {% else %}
+            <button type="button" class="btn btn-ghost btn-xs text-base-content/50"
+                    hx-get="/admin/item/{{ item.menu_item_id }}/photo-picker?menu_id={{ menu_id }}"
+                    hx-target="body" hx-swap="beforeend">📷 Set photo</button>
+            {% endif %}
+        </div>
 
         <div class="mt-2">
             <div data-sortable data-reorder-url="/admin/item/{{ item.menu_item_id }}/reorder-variants">

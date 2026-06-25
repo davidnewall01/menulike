@@ -32,10 +32,28 @@
                 <option value="columnar"{% if section.variant_display == 'columnar' %} selected{% endif %}>Columns — sizes as column headers</option>
             </select>
         </div>
-        <div class="flex gap-2">
+        <div class="flex items-center gap-2">
             <button type="submit" class="btn btn-primary btn-xs">Save</button>
             <button type="button" class="btn btn-outline btn-xs"
                     onclick="location.reload()">Cancel</button>
+            <span class="flex-1"></span>
+            {% if section.photo and storage_url is defined %}
+            <img src="{{ storage_url(section.photo.s3_key) }}" alt="" class="w-5 h-5 rounded object-cover cursor-pointer"
+                 onclick="showLightbox('{{ storage_url(section.photo.s3_key) }}')">
+            <button type="button" class="btn btn-ghost btn-xs text-base-content/50"
+                    hx-get="/admin/section/{{ section.section_id }}/photo-picker?menu_id={{ menu_id }}"
+                    hx-target="body" hx-swap="beforeend">Change</button>
+            <form method="post" action="/admin/section/{{ section.section_id }}/photo" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="photo_id" value="">
+                <input type="hidden" name="menu_id" value="{{ menu_id }}">
+                <button type="submit" class="btn btn-ghost btn-xs text-error">Remove</button>
+            </form>
+            {% else %}
+            <button type="button" class="btn btn-ghost btn-xs text-base-content/50"
+                    hx-get="/admin/section/{{ section.section_id }}/photo-picker?menu_id={{ menu_id }}"
+                    hx-target="body" hx-swap="beforeend">📷 Photo</button>
+            {% endif %}
         </div>
     </form>
 

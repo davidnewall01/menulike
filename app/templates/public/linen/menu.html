@@ -28,6 +28,7 @@
   {% for section in m.sections %}
     {% include "public/linen/_menu_section.html" %}
   {% endfor %}
+  {% include "public/linen/_menu_footer_blocks.html" %}
 
   {% else %}
   {# Multiple menus — Alpine tabs #}
@@ -56,6 +57,7 @@
       {% for section in m.sections %}
         {% include "public/linen/_menu_section.html" %}
       {% endfor %}
+      {% include "public/linen/_menu_footer_blocks.html" %}
     </div>
     {% endfor %}
   </div>
