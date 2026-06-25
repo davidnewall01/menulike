@@ -69,6 +69,10 @@ class LocationNotFound(Exception):
     """The location_id didn't resolve within the owner's scoped site."""
 
 
+class CannotDeleteLastLocation(Exception):
+    """A site must have at least one location."""
+
+
 class AlreadyHasSite(Exception):
     """The owner already has a site bound — cannot create a second one."""
 

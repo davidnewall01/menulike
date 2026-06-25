@@ -1,0 +1,283 @@
+<!-- menulike landing — design mockup. Self-contained. Copy & pricing are placeholders to react to. -->
+<div id="ml-root">
+<style>
+  #ml-root{
+    --ink:#211C16; --paper:#FAF7F1; --paper2:#F1EADD; --card:#FFFFFF;
+    --pine:#1E5B52; --pine-deep:#163F39; --muted:#6E665B; --line:#E5DCCD; --honey:#C2853A;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+    color:var(--ink); background:var(--paper); font-family:var(--sans);
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  #ml-root *{box-sizing:border-box; margin:0; padding:0;}
+  #ml-root .wrap{max-width:1080px; margin:0 auto; padding:0 28px;}
+  #ml-root .band{padding:92px 0; border-bottom:1px solid var(--line);}
+  #ml-root a{color:inherit; text-decoration:none;}
+  #ml-root .eyebrow{font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--pine);}
+  #ml-root h2.title{font-size:clamp(28px,3.4vw,40px); font-weight:800; letter-spacing:-.02em; line-height:1.08; margin:14px 0 0;}
+  #ml-root p.lede{font-size:17px; color:var(--muted); max-width:54ch; margin-top:16px;}
+
+  /* buttons */
+  #ml-root .btn{display:inline-block; font-weight:700; font-size:15px; padding:13px 22px; border-radius:10px; transition:transform .12s ease, background .12s ease; border:1.5px solid transparent;}
+  #ml-root .btn-primary{background:var(--pine); color:#fff;}
+  #ml-root .btn-primary:hover{background:var(--pine-deep);}
+  #ml-root .btn-ghost{border-color:var(--ink); color:var(--ink);}
+  #ml-root .btn-ghost:hover{background:var(--ink); color:var(--paper);}
+  #ml-root .btn:focus-visible{outline:3px solid var(--honey); outline-offset:2px;}
+
+  /* header */
+  #ml-root .nav{position:sticky; top:0; z-index:20; background:rgba(250,247,241,.86); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
+  #ml-root .nav .wrap{display:flex; align-items:center; justify-content:space-between; height:64px;}
+  #ml-root .mark{font-size:22px; font-weight:800; letter-spacing:-.03em;}
+  #ml-root .mark b{color:var(--pine); font-weight:800;}
+  #ml-root .nav nav{display:flex; gap:28px; align-items:center;}
+  #ml-root .nav nav a{font-size:14.5px; font-weight:500; color:var(--muted);}
+  #ml-root .nav nav a:hover{color:var(--ink);}
+  #ml-root .nav .btn{padding:9px 16px; font-size:14px;}
+  @media(max-width:760px){#ml-root .nav nav a:not(.btn){display:none;}}
+
+  /* hero */
+  #ml-root .hero{padding:84px 0 92px;}
+  #ml-root .hero .wrap{display:grid; grid-template-columns:1.05fr .95fr; gap:54px; align-items:center;}
+  #ml-root .hero h1{font-size:clamp(34px,5vw,58px); font-weight:800; letter-spacing:-.03em; line-height:1.02;}
+  #ml-root .hero h1 .em{color:var(--pine);}
+  #ml-root .hero p{font-size:18px; color:var(--muted); margin-top:22px; max-width:46ch;}
+  #ml-root .hero .cta-row{margin-top:30px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;}
+  #ml-root .hero .fineprint{font-size:13.5px; color:var(--muted); margin-top:16px;}
+  @media(max-width:860px){#ml-root .hero .wrap{grid-template-columns:1fr; gap:40px;}}
+
+  /* signature visual: menu -> site */
+  #ml-root .stage{position:relative; min-height:340px;}
+  #ml-root .menucard{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:26px 26px 30px; box-shadow:0 18px 40px -22px rgba(33,28,22,.45); transform:rotate(-2deg); position:relative; z-index:2; max-width:340px;}
+  #ml-root .menucard .mc-h{text-align:center; border-bottom:2px solid var(--ink); padding-bottom:12px; margin-bottom:14px;}
+  #ml-root .menucard .mc-h .nm{font-family:var(--serif); font-size:19px; letter-spacing:.12em; text-transform:uppercase;}
+  #ml-root .menucard .mc-h .sub{font-family:var(--serif); font-style:italic; color:var(--muted); font-size:12.5px; margin-top:3px;}
+  #ml-root .menucard .sec{font-family:var(--serif); font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--pine); margin:14px 0 8px;}
+  #ml-root .row{display:flex; align-items:baseline; font-family:var(--serif); font-size:14px; gap:6px; margin:7px 0;}
+  #ml-root .row .d{flex:1; border-bottom:1.5px dotted #C9BFAE; transform:translateY(-3px);}
+  #ml-root .row .pr{color:var(--ink);}
+  #ml-root .row .tag{font-size:9px; font-family:var(--sans); font-weight:700; letter-spacing:.06em; color:var(--honey); border:1px solid var(--honey); border-radius:4px; padding:1px 4px; margin-left:6px;}
+  #ml-root .browser{position:absolute; right:0; bottom:0; width:60%; min-width:230px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 24px 50px -20px rgba(33,28,22,.5); transform:rotate(2deg); z-index:3;}
+  #ml-root .browser .bar{height:26px; background:var(--paper2); display:flex; align-items:center; gap:5px; padding:0 10px; border-bottom:1px solid var(--line);}
+  #ml-root .browser .bar i{width:8px; height:8px; border-radius:50%; background:#CDBFA9; display:block;}
+  #ml-root .browser .shot{height:150px; background:linear-gradient(180deg,#2a2320,#43332b); position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff;}
+  #ml-root .browser .shot .wm{font-family:var(--serif); letter-spacing:.2em; font-size:13px;}
+  #ml-root .browser .shot .tl{font-family:var(--serif); font-style:italic; font-size:10px; opacity:.85; margin-top:4px;}
+  #ml-root .browser .shot .pill{margin-top:10px; font-size:8.5px; font-weight:700; letter-spacing:.1em; border:1px solid rgba(255,255,255,.6); border-radius:5px; padding:4px 9px;}
+  #ml-root .arrow{position:absolute; left:46%; top:42%; font-size:30px; color:var(--pine); z-index:4; transform:translate(-50%,-50%);}
+  #ml-root .stage-cap{position:absolute; left:0; bottom:-30px; font-size:12.5px; color:var(--muted); font-style:italic; font-family:var(--serif);}
+
+  /* upload / wow band */
+  #ml-root .wow{background:var(--ink); color:var(--paper); border-bottom:none;}
+  #ml-root .wow .eyebrow{color:#9FC6BD;}
+  #ml-root .wow h2.title{color:var(--paper);}
+  #ml-root .wow p.lede{color:#C9C0B2;}
+  #ml-root .wow .grid{display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center;}
+  #ml-root .drop{border:2px dashed #4B443B; border-radius:14px; padding:30px; text-align:center; background:#2A241E;}
+  #ml-root .drop .ic{font-size:30px;}
+  #ml-root .drop .big{font-weight:700; font-size:16px; margin-top:10px;}
+  #ml-root .drop .sm{font-size:13px; color:#A89E8F; margin-top:6px;}
+  #ml-root .steps2{font-family:var(--serif);}
+  #ml-root .steps2 .r{display:flex; align-items:baseline; gap:8px; font-size:15.5px; padding:11px 0; border-bottom:1px solid #3A332B;}
+  #ml-root .steps2 .r .d{flex:1; border-bottom:1.5px dotted #4B443B; transform:translateY(-4px);}
+  #ml-root .steps2 .r .v{color:#9FC6BD; font-weight:700; font-family:var(--sans); font-size:13px; letter-spacing:.04em;}
+  @media(max-width:760px){#ml-root .wow .grid{grid-template-columns:1fr; gap:30px;}}
+
+  /* templates */
+  #ml-root .tpl-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:40px;}
+  #ml-root .tpl{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--card); transition:transform .15s ease, box-shadow .15s ease;}
+  #ml-root .tpl:hover{transform:translateY(-4px); box-shadow:0 22px 44px -26px rgba(33,28,22,.5);}
+  #ml-root .tpl .pv{height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;}
+  #ml-root .tpl .pv .wm{letter-spacing:.18em; font-size:13px;}
+  #ml-root .tpl .pv .tl{font-size:10px; font-style:italic; margin-top:5px; opacity:.9;}
+  #ml-root .tpl.linen .pv{background:linear-gradient(180deg,#2a2320,#48362c); color:#F3EBDD; font-family:var(--serif);}
+  #ml-root .tpl.olive .pv{background:#AEB89A; color:#33402c; font-family:var(--serif);}
+  #ml-root .tpl.slate .pv{background:#EDEFF1; color:#33414c; font-family:var(--serif); border-bottom:1px solid var(--line);}
+  #ml-root .tpl .meta{padding:16px 18px;}
+  #ml-root .tpl .meta .nm{font-weight:700; font-size:16px;}
+  #ml-root .tpl .meta .ds{font-size:13.5px; color:var(--muted); margin-top:4px;}
+  @media(max-width:760px){#ml-root .tpl-grid{grid-template-columns:1fr; gap:18px;}}
+
+  /* how it works */
+  #ml-root .how .steps{margin-top:36px;}
+  #ml-root .how .s{display:grid; grid-template-columns:46px 1fr auto; gap:18px; align-items:baseline; padding:22px 0; border-bottom:1px solid var(--line);}
+  #ml-root .how .s .n{font-family:var(--serif); font-size:30px; color:var(--pine); line-height:1;}
+  #ml-root .how .s .nm{font-size:19px; font-weight:700;}
+  #ml-root .how .s .ds{font-size:14.5px; color:var(--muted); margin-top:4px; max-width:60ch;}
+  #ml-root .how .s .t{font-size:13px; color:var(--muted); font-style:italic; font-family:var(--serif); white-space:nowrap;}
+  @media(max-width:680px){#ml-root .how .s{grid-template-columns:36px 1fr;} #ml-root .how .s .t{display:none;}}
+
+  /* pricing */
+  #ml-root .price{background:var(--paper2); text-align:center;}
+  #ml-root .price .card{background:var(--card); border:1px solid var(--line); border-radius:16px; max-width:420px; margin:34px auto 0; padding:34px 30px; box-shadow:0 18px 40px -28px rgba(33,28,22,.4);}
+  #ml-root .price .amt{font-size:46px; font-weight:800; letter-spacing:-.03em; margin-top:6px;}
+  #ml-root .price .amt span{font-size:16px; font-weight:600; color:var(--muted);}
+  #ml-root .price .ph{font-size:12px; color:var(--honey); font-weight:700; letter-spacing:.08em; text-transform:uppercase;}
+  #ml-root .price ul{list-style:none; text-align:left; max-width:260px; margin:20px auto 26px;}
+  #ml-root .price li{font-size:14.5px; padding:7px 0 7px 26px; position:relative; color:var(--ink);}
+  #ml-root .price li:before{content:"✓"; position:absolute; left:0; color:var(--pine); font-weight:800;}
+
+  /* final cta */
+  #ml-root .final{text-align:center; background:var(--pine); color:#fff; border-bottom:none;}
+  #ml-root .final h2{font-size:clamp(28px,3.6vw,42px); font-weight:800; letter-spacing:-.02em;}
+  #ml-root .final p{color:#CDE3DD; margin-top:14px; font-size:17px;}
+  #ml-root .final .btn-primary{background:#fff; color:var(--pine); margin-top:26px;}
+  #ml-root .final .btn-primary:hover{background:var(--paper);}
+
+  /* footer */
+  #ml-root .foot{background:var(--ink); color:#B7AE9F; padding:40px 0; border:none;}
+  #ml-root .foot .wrap{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;}
+  #ml-root .foot .mark{color:var(--paper);}
+  #ml-root .foot a{color:#B7AE9F; font-size:14px; margin-left:22px;}
+  #ml-root .foot a:hover{color:var(--paper);}
+
+  @media(prefers-reduced-motion:reduce){#ml-root *{transition:none!important;}}
+</style>
+
+<!-- NAV -->
+<header class="nav">
+  <div class="wrap">
+    <div class="mark">menu<b>like</b></div>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#templates">Templates</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#start" class="btn btn-primary">Start free</a>
+    </nav>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <h1>Start with your <span class="em">menu</span>,<br>not a blank page.</h1>
+      <p>menulike turns the menu you already have — even a PDF — into a beautiful website for your restaurant. Pick a look, bring your menu, publish. You can do it this afternoon.</p>
+      <div class="cta-row">
+        <a href="#start" class="btn btn-primary">Build your site</a>
+        <a href="#templates" class="btn btn-ghost">See the templates</a>
+      </div>
+      <div class="fineprint">No designer. No code. No commission on anything you sell.</div>
+    </div>
+    <div class="stage">
+      <div class="menucard">
+        <div class="mc-h"><div class="nm">Porto Azzurro</div><div class="sub">Authentic Italian by the harbour</div></div>
+        <div class="sec">Pizzas</div>
+        <div class="row"><span>Margherita</span><span class="d"></span><span class="pr">23</span></div>
+        <div class="row"><span>Capricciosa</span><span class="d"></span><span class="pr">26</span></div>
+        <div class="sec">Insalate</div>
+        <div class="row"><span>Nostra Salad</span><span class="tag">VGN</span><span class="d"></span><span class="pr">14</span></div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="browser">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <div class="shot"><div class="wm">PORTO AZZURRO</div><div class="tl">Authentic Italian by the harbour</div><div class="pill">VIEW MENU</div></div>
+      </div>
+      <div class="stage-cap">your menu → your website</div>
+    </div>
+  </div>
+</section>
+
+<!-- WOW: upload -->
+<section class="band wow">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <div class="eyebrow">The magic part</div>
+        <h2 class="title">Already have a menu? Upload it.</h2>
+        <p class="lede">Drop in your existing menu — a PDF, a photo, whatever you've got — and menulike reads it into a real, editable menu. Sections, dishes, prices, dietary tags, all of it. No retyping.</p>
+      </div>
+      <div>
+        <div class="drop">
+          <div class="ic">⬆️</div>
+          <div class="big">Drop your menu PDF here</div>
+          <div class="sm">…and watch it become your site</div>
+        </div>
+        <div class="steps2" style="margin-top:22px;">
+          <div class="r"><span>We read your sections &amp; dishes</span><span class="d"></span><span class="v">automatic</span></div>
+          <div class="r"><span>You tidy anything that needs it</span><span class="d"></span><span class="v">in minutes</span></div>
+          <div class="r"><span>Publish to web — and print later</span><span class="d"></span><span class="v">one place</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TEMPLATES -->
+<section class="band" id="templates">
+  <div class="wrap">
+    <div class="eyebrow">Pick a look</div>
+    <h2 class="title">A look that fits your place.</h2>
+    <p class="lede">Choose a template and it's yours — your menu, your photos, your words. Switch any time; your menu carries over.</p>
+    <div class="tpl-grid">
+      <div class="tpl linen">
+        <div class="pv"><div class="wm">LINEN</div><div class="tl">warm · evening · intimate</div></div>
+        <div class="meta"><div class="nm">Linen</div><div class="ds">Candle-lit and classic. For trattorias, wine bars, date-night rooms.</div></div>
+      </div>
+      <div class="tpl olive">
+        <div class="pv"><div class="wm">OLIVE</div><div class="tl">bright · editorial · fresh</div></div>
+        <div class="meta"><div class="nm">Olive</div><div class="ds">Airy and artisanal. For daytime, coastal, produce-led kitchens.</div></div>
+      </div>
+      <div class="tpl slate">
+        <div class="pv"><div class="wm">SLATE</div><div class="tl">clean · modern · minimal</div></div>
+        <div class="meta"><div class="nm">Slate</div><div class="ds">Crisp and contemporary. For cafés, bistros, anything pared-back.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="band how" id="how">
+  <div class="wrap">
+    <div class="eyebrow">How it works</div>
+    <h2 class="title">Three steps to live.</h2>
+    <div class="steps">
+      <div class="s"><div class="n">1</div><div><div class="nm">Pick your look</div><div class="ds">Choose Linen, Olive or Slate. You can change your mind whenever you like.</div></div><div class="t">~ 1 minute</div></div>
+      <div class="s"><div class="n">2</div><div><div class="nm">Bring your menu</div><div class="ds">Upload your PDF and it becomes an editable menu. Add your hours, story and photos.</div></div><div class="t">~ an afternoon</div></div>
+      <div class="s"><div class="n">3</div><div><div class="nm">Publish</div><div class="ds">Go live on your own web address. Update a price or swap a seasonal menu in seconds.</div></div><div class="t">one click</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="band price" id="pricing">
+  <div class="wrap">
+    <div class="eyebrow">Simple pricing</div>
+    <h2 class="title">One price. No commissions, ever.</h2>
+    <div class="card">
+      <div class="ph">Placeholder — set your price</div>
+      <div class="amt">$29<span> / month</span></div>
+      <ul>
+        <li>Every template</li>
+        <li>Menu import from PDF</li>
+        <li>Your own web address</li>
+        <li>Unlimited menu updates</li>
+        <li>No commission on orders or bookings</li>
+      </ul>
+      <a href="#start" class="btn btn-primary" style="width:100%;">Start free</a>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="band final" id="start">
+  <div class="wrap">
+    <h2>Bring your menu to life.</h2>
+    <p>Set up your restaurant's website today — starting with the menu you already have.</p>
+    <a href="#" class="btn btn-primary">Build your site</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="foot">
+  <div class="wrap">
+    <div class="mark">menu<b style="color:#9FC6BD;">like</b></div>
+    <div>
+      <a href="#templates">Templates</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#start">Start</a>
+    </div>
+  </div>
+</footer>
+</div>

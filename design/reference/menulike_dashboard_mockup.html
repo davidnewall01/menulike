@@ -1,0 +1,234 @@
+<!-- menulike owner dashboard — design mockup. Self-contained. State shown: just after signup+naming, everything still sample. -->
+<div id="dash-root">
+<style>
+  #dash-root{
+    --ink:#211C16; --paper:#FAF7F1; --paper2:#F1EADD; --card:#FFFFFF;
+    --pine:#1E5B52; --pine-deep:#163F39; --muted:#6E665B; --line:#E5DCCD; --honey:#C2853A;
+    --sample-bg:#F6ECD8; --sample-tx:#946420; --sample-bd:#E4CFA6;
+    --done-bg:#E3F0EC; --done-tx:#1E5B52;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+    color:var(--ink); background:var(--paper); font-family:var(--sans); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  #dash-root *{box-sizing:border-box; margin:0; padding:0;}
+  #dash-root .wrap{max-width:1060px; margin:0 auto; padding:0 26px;}
+  #dash-root a{color:inherit; text-decoration:none;}
+
+  /* top chrome */
+  #dash-root .top{background:var(--ink); color:var(--paper);}
+  #dash-root .top .wrap{display:flex; align-items:center; justify-content:space-between; height:54px;}
+  #dash-root .top .mark{font-size:19px; font-weight:800; letter-spacing:-.03em;}
+  #dash-root .top .mark b{color:#9FC6BD;}
+  #dash-root .top .acct{font-size:13.5px; color:#C9C0B2; display:flex; gap:18px; align-items:center;}
+  #dash-root .top .acct a:hover{color:#fff;}
+
+  /* header */
+  #dash-root .head{padding:30px 0 8px;}
+  #dash-root .head .wrap{display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+  #dash-root .head h1{font-size:30px; font-weight:800; letter-spacing:-.02em;}
+  #dash-root .head .sub{color:var(--muted); font-size:14.5px; margin-top:3px;}
+  #dash-root .head .right{display:flex; gap:12px; align-items:center; flex-wrap:wrap;}
+  #dash-root .chip{display:inline-flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; padding:9px 14px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--ink);}
+  #dash-root .chip .sw{width:13px; height:13px; border-radius:3px; background:linear-gradient(135deg,#43332b,#6e554a);}
+  #dash-root .chip:hover{border-color:#cdbfa9;}
+  #dash-root .btn-view{display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:700; padding:10px 18px; border-radius:9px; background:var(--pine); color:#fff;}
+  #dash-root .btn-view:hover{background:var(--pine-deep);}
+
+  /* orientation banner */
+  #dash-root .orient{margin:18px 0 6px;}
+  #dash-root .orient .box{background:var(--paper2); border:1px solid var(--line); border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;}
+  #dash-root .orient .msg{font-size:14.5px; max-width:62ch;}
+  #dash-root .orient .msg b{font-weight:700;}
+  #dash-root .orient .prog{min-width:180px;}
+  #dash-root .orient .prog .lab{font-size:12px; color:var(--muted); font-weight:600; margin-bottom:6px; text-align:right;}
+  #dash-root .orient .bar{height:8px; border-radius:5px; background:#E2D6C4; overflow:hidden;}
+  #dash-root .orient .bar i{display:block; height:100%; width:12%; background:var(--pine); border-radius:5px;}
+
+  /* section labels */
+  #dash-root .seclab{display:flex; align-items:baseline; gap:10px; margin:30px 0 14px;}
+  #dash-root .seclab h2{font-size:13px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--pine);}
+  #dash-root .seclab .hint{font-size:13px; color:var(--muted);}
+
+  /* tiles */
+  #dash-root .grid{display:grid; gap:18px;}
+  #dash-root .grid.core{grid-template-columns:1fr 1fr;}
+  #dash-root .grid.rest{grid-template-columns:1fr 1fr 1fr 1fr;}
+  @media(max-width:840px){#dash-root .grid.core{grid-template-columns:1fr;} #dash-root .grid.rest{grid-template-columns:1fr 1fr;}}
+  @media(max-width:520px){#dash-root .grid.rest{grid-template-columns:1fr;}}
+
+  #dash-root .tile{background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; transition:transform .14s ease, box-shadow .14s ease;}
+  #dash-root .tile:hover{transform:translateY(-3px); box-shadow:0 18px 38px -26px rgba(33,28,22,.5);}
+  #dash-root .tile.is-core{border-color:#D9C9AE;}
+  #dash-root .tile .body{padding:18px 18px 16px; display:flex; flex-direction:column; flex:1;}
+  #dash-root .tile .thead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;}
+  #dash-root .tile .tname{font-size:16.5px; font-weight:700;}
+  #dash-root .tile.is-core .tname{font-size:18px;}
+  #dash-root .tile .tdesc{font-size:13px; color:var(--muted); margin-top:auto; padding-top:12px;}
+  #dash-root .tile .cta{margin-top:12px;}
+  #dash-root .tile .cta a{display:inline-block; font-size:13.5px; font-weight:700; padding:9px 15px; border-radius:8px;}
+  #dash-root .tile .cta .primary{background:var(--pine); color:#fff;}
+  #dash-root .tile .cta .primary:hover{background:var(--pine-deep);}
+  #dash-root .tile .cta .ghost{border:1.5px solid var(--ink); color:var(--ink);}
+  #dash-root .tile .cta .ghost:hover{background:var(--ink); color:var(--paper);}
+
+  /* status chips */
+  #dash-root .st{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:4px 9px; border-radius:20px; white-space:nowrap;}
+  #dash-root .st.sample{background:var(--sample-bg); color:var(--sample-tx); border:1px solid var(--sample-bd);}
+  #dash-root .st.yours{background:var(--done-bg); color:var(--done-tx);}
+  #dash-root .st .d{width:7px; height:7px; border-radius:50%;}
+  #dash-root .st.sample .d{background:var(--honey);}
+  #dash-root .st.yours .d{background:var(--pine);}
+
+  /* mini previews */
+  #dash-root .pv{border-radius:9px; overflow:hidden; border:1px solid var(--line); position:relative;}
+  #dash-root .pv.photo{height:104px; background:linear-gradient(135deg,#cdbfa9,#a89684); display:flex; align-items:center; justify-content:center;}
+  #dash-root .pv.photo.tall{height:120px;}
+  #dash-root .wmk{font-size:11px; font-weight:800; letter-spacing:.22em; color:rgba(255,255,255,.92); border:1.5px solid rgba(255,255,255,.7); padding:4px 10px; border-radius:5px; transform:rotate(-6deg); text-shadow:0 1px 2px rgba(0,0,0,.25);}
+  #dash-root .pv.menu{padding:12px 14px; background:#FBF8F2;}
+  #dash-root .pv.menu .mtabs{display:flex; gap:6px; margin-bottom:9px;}
+  #dash-root .pv.menu .mtabs span{font-family:var(--serif); font-size:10.5px; letter-spacing:.06em; padding:2px 8px; border:1px solid var(--line); border-radius:20px; color:var(--muted);}
+  #dash-root .pv.menu .mtabs span.on{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  #dash-root .pv.menu .mr{display:flex; align-items:baseline; font-family:var(--serif); font-size:12px; gap:5px; margin:5px 0;}
+  #dash-root .pv.menu .mr .d{flex:1; border-bottom:1.5px dotted #cabfa e; transform:translateY(-3px);}
+  #dash-root .pv.menu .mr .d{border-bottom:1.5px dotted #cabfae;}
+  #dash-root .pv.story{padding:13px 15px; background:#FBF8F2;}
+  #dash-root .pv.story .ln{height:7px; border-radius:4px; background:#E7DCCB; margin:7px 0;}
+  #dash-root .pv.gal{display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; padding:0;}
+  #dash-root .pv.gal .sq{height:50px; background:linear-gradient(135deg,#cdbfa9,#b6a album);}
+  #dash-root .pv.gal .sq{background:linear-gradient(135deg,#cdbfa9,#a89684); display:flex; align-items:center; justify-content:center;}
+  #dash-root .pv.gal .sq .wmk{font-size:7.5px; letter-spacing:.12em; padding:2px 4px; transform:rotate(-8deg);}
+  #dash-root .pv.visit{padding:13px 15px; background:#FBF8F2; font-size:12.5px;}
+  #dash-root .pv.visit .vr{display:flex; gap:8px; align-items:center; margin:6px 0; color:var(--muted);}
+  #dash-root .pv.visit .vr .k{width:54px; color:var(--ink); font-weight:600;}
+  #dash-root .pv.visit .tick{color:var(--pine); font-weight:800;}
+  #dash-root .pv.events{padding:18px 15px; background:#FBF8F2; text-align:center; color:var(--muted); font-size:12.5px; font-style:italic; font-family:var(--serif);}
+
+  /* publish bar */
+  #dash-root .publish{margin:34px 0 50px;}
+  #dash-root .publish .box{background:var(--ink); color:var(--paper); border-radius:14px; padding:24px 26px; display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+  #dash-root .publish h3{font-size:19px; font-weight:800;}
+  #dash-root .publish p{font-size:13.5px; color:#C9C0B2; margin-top:6px; max-width:52ch;}
+  #dash-root .publish .need{font-size:12.5px; color:#9FC6BD; margin-top:9px;}
+  #dash-root .publish .need b{color:#fff;}
+  #dash-root .publish .pbtn{font-size:15px; font-weight:800; padding:14px 26px; border-radius:10px; background:#4B443B; color:#9c948a; cursor:not-allowed; white-space:nowrap; border:none;}
+
+  @media(prefers-reduced-motion:reduce){#dash-root *{transition:none!important;}}
+</style>
+
+<!-- top chrome -->
+<div class="top"><div class="wrap">
+  <div class="mark">menu<b>like</b></div>
+  <div class="acct"><span>Porto Azzurro</span><a href="#">Account</a><a href="#">Log out</a></div>
+</div></div>
+
+<!-- header -->
+<div class="head"><div class="wrap">
+  <div>
+    <h1>Porto Azzurro</h1>
+    <div class="sub">Your menulike site · not published yet</div>
+  </div>
+  <div class="right">
+    <a href="#" class="chip"><span class="sw"></span> Look: Linen <span style="color:var(--muted);">▾</span></a>
+    <a href="#" class="btn-view">View your sample site ↗</a>
+  </div>
+</div></div>
+
+<!-- orientation -->
+<div class="orient"><div class="wrap"><div class="box">
+  <div class="msg"><b>Your site is already live with sample content.</b> Replace each sample with your own — your menu, your photos, your words — then publish when the essentials are yours. Pop over to your sample site any time to see how it looks.</div>
+  <div class="prog">
+    <div class="lab">1 of 6 made yours</div>
+    <div class="bar"><i></i></div>
+  </div>
+</div></div></div>
+
+<div class="wrap">
+
+  <!-- CORE -->
+  <div class="seclab"><h2>Start here</h2><span class="hint">The two that matter most</span></div>
+  <div class="grid core">
+
+    <!-- Menu (the wow) -->
+    <div class="tile is-core">
+      <div class="body">
+        <div class="thead"><span class="tname">Your menu</span><span class="st sample"><span class="d"></span> Showing samples</span></div>
+        <div class="pv menu">
+          <div class="mtabs"><span class="on">Dinner</span><span>Lunch</span><span>Drinks</span></div>
+          <div class="mr"><span>Margherita</span><span class="d"></span><span>23</span></div>
+          <div class="mr"><span>Linguini Gamberi</span><span class="d"></span><span>36</span></div>
+          <div class="mr"><span>Tiramisu</span><span class="d"></span><span>14</span></div>
+        </div>
+        <div class="tdesc">Three sample menus are showing — Dinner, Lunch &amp; Drinks. Upload your real menu (even a PDF) and it replaces them in seconds.</div>
+        <div class="cta"><a href="#" class="primary">⬆ Upload your menu</a></div>
+      </div>
+    </div>
+
+    <!-- Home & photos -->
+    <div class="tile is-core">
+      <div class="body">
+        <div class="thead"><span class="tname">Home &amp; photos</span><span class="st sample"><span class="d"></span> Showing samples</span></div>
+        <div class="pv photo tall"><span class="wmk">SAMPLE</span></div>
+        <div class="tdesc">Your hero image and tagline are samples right now. Add a great photo of your room or a dish to make the front page yours.</div>
+        <div class="cta"><a href="#" class="primary">Add your photos</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REST -->
+  <div class="seclab"><h2>The rest of your site</h2><span class="hint">Fill these in whenever you like</span></div>
+  <div class="grid rest">
+
+    <div class="tile">
+      <div class="body">
+        <div class="thead"><span class="tname">Our Story</span><span class="st sample"><span class="d"></span> Sample</span></div>
+        <div class="pv story"><div class="ln" style="width:96%;"></div><div class="ln" style="width:88%;"></div><div class="ln" style="width:70%;"></div></div>
+        <div class="tdesc">A placeholder story is showing. Tell people who you are.</div>
+        <div class="cta"><a href="#" class="ghost">Write your story</a></div>
+      </div>
+    </div>
+
+    <div class="tile">
+      <div class="body">
+        <div class="thead"><span class="tname">Visit &amp; hours</span><span class="st yours"><span class="d"></span> Partly yours</span></div>
+        <div class="pv visit">
+          <div class="vr"><span class="k">Name</span><span class="tick">✓</span> Porto Azzurro</div>
+          <div class="vr"><span class="k">Address</span> <span style="font-style:italic;">sample…</span></div>
+          <div class="vr"><span class="k">Hours</span> <span style="font-style:italic;">sample…</span></div>
+        </div>
+        <div class="tdesc">We've got your name. Add your address &amp; hours.</div>
+        <div class="cta"><a href="#" class="ghost">Add your details</a></div>
+      </div>
+    </div>
+
+    <div class="tile">
+      <div class="body">
+        <div class="thead"><span class="tname">Gallery</span><span class="st sample"><span class="d"></span> Sample</span></div>
+        <div class="pv gal"><div class="sq"><span class="wmk">SAMPLE</span></div><div class="sq"><span class="wmk">SAMPLE</span></div><div class="sq"><span class="wmk">SAMPLE</span></div></div>
+        <div class="tdesc">Show off your dishes and space.</div>
+        <div class="cta"><a href="#" class="ghost">Add photos</a></div>
+      </div>
+    </div>
+
+    <div class="tile">
+      <div class="body">
+        <div class="thead"><span class="tname">Events</span><span class="st sample"><span class="d"></span> Sample</span></div>
+        <div class="pv events">“Live music every Friday…”<br>(sample event)</div>
+        <div class="tdesc">Part of the Linen template. Add your own, or hide this page.</div>
+        <div class="cta"><a href="#" class="ghost">Add an event</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- publish -->
+  <div class="publish"><div class="box">
+    <div>
+      <h3>Ready to go live?</h3>
+      <p>When you publish, your site shows <b style="color:#fff;">only your own content</b> — every remaining sample is dropped automatically. Nothing marked “sample” ever reaches the public.</p>
+      <div class="need">Replace your core samples first: <b>Your menu</b> · <b>Home &amp; photos</b></div>
+    </div>
+    <button class="pbtn">Publish site</button>
+  </div></div>
+
+</div>
+</div>

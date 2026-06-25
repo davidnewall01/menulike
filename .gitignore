@@ -19,3 +19,6 @@ Thumbs.db
 
 # Tailwind standalone CLI (local dev tool, not deployed)
 tools/
+
+# Deploy backups / logs (local only)
+scripts/backups/

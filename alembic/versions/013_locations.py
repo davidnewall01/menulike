@@ -1,9 +1,9 @@
-"""013 — Location entity + re-parent hours to location.
+"""013 — Location entity + re-parent hours to location (expand step).
 
 Creates the `location` table, backfills one default Location per site
-from Site.address_*/phone/email, adds location_id FK to regular_hours
-and hours_exceptions, backfills location_id from site_id join, then
-sets location_id NOT NULL.
+from Site.address_*/phone/email, adds nullable location_id FK to
+regular_hours and hours_exceptions, backfills location_id from site_id
+join. The NOT NULL constraint is applied in 014 (contract step).
 
 Revision ID: 013
 Revises: 012

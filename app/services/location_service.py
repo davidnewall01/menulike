@@ -8,7 +8,9 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.context import AuthContext
 from app.models.location import Location
-from app.services.exceptions import LocationNotFound, NoSiteInScope
+from sqlalchemy import func
+
+from app.services.exceptions import CannotDeleteLastLocation, LocationNotFound, NoSiteInScope
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +156,20 @@ async def delete_location(
     db: AsyncSession, auth_ctx: AuthContext,
     location_id: uuid.UUID,
 ) -> None:
-    """Delete a location. Scoped-load first (IDOR gate). Flush only."""
+    """Delete a location. Scoped-load first (IDOR gate). Flush only.
+
+    Refuses to delete the site's last remaining location — a site must
+    always have at least one.
+    """
     loc = await get_owner_location(db, auth_ctx, location_id)
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Location)
+        .where(Location.site_id == auth_ctx.scoped_site_id)
+    )
+    if count_result.scalar_one() <= 1:
+        raise CannotDeleteLastLocation("A site must have at least one location")
+
     await db.delete(loc)
     await db.flush()

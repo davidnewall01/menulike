@@ -25,6 +25,7 @@ from app.services.hours_service import HoursRangeNotFound
 from app.services.hours_exception_service import HoursExceptionNotFound, InvalidDateRange
 from app.services.storage import public_url as storage_public_url
 from app.services.exceptions import (
+    CannotDeleteLastLocation,
     ContentBlockNotFound,
     EmptyBlock,
     InvalidImage,
@@ -2545,8 +2546,6 @@ async def our_story_move(
 # Hours
 # ---------------------------------------------------------------------------
 
-DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-
 
 def _hours_by_day(hours_list):
     """Group hours into {day_of_week: [RegularHours, ...]}."""
@@ -2566,7 +2565,7 @@ async def visit_page(
         return _render(
             request, "admin/visit.html", auth,
             locations=[], is_internal_admin=True,
-            day_names=DAY_NAMES,
+            day_names=_DAY_NAMES,
             google_places_key=settings.GOOGLE_MAPS_API_KEY,
             multi_location_enabled=settings.MULTI_LOCATION_ENABLED,
         )
@@ -2593,7 +2592,7 @@ async def visit_page(
         request, "admin/visit.html", auth,
         locations=loc_data,
         is_internal_admin=False,
-        day_names=DAY_NAMES,
+        day_names=_DAY_NAMES,
         google_places_key=settings.GOOGLE_MAPS_API_KEY,
         multi_location_enabled=settings.MULTI_LOCATION_ENABLED,
     )
@@ -2687,6 +2686,8 @@ async def visit_remove_location(
         raise HTTPException(status_code=400, detail="No site in scope")
     except LocationNotFound:
         raise HTTPException(status_code=400, detail="Location not found")
+    except CannotDeleteLastLocation:
+        raise HTTPException(status_code=400, detail="A site must have at least one location")
 
     return RedirectResponse(url="/admin/visit", status_code=303)
 
@@ -2707,7 +2708,7 @@ async def hours_page(
     if auth.is_internal_admin:
         return _render(
             request, "admin/hours.html", auth,
-            hours_by_day={}, day_names=DAY_NAMES, is_internal_admin=True,
+            hours_by_day={}, day_names=_DAY_NAMES, is_internal_admin=True,
             exceptions=[],
         )
 
@@ -2719,7 +2720,7 @@ async def hours_page(
 
     return _render(
         request, "admin/hours.html", auth,
-        hours_by_day=_hours_by_day(hours), day_names=DAY_NAMES,
+        hours_by_day=_hours_by_day(hours), day_names=_DAY_NAMES,
         is_internal_admin=False, exceptions=exceptions,
     )
 
@@ -2743,19 +2744,21 @@ async def hours_add_range(
     if day < 0 or day > 6:
         raise HTTPException(status_code=400, detail="Invalid day")
 
-    # Optional location_id for visit-page scoping
+    # Optional location_id for visit-page scoping — fail closed on bad id
     loc_id_str = form_data.get("location_id", "")
     loc_id = None
     if loc_id_str:
         try:
             loc_id = uuid.UUID(loc_id_str)
         except (ValueError, AttributeError):
-            pass
+            raise HTTPException(status_code=400, detail="Invalid location_id")
 
     try:
         await hours_coordinator.add_range(db, auth, day, open_time, close_time, location_id=loc_id)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
+    except LocationNotFound:
+        raise HTTPException(status_code=400, detail="Location not found")
 
     day_target = form_data.get("day_target", None)
     return await _render_hours_day(request, auth, db, day, location_id=loc_id, day_target=day_target)
@@ -2828,12 +2831,12 @@ async def _render_hours_day(request, auth, db, day, location_id=None, day_target
         loc = await location_service.get_owner_location(db, auth, location_id)
         return _render(
             request, "admin/_visit_hours_day.html", auth,
-            day=day, day_name=DAY_NAMES[day], ranges=day_hours,
+            day=day, day_name=_DAY_NAMES[day], ranges=day_hours,
             day_target=day_target, loc=loc,
         )
     return _render(
         request, "admin/_hours_day.html", auth,
-        day=day, day_name=DAY_NAMES[day], ranges=day_hours,
+        day=day, day_name=_DAY_NAMES[day], ranges=day_hours,
     )
 
 
