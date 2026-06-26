@@ -39,7 +39,8 @@ function Write-Log {
     if (-not (Test-Path $BackupsDir)) {
         New-Item -ItemType Directory -Path $BackupsDir -Force | Out-Null
     }
-    Add-Content -Path $LogFile -Value $entry
+    try { Add-Content -Path $LogFile -Value $entry -ErrorAction Stop }
+    catch { <# logging is best-effort -- don't crash the deploy #> }
 
     switch ($Level) {
         "ERROR" { Write-Host $entry -ForegroundColor Red }
