@@ -5,6 +5,7 @@ Alembic imports this package so every model is registered on
 """
 
 from app.models.content_block import ContentBlock
+from app.models.custom_domain import CustomDomain
 from app.models.hours_exception import HoursException
 from app.models.location import Location
 from app.models.menu import Menu, MenuItem, MenuItemVariant, Section, Subsection
@@ -16,6 +17,7 @@ from app.models.user import User
 
 __all__ = [
     "ContentBlock",
+    "CustomDomain",
     "HoursException",
     "Location",
     "Menu",

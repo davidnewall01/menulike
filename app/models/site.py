@@ -10,6 +10,7 @@ from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.content_block import ContentBlock
+    from app.models.custom_domain import CustomDomain
     from app.models.hours_exception import HoursException
     from app.models.location import Location
     from app.models.menu import Menu
@@ -109,4 +110,9 @@ class Site(TimestampMixin, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="ContentBlock.position",
+    )
+    custom_domains: Mapped[list["CustomDomain"]] = relationship(
+        back_populates="site",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

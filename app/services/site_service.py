@@ -1,5 +1,7 @@
 """Site queries and mutations."""
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,6 +15,25 @@ from app.models.user import User
 from app.schemas.site import SiteDetailsForm
 from app.services.exceptions import AlreadyHasSite, InvalidTemplate, NoSiteInScope, SiteNotFound
 from app.web.template_resolver import AVAILABLE_TEMPLATES
+
+
+# Shared eager-load options for public-render site queries. Used by both
+# get_site_by_slug and get_site_by_id_public to avoid duplication.
+_PUBLIC_SITE_OPTIONS = (
+    selectinload(Site.menus.and_(Menu.is_published.is_(True)))
+    .selectinload(Menu.sections)
+    .selectinload(Section.subsections)
+    .selectinload(Subsection.items)
+    .selectinload(MenuItem.variants),
+    selectinload(Site.menus.and_(Menu.is_published.is_(True)))
+    .selectinload(Menu.footer_blocks),
+    selectinload(Site.locations)
+    .selectinload(Location.regular_hours),
+    selectinload(Site.locations)
+    .selectinload(Location.hours_exceptions),
+    selectinload(Site.content_blocks)
+    .selectinload(ContentBlock.image),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -29,21 +50,25 @@ async def get_site_by_slug(db: AsyncSession, slug: str) -> Site | None:
     stmt = (
         select(Site)
         .where(Site.slug == slug)
-        .options(
-            selectinload(Site.menus.and_(Menu.is_published.is_(True)))
-            .selectinload(Menu.sections)
-            .selectinload(Section.subsections)
-            .selectinload(Subsection.items)
-            .selectinload(MenuItem.variants),
-            selectinload(Site.menus.and_(Menu.is_published.is_(True)))
-            .selectinload(Menu.footer_blocks),
-            selectinload(Site.locations)
-            .selectinload(Location.regular_hours),
-            selectinload(Site.locations)
-            .selectinload(Location.hours_exceptions),
-            selectinload(Site.content_blocks)
-            .selectinload(ContentBlock.image),
-        )
+        .options(*_PUBLIC_SITE_OPTIONS)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_site_by_id_public(
+    db: AsyncSession, site_id: uuid.UUID,
+) -> Site | None:
+    """Load a site by ID with public-render eager-loading.
+
+    Same eager-loading as get_site_by_slug but keyed by site_id instead of
+    slug. Used by the custom-domain resolution path.
+    Read-only — no flush, no commit.
+    """
+    stmt = (
+        select(Site)
+        .where(Site.site_id == site_id)
+        .options(*_PUBLIC_SITE_OPTIONS)
     )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
