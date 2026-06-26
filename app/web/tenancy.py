@@ -79,7 +79,13 @@ async def resolve_tenant(
     Admin preview routes never call this (they use require_owner_site),
     so the publish gate cannot accidentally catch preview.
     """
-    raw_host = request.headers.get("host", "")
+    # Approximated sends the original hostname in apx-incoming-host;
+    # fall back to the standard Host header for direct/subdomain access.
+    raw_host = (
+        request.headers.get("apx-incoming-host")
+        or request.headers.get("host")
+        or ""
+    )
     host = normalise_host(raw_host)
 
     site: Site | None = None

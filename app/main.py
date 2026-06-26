@@ -60,12 +60,8 @@ async def site_not_published_handler(request: Request, exc: SiteNotPublished):
 
 
 @app.get("/health")
-async def health(request: Request) -> dict:
-    return {
-        "status": "ok",
-        "version": "018",
-        "headers": dict(request.headers),
-    }
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
 
 
 app.mount(
