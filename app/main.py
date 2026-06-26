@@ -60,12 +60,11 @@ async def site_not_published_handler(request: Request, exc: SiteNotPublished):
 
 
 @app.get("/health")
-async def health(request: Request) -> dict[str, str]:
+async def health(request: Request) -> dict:
     return {
         "status": "ok",
         "version": "018",
-        "host": request.headers.get("host", ""),
-        "x-forwarded-host": request.headers.get("x-forwarded-host", ""),
+        "headers": dict(request.headers),
     }
 
 
