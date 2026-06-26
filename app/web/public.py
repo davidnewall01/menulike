@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
@@ -78,6 +78,9 @@ async def gallery(
         site=site, role_images=role_images, mode="public",
         storage_url=storage_public_url,
     )
+    # No gallery photos → redirect home (gallery reappears when photos are added)
+    if view.gallery.fields["photos"].source != "real":
+        return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse(
         page_path(template, "gallery"),
         {

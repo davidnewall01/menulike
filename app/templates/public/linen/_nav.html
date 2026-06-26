@@ -11,7 +11,9 @@
       <a href="{{ nav_prefix }}/menu">Eat</a>
       <a href="{{ nav_prefix }}/menu#drinks">Drink</a>
       <a href="{{ nav_prefix }}/our-story">Our Story</a>
+      {% if render_mode != "public" or view.gallery.fields.photos.source == "real" %}
       <a href="{{ nav_prefix }}/gallery">Gallery</a>
+      {% endif %}
       <a href="{{ nav_prefix }}/visit">Visit</a>
       {% if site.booking_url %}
       <a href="{{ site.booking_url }}" class="btn btn--light nav__book">Book a Table</a>
@@ -24,7 +26,9 @@
       <a href="{{ nav_prefix }}/menu">Eat</a>
       <a href="{{ nav_prefix }}/menu#drinks">Drink</a>
       <a href="{{ nav_prefix }}/our-story">Our Story</a>
+      {% if render_mode != "public" or view.gallery.fields.photos.source == "real" %}
       <a href="{{ nav_prefix }}/gallery">Gallery</a>
+      {% endif %}
       <a href="{{ nav_prefix }}/visit">Visit</a>
       {% if site.booking_url %}
       <a href="{{ site.booking_url }}" class="btn btn--light">Book a Table</a>
