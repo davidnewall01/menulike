@@ -79,7 +79,7 @@ async def gallery(
         storage_url=storage_public_url,
     )
     # No gallery photos → redirect home (gallery reappears when photos are added)
-    if view.gallery.fields["photos"].source != "real":
+    if view["gallery"].fields["photos"].source != "real":
         return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse(
         page_path(template, "gallery"),
