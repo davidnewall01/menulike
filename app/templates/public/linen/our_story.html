@@ -11,6 +11,10 @@
     <h1 class="story-title">Our Story</h1>
   </div>
 
+  {% if render_mode == "preview" and blocks_field.source != "real" %}
+  <p style="text-align:center;margin-bottom:24px"><a href="/admin/our-story" class="preview-prompt">Add your story &rarr;</a></p>
+  {% endif %}
+
   {% if blocks %}
   <div class="story-blocks">
     {% for block in blocks %}

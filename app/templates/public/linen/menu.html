@@ -11,6 +11,9 @@
 
   {% if menus_field.source == "sample" %}
   {# No menus yet — show the sample menu partial in preview #}
+  {% if render_mode == "preview" %}
+  <p style="text-align:center;margin-bottom:24px"><a href="/admin/menu/add" class="preview-prompt">Add your menu &rarr;</a></p>
+  {% endif %}
   {% include "public/linen/_sample_menu.html" %}
 
   {% elif not menus_field.value or menus_field.value | length == 0 %}

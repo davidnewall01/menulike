@@ -1,24 +1,36 @@
 <div class="card bg-base-100 shadow-sm p-4">
-    <div class="flex items-start justify-between gap-4">
-        <h3 class="font-semibold text-sm w-24 pt-1">{{ day_name }}</h3>
-        <div class="flex-1">
+    <div class="hours-day">
+        <h3 class="hours-day__name">{{ day_name }}</h3>
+        <div class="hours-day__slots">
             {% if ranges %}
             {% for r in ranges %}
-            <div class="flex items-center gap-2 mb-2">
-                <form class="flex items-center gap-2"
+            <div class="hours-range">
+                <form class="hours-range__form"
                       hx-post="/admin/hours/{{ r.regular_hours_id }}/update"
                       hx-target="#{{ day_target }}"
-                      hx-swap="innerHTML">
+                      hx-swap="innerHTML"
+                      hx-trigger="change">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="day_of_week" value="{{ day }}">
                     <input type="hidden" name="day_target" value="{{ day_target }}">
                     <input type="hidden" name="location_id" value="{{ loc.location_id }}">
-                    <input type="time" name="open_time" value="{{ r.open_time.strftime('%H:%M') }}"
-                           class="input input-bordered input-xs w-28">
-                    <span class="text-xs text-base-content/50">to</span>
-                    <input type="time" name="close_time" value="{{ r.close_time.strftime('%H:%M') }}"
-                           class="input input-bordered input-xs w-28">
-                    <button type="submit" class="btn btn-outline btn-xs">Save</button>
+                    <select name="open_time" class="hours-select">
+                        {% for h in range(0, 24) %}{% for m in [0, 30] %}
+                        {% set tv = "%02d:%02d"|format(h, m) %}
+                        {% set hr = h % 12 if h % 12 else 12 %}
+                        {% set ap = "AM" if h < 12 else "PM" %}
+                        <option value="{{ tv }}" {% if tv == r.open_time.strftime('%H:%M') %}selected{% endif %}>{{ hr }}:{{ "%02d"|format(m) }} {{ ap }}</option>
+                        {% endfor %}{% endfor %}
+                    </select>
+                    <span class="hours-to">to</span>
+                    <select name="close_time" class="hours-select">
+                        {% for h in range(0, 24) %}{% for m in [0, 30] %}
+                        {% set tv = "%02d:%02d"|format(h, m) %}
+                        {% set hr = h % 12 if h % 12 else 12 %}
+                        {% set ap = "AM" if h < 12 else "PM" %}
+                        <option value="{{ tv }}" {% if tv == r.close_time.strftime('%H:%M') %}selected{% endif %}>{{ hr }}:{{ "%02d"|format(m) }} {{ ap }}</option>
+                        {% endfor %}{% endfor %}
+                    </select>
                 </form>
                 <button class="btn btn-outline btn-error btn-xs"
                         hx-post="/admin/hours/{{ r.regular_hours_id }}/delete"
@@ -32,8 +44,7 @@
             <span class="text-sm text-base-content/40 italic">Closed</span>
             {% endif %}
         </div>
-        <form class="flex items-center gap-2"
-              hx-post="/admin/hours/add"
+        <form hx-post="/admin/hours/add"
               hx-target="#{{ day_target }}"
               hx-swap="innerHTML">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

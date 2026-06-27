@@ -383,3 +383,16 @@ async def set_published(
     site.is_published = is_published
     await db.flush()
     return site
+
+
+async def list_showcase_sites(db: AsyncSession) -> list[Site]:
+    """Return all showcase sites, ordered by showcase_position (nulls last)."""
+    result = await db.execute(
+        select(Site)
+        .where(Site.is_showcase.is_(True))
+        .order_by(
+            Site.showcase_position.asc().nullslast(),
+            Site.restaurant_name,
+        )
+    )
+    return list(result.scalars().all())

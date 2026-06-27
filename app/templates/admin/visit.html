@@ -40,6 +40,28 @@
   .loc-hours { margin-top: 16px; padding-top: 16px; border-top: 1px solid #E5DCCD; }
   .loc-hours h3 { font-size: 14px; font-weight: 700; margin: 0 0 10px; }
 
+  /* Hours day row */
+  .hours-day { display: flex; align-items: flex-start; gap: 12px; }
+  .hours-day__name { font-size: 14px; font-weight: 600; width: 90px; flex-shrink: 0; padding-top: 6px; }
+  .hours-day__slots { flex: 1; min-width: 0; }
+  .hours-range { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+  .hours-range__form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .hours-select {
+    padding: 5px 6px; font-size: 13px; border: 1px solid #D9C9AE; border-radius: 6px;
+    background: #fff; color: #3E3528; cursor: pointer;
+  }
+  .hours-select:focus { outline: none; border-color: #1E5B52; box-shadow: 0 0 0 2px rgba(30,91,82,.15); }
+  .hours-to { font-size: 12px; color: #6E665B; }
+
+  /* Mobile */
+  @media (max-width: 520px) {
+    .loc-block .row-2 { grid-template-columns: 1fr; }
+    .hours-day { flex-direction: column; gap: 4px; }
+    .hours-day__name { width: auto; padding-top: 0; }
+    .hours-range { gap: 4px; }
+    .hours-select { flex: 1; min-width: 0; }
+  }
+
   /* Autocomplete dropdown positioning */
   .pac-container { z-index: 10000 !important; }
 </style>

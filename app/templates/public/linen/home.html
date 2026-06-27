@@ -22,16 +22,25 @@
     {% else %}
     <h1 class="hero__wordmark">{{ site.restaurant_name }}</h1>
     {% endif %}
+    {% if render_mode == "preview" and logo.source != "real" %}
+    <a href="/admin/front-page" class="preview-prompt" style="margin-bottom:8px">Add your logo &rarr;</a>
+    {% endif %}
     {% if tagline.value %}
     <p class="hero__tag">
       {% if tagline.source == "sample" %}<span class="sample-badge">Sample</span> {% endif %}
       {{ tagline.value }}
     </p>
     {% endif %}
+    {% if render_mode == "preview" and tagline.source != "real" %}
+    <a href="/admin/front-page" class="preview-prompt" style="margin-bottom:12px">Add your tagline &rarr;</a>
+    {% endif %}
     <div class="hero__nav">
       <a href="{{ nav_prefix }}/menu">Eat</a>
       <a href="{{ nav_prefix }}/menu#drinks">Drink</a>
     </div>
+    {% if render_mode == "preview" and hero.source != "real" %}
+    <a href="/admin/front-page" class="preview-prompt" style="margin-top:16px">Add your hero image &rarr;</a>
+    {% endif %}
   </div>
   {% set addr = view["visit"].fields.address.value %}
   {% set contact = view["visit"].fields.contact.value %}

@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Numeric, String, Text, UUID
+from sqlalchemy import Boolean, Numeric, SmallInteger, String, Text, UUID
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -63,6 +63,14 @@ class Site(TimestampMixin, Base):
     # Publish state
     is_published: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
+    )
+
+    # Showcase (admin-owned template demo for the picker)
+    is_showcase: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    showcase_position: Mapped[int | None] = mapped_column(
+        SmallInteger, nullable=True
     )
 
     # Design config (JSONB)
