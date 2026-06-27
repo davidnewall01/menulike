@@ -385,6 +385,31 @@ async def set_published(
     return site
 
 
+async def create_showcase_site(
+    db: AsyncSession, restaurant_name: str, slug: str, template: str = "linen",
+) -> Site:
+    """Create an orphan showcase site (no bound User). Flush only."""
+    site = Site(
+        restaurant_name=restaurant_name,
+        slug=slug,
+        template=template,
+        is_showcase=True,
+        is_published=True,
+    )
+    db.add(site)
+    await db.flush()
+    return site
+
+
+async def list_all_sites(db: AsyncSession) -> list[Site]:
+    """Return ALL sites. ADMIN-ONLY picker query — do NOT reuse for
+    customer-facing metrics/counts (includes showcase sites)."""
+    result = await db.execute(
+        select(Site).order_by(Site.restaurant_name)
+    )
+    return list(result.scalars().all())
+
+
 async def list_showcase_sites(db: AsyncSession) -> list[Site]:
     """Return all showcase sites, ordered by showcase_position (nulls last)."""
     result = await db.execute(

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.core.csrf import generate_csrf_token, validate_csrf_token
-from app.core.security import decode_session
+from app.core.security import ACT_AS_COOKIE, decode_act_as, decode_session
 from app.db.session import get_db
 from app.models.user import User
 from app.services.exceptions import OwnerNeedsSetup
@@ -39,11 +39,20 @@ async def get_auth_context(
     if user is None:
         _raise_unauth(request)
 
+    # Read acting_site_id from signed act-as cookie — ONLY meaningful for
+    # internal_admin (AuthContext.scoped_site_id ignores it for owners).
+    acting_site_id = None
+    if user.role == "internal_admin":
+        act_as_token = request.cookies.get(ACT_AS_COOKIE)
+        if act_as_token:
+            acting_site_id = decode_act_as(act_as_token)
+
     return AuthContext(
         user_id=user.user_id,
         email=user.email,
         role=user.role,
         site_id=user.site_id,
+        acting_site_id=acting_site_id,
     )
 
 

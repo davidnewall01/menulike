@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 
@@ -17,6 +18,7 @@ from app.core.config import settings
 from app.core.csrf import generate_csrf_token
 from app.core.security import SESSION_LIFETIME, encode_session
 from app.db.session import get_db
+from app.models.site import Site
 from app.schemas.extraction import ExtractedMenu
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm, parse_extras
 from app.schemas.site import SiteDetailsForm
@@ -75,6 +77,7 @@ def _render(
     ctx: dict = {"request": request, **context}
     if auth is not None:
         ctx["csrf_token"] = generate_csrf_token(auth)
+        ctx["_auth"] = auth  # For nav indicator (acting-as, role checks)
     return templates.TemplateResponse(template, ctx, status_code=status_code)
 
 
@@ -129,6 +132,88 @@ async def logout(auth: AuthContext = Depends(require_csrf)):
     response = RedirectResponse(url="/admin/login", status_code=303)
     response.delete_cookie(key=SESSION_COOKIE, path="/")
     return response
+
+
+# ---------------------------------------------------------------------------
+# Concierge: act-as mechanism (admin-only)
+# ---------------------------------------------------------------------------
+
+from app.core.security import ACT_AS_COOKIE, ACT_AS_LIFETIME, encode_act_as
+
+
+@router.post("/act-as/clear", response_class=HTMLResponse)
+async def act_as_clear(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+):
+    """Admin: drop the acting scope, back to no-scope picker."""
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    response = RedirectResponse(url="/admin/", status_code=303)
+    response.delete_cookie(key=ACT_AS_COOKIE, path="/")
+    return response
+
+
+@router.post("/act-as/{site_id}", response_class=HTMLResponse)
+async def act_as_site(
+    request: Request,
+    site_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: scope into a target site for editing. SHORT-LIVED cookie."""
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    # Validate site exists
+    result = await db.execute(
+        select(Site).where(Site.site_id == site_id)
+    )
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    token = encode_act_as(site_id)
+    response = RedirectResponse(url="/admin/", status_code=303)
+    response.set_cookie(
+        key=ACT_AS_COOKIE,
+        value=token,
+        max_age=int(ACT_AS_LIFETIME.total_seconds()),
+        httponly=True,
+        samesite="lax",
+        path="/",
+    )
+    return response
+
+
+@router.post("/showcase/create", response_class=HTMLResponse)
+async def create_showcase(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: create an orphan showcase site."""
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    form_data = await request.form()
+    name = form_data.get("restaurant_name", "").strip()
+    slug = form_data.get("slug", "").strip()
+    template = form_data.get("template", "linen").strip()
+
+    if not name or not slug:
+        raise HTTPException(status_code=400, detail="Name and slug required")
+
+    from app.services.site_service import create_showcase_site
+    try:
+        await create_showcase_site(db, name, slug, template)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Could not create — slug may already exist")
+
+    return RedirectResponse(url="/admin/", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -330,16 +415,18 @@ async def dashboard(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
-    # Internal admin: simple info card (untouched)
-    if auth.is_internal_admin:
+    # Internal admin with no acting site: show site picker
+    if auth.is_internal_admin and auth.scoped_site_id is None:
+        all_sites = await site_service.list_all_sites(db)
         return _render(
             request, "admin/dashboard_admin.html", auth,
             email=auth.email,
             role=auth.role,
             is_internal_admin=True,
+            sites=all_sites,
         )
 
-    # Owner: tiled dashboard
+    # Owner OR admin acting-as: tiled dashboard for the scoped site
     from app.content.resolver import resolve_site_view
 
     try:
@@ -725,7 +812,7 @@ async def menu_list(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
-    if auth.is_internal_admin:
+    if auth.is_internal_admin and auth.scoped_site_id is None:
         return _render(
             request, "admin/menu_list.html", auth,
             menus=[], is_internal_admin=True,
@@ -1785,7 +1872,7 @@ async def photos_page(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
-    if auth.is_internal_admin:
+    if auth.is_internal_admin and auth.scoped_site_id is None:
         return _render(
             request, "admin/photos.html", auth,
             photos=[], is_internal_admin=True, storage_url=None, error=None,
@@ -1938,7 +2025,7 @@ async def appearance_page(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
-    if auth.is_internal_admin:
+    if auth.is_internal_admin and auth.scoped_site_id is None:
         return _render(
             request, "admin/appearance.html", auth,
             is_internal_admin=True,
@@ -2203,7 +2290,7 @@ async def gallery_page(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
-    if auth.is_internal_admin:
+    if auth.is_internal_admin and auth.scoped_site_id is None:
         return _render(
             request, "admin/gallery.html", auth,
             gallery_list=[], is_internal_admin=True, storage_url=None,
@@ -2364,7 +2451,7 @@ async def our_story_page(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
-    if auth.is_internal_admin:
+    if auth.is_internal_admin and auth.scoped_site_id is None:
         return _render(
             request, "admin/our_story.html", auth,
             blocks=[], is_internal_admin=True, storage_url=None,
@@ -2642,7 +2729,7 @@ async def events_page(
 ):
     from datetime import date as date_type
 
-    if auth.is_internal_admin:
+    if auth.is_internal_admin and auth.scoped_site_id is None:
         return _render(
             request, "admin/events.html", auth,
             blocks=[], is_internal_admin=True, storage_url=None,
@@ -2880,7 +2967,7 @@ async def visit_page(
     auth: AuthContext = Depends(require_owner_site),
     db: AsyncSession = Depends(get_db),
 ):
-    if auth.is_internal_admin:
+    if auth.is_internal_admin and auth.scoped_site_id is None:
         return _render(
             request, "admin/visit.html", auth,
             locations=[], is_internal_admin=True,
@@ -3029,7 +3116,7 @@ async def hours_page(
     db: AsyncSession = Depends(get_db),
 ):
     """Legacy hours page — kept for the hours HTMX partials that still POST to /admin/hours/*."""
-    if auth.is_internal_admin:
+    if auth.is_internal_admin and auth.scoped_site_id is None:
         return _render(
             request, "admin/hours.html", auth,
             hours_by_day={}, day_names=_DAY_NAMES, is_internal_admin=True,

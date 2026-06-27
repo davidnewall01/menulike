@@ -1,24 +1,78 @@
 {% extends "admin/base.html" %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block main_width %}max-w-5xl{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold mb-4">Dashboard</h1>
-<div class="card bg-base-100 shadow">
-    <div class="card-body">
-        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+<h1 class="text-2xl font-bold mb-4">Admin Dashboard</h1>
+
+<div class="card bg-base-100 shadow mb-6">
+    <div class="card-body py-3">
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
             <dt class="font-semibold">Logged in as</dt>
             <dd>{{ email }}</dd>
             <dt class="font-semibold">Role</dt>
             <dd>{{ role }}</dd>
-            {% if site_name %}
-            <dt class="font-semibold">Site</dt>
-            <dd>{{ site_name }}</dd>
-            {% elif is_internal_admin %}
-            <dt class="font-semibold">Site</dt>
-            <dd class="italic text-base-content/60">Internal admin — not scoped to a site</dd>
-            {% endif %}
         </dl>
     </div>
 </div>
+
+{% if sites is defined %}
+<h2 class="text-lg font-semibold mb-3">All sites</h2>
+<div class="overflow-x-auto">
+    <table class="table table-sm bg-base-100">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>Template</th>
+                <th>Published</th>
+                <th>Showcase</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sites %}
+            <tr>
+                <td class="font-medium">{{ s.restaurant_name }}</td>
+                <td class="text-sm text-base-content/60">{{ s.slug }}</td>
+                <td class="text-sm">{{ s.template }}</td>
+                <td>{% if s.is_published %}<span class="badge badge-success badge-sm">Live</span>{% else %}<span class="badge badge-ghost badge-sm">Draft</span>{% endif %}</td>
+                <td>{% if s.is_showcase %}<span class="badge badge-info badge-sm">Showcase</span>{% endif %}</td>
+                <td>
+                    <form method="post" action="/admin/act-as/{{ s.site_id }}" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="btn btn-primary btn-xs">Manage</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="divider"></div>
+
+<h2 class="text-lg font-semibold mb-3">Create showcase site</h2>
+<form method="post" action="/admin/showcase/create" class="flex flex-wrap gap-3 items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div>
+        <label class="label label-text text-xs">Name</label>
+        <input type="text" name="restaurant_name" class="input input-bordered input-sm" placeholder="The Linen Table" required>
+    </div>
+    <div>
+        <label class="label label-text text-xs">Slug</label>
+        <input type="text" name="slug" class="input input-bordered input-sm" placeholder="linen-demo" required>
+    </div>
+    <div>
+        <label class="label label-text text-xs">Template</label>
+        <select name="template" class="select select-bordered select-sm">
+            <option value="linen">Linen</option>
+            <option value="slate">Slate</option>
+            <option value="olive">Olive</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-outline btn-sm">Create</button>
+</form>
+{% endif %}
 {% endblock %}

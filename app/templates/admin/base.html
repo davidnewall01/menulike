@@ -19,7 +19,15 @@
         <div class="flex-1">
             <a href="/admin/" class="btn btn-ghost text-xl">menulike</a>
         </div>
-        <div class="flex-none">
+        <div class="flex-none flex items-center gap-2">
+            {% if _auth is defined and _auth.is_internal_admin and _auth.acting_site_id %}
+            <span class="text-sm font-semibold text-primary">Managing: {{ site.restaurant_name if site is defined and site else "Site" }}</span>
+            <form method="post" action="/admin/act-as/clear" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-outline btn-error btn-xs">Exit</button>
+            </form>
+            <span class="text-base-content/30">|</span>
+            {% endif %}
             <ul class="menu menu-horizontal px-1">
                 <li><a href="/admin/">Dashboard</a></li>
                 <li><a href="/admin/preview">Preview</a></li>
