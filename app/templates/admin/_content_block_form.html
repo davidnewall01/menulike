@@ -1,0 +1,42 @@
+{# Unified content-block create form.
+   Generic: used by events (show_date=True), later Our Story (show_date=False).
+   Expects: page_url_prefix, show_date, photos, storage_url, csrf_token #}
+<form hx-post="{{ page_url_prefix }}/add"
+      hx-target="#block-list"
+      hx-swap="innerHTML"
+      hx-on::after-request="if(event.detail.successful) this.reset()"
+      class="space-y-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div>
+        <label class="label"><span class="label-text">Heading</span></label>
+        <input type="text" name="heading" class="input input-bordered input-sm w-full" placeholder="Optional heading">
+    </div>
+    {% if show_date %}
+    <div>
+        <label class="label"><span class="label-text">Date <span class="text-xs text-base-content/50">(optional — leave blank for a standing special)</span></span></label>
+        <input type="date" name="event_date" class="input input-bordered input-sm w-full">
+    </div>
+    {% endif %}
+    <div>
+        <label class="label"><span class="label-text">Description</span></label>
+        <textarea name="body" class="textarea textarea-bordered w-full" rows="3" placeholder="Write something..."></textarea>
+    </div>
+    {# Inline photo picker — radio buttons, pure HTML #}
+    {% if photos %}
+    <div>
+        <label class="label"><span class="label-text">Image <span class="text-xs text-base-content/50">(optional)</span></span></label>
+        <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            {% for photo in photos %}
+            <label class="rounded-lg overflow-hidden border cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-primary transition-all">
+                <input type="radio" name="photo_id" value="{{ photo.photo_id }}" class="hidden">
+                <img src="{{ storage_url(photo.s3_key) }}" alt="{{ photo.alt_text or '' }}" class="w-full h-14 object-cover">
+            </label>
+            {% endfor %}
+        </div>
+        <label class="text-xs text-base-content/50 cursor-pointer mt-1 inline-flex items-center gap-1">
+            <input type="radio" name="photo_id" value="" class="radio radio-xs" checked> No image
+        </label>
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-primary btn-sm">Add</button>
+</form>

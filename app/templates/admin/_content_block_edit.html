@@ -1,0 +1,56 @@
+{# Unified content-block edit form.
+   Generic: used by events (show_date=True), later Our Story (show_date=False).
+   Expects: block, page_url_prefix, show_date, photos, storage_url, csrf_token #}
+<div class="p-3 bg-base-200 rounded-lg border border-primary" id="block-{{ block.block_id }}">
+    <form hx-post="{{ page_url_prefix }}/{{ block.block_id }}/update"
+          hx-target="#block-list"
+          hx-swap="innerHTML"
+          class="space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+            <label class="label"><span class="label-text text-xs">Heading</span></label>
+            <input type="text" name="heading" value="{{ block.heading or '' }}"
+                   class="input input-bordered input-sm w-full" placeholder="Optional heading">
+        </div>
+        {% if show_date %}
+        <div>
+            <label class="label"><span class="label-text text-xs">Date <span class="text-base-content/50">(optional — leave blank for a standing special)</span></span></label>
+            <input type="date" name="event_date" value="{{ block.event_date.isoformat() if block.event_date else '' }}"
+                   class="input input-bordered input-sm w-full">
+        </div>
+        {% endif %}
+        <div>
+            <label class="label"><span class="label-text text-xs">Description</span></label>
+            <textarea name="body" class="textarea textarea-bordered w-full" rows="3"
+                      placeholder="Write something...">{{ block.body or '' }}</textarea>
+        </div>
+        {# Inline photo picker #}
+        {% if photos %}
+        <div>
+            <label class="label"><span class="label-text text-xs">Image</span></label>
+            <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {% for photo in photos %}
+                <label class="rounded-lg overflow-hidden border cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-primary transition-all">
+                    <input type="radio" name="photo_id" value="{{ photo.photo_id }}" class="hidden"
+                           {% if block.image_photo_id and block.image_photo_id == photo.photo_id %}checked{% endif %}>
+                    <img src="{{ storage_url(photo.s3_key) }}" alt="{{ photo.alt_text or '' }}" class="w-full h-14 object-cover">
+                </label>
+                {% endfor %}
+            </div>
+            <label class="text-xs text-base-content/50 cursor-pointer mt-1 inline-flex items-center gap-1">
+                <input type="radio" name="photo_id" value="" class="radio radio-xs"
+                       {% if not block.image_photo_id %}checked{% endif %}> No image
+            </label>
+        </div>
+        {% endif %}
+        <div class="flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            <button type="button" class="btn btn-ghost btn-sm"
+                    hx-get="{{ page_url_prefix }}"
+                    hx-target="main"
+                    hx-swap="innerHTML"
+                    hx-select="main > *"
+                    hx-push-url="false">Cancel</button>
+        </div>
+    </form>
+</div>

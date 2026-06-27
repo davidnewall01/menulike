@@ -1,7 +1,8 @@
+import datetime
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, SmallInteger, String, Text, UUID
+from sqlalchemy import Boolean, Date, ForeignKey, SmallInteger, String, Text, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -31,6 +32,8 @@ class ContentBlock(TimestampMixin, Base):
         ForeignKey("photos.photo_id", ondelete="SET NULL"),
         nullable=True,
     )
+    event_date: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    is_visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     position: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
 
     # Relationships

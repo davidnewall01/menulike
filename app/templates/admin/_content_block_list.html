@@ -1,0 +1,61 @@
+{# Unified content-block list.
+   Generic: used by events (show_date=True), later Our Story (show_date=False).
+   Expects: blocks, page_url_prefix, show_date, storage_url, csrf_token, today (if show_date) #}
+{% if blocks %}
+{% if show_date %}
+  {# Split into upcoming, specials, and past for events #}
+  {% set upcoming = [] %}
+  {% set specials = [] %}
+  {% set past = [] %}
+  {% for block in blocks %}
+    {% if block.event_date and block.event_date >= today %}
+      {% set _ = upcoming.append(block) %}
+    {% elif block.event_date and block.event_date < today %}
+      {% set _ = past.append(block) %}
+    {% elif not block.event_date %}
+      {% set _ = specials.append(block) %}
+    {% endif %}
+  {% endfor %}
+
+  {% if upcoming %}
+  <h3 class="text-sm font-semibold text-base-content/70 mb-2">Upcoming Events</h3>
+  <div class="space-y-2 mb-4">
+    {% for block in upcoming %}
+    {% set is_past = false %}
+    {% include "admin/_content_block_row.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if specials %}
+  <h3 class="text-sm font-semibold text-base-content/70 mb-2">Standing Specials</h3>
+  <div class="space-y-2 mb-4">
+    {% for block in specials %}
+    {% set is_past = false %}
+    {% include "admin/_content_block_row.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if past %}
+  <div class="divider text-xs text-base-content/40">Past events</div>
+  <div class="space-y-2 opacity-50">
+    {% for block in past %}
+    {% set is_past = true %}
+    {% include "admin/_content_block_row.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+{% else %}
+  {# Non-events (Our Story etc.) — simple position-ordered list #}
+  <div class="space-y-2">
+    {% for block in blocks %}
+    {% set is_past = false %}
+    {% include "admin/_content_block_row.html" %}
+    {% endfor %}
+  </div>
+{% endif %}
+{% else %}
+<p class="text-sm text-base-content/50">Nothing yet. Add one below.</p>
+{% endif %}

@@ -10,7 +10,12 @@
     <div class="nav__links">
       <a href="{{ nav_prefix }}/menu">Eat</a>
       <a href="{{ nav_prefix }}/menu#drinks">Drink</a>
+      {% if render_mode != "public" or view.our_story.fields.blocks.source == "real" %}
       <a href="{{ nav_prefix }}/our-story">Our Story</a>
+      {% endif %}
+      {% if render_mode != "public" or view.events.fields.events.source == "real" %}
+      <a href="{{ nav_prefix }}/events">What's On</a>
+      {% endif %}
       {% if render_mode != "public" or view.gallery.fields.photos.source == "real" %}
       <a href="{{ nav_prefix }}/gallery">Gallery</a>
       {% endif %}
@@ -25,7 +30,12 @@
     <div class="mobile-menu">
       <a href="{{ nav_prefix }}/menu">Eat</a>
       <a href="{{ nav_prefix }}/menu#drinks">Drink</a>
+      {% if render_mode != "public" or view.our_story.fields.blocks.source == "real" %}
       <a href="{{ nav_prefix }}/our-story">Our Story</a>
+      {% endif %}
+      {% if render_mode != "public" or view.events.fields.events.source == "real" %}
+      <a href="{{ nav_prefix }}/events">What's On</a>
+      {% endif %}
       {% if render_mode != "public" or view.gallery.fields.photos.source == "real" %}
       <a href="{{ nav_prefix }}/gallery">Gallery</a>
       {% endif %}

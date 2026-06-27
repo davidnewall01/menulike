@@ -10,6 +10,7 @@
     <title>{% block title %}Admin{% endblock %} — menulike</title>
     <link href="/static/admin/daisyui.min.css" rel="stylesheet">
     <link href="/static/admin/admin.css" rel="stylesheet">
+    <style>.admin-back { font-size: 13px; color: #6E665B; text-decoration: none; display: inline-block; margin-bottom: 16px; } .admin-back:hover { color: #1E5B52; }</style>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 </head>
@@ -21,13 +22,7 @@
         <div class="flex-none">
             <ul class="menu menu-horizontal px-1">
                 <li><a href="/admin/">Dashboard</a></li>
-                <li><a href="/admin/details">Details</a></li>
-                <li><a href="/admin/menu">Menu</a></li>
-                <li><a href="/admin/visit">Visit</a></li>
-                <li><a href="/admin/photos">Photos</a></li>
-                <li><a href="/admin/our-story">Our Story</a></li>
-                <li><a href="/admin/gallery">Gallery</a></li>
-                <li><a href="/admin/appearance">Appearance</a></li>
+                <li><a href="/admin/preview">Preview</a></li>
             </ul>
             <form method="post" action="/admin/logout">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -35,7 +30,7 @@
             </form>
         </div>
     </div>
-    <main class="container mx-auto max-w-3xl p-6">
+    <main class="container mx-auto {% block main_width %}max-w-3xl{% endblock %} p-6">
         {% block content %}{% endblock %}
     </main>
     <script>

@@ -5,8 +5,6 @@
 {% block content %}
 <style>
   .ml { max-width: 600px; margin: 0 auto; }
-  .ml-back { font-size: 13px; color: #6E665B; text-decoration: none; display: inline-block; margin-bottom: 16px; }
-  .ml-back:hover { color: #1E5B52; }
   .ml h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 20px; }
   .ml-empty { background: #FAF7F1; border: 1px solid #E5DCCD; border-radius: 10px; padding: 16px 18px; font-size: 14px; color: #6E665B; margin-bottom: 20px; }
   .ml-add-link { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #1E5B52; text-decoration: none; margin-bottom: 20px; }
@@ -32,7 +30,7 @@
 </style>
 
 <div class="ml">
-  <a href="/admin/" class="ml-back">← Back to dashboard</a>
+  <a href="/admin/" class="admin-back">&larr; Back to dashboard</a>
   <h1>Menus</h1>
 
   {% if not menus and not is_internal_admin %}

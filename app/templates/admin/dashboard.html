@@ -1,6 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block title %}Dashboard{% endblock %}
+{% block main_width %}max-w-6xl{% endblock %}
 
 {% block content %}
 <style>
@@ -52,8 +53,9 @@
   /* tiles */
   .tile-grid { display: grid; gap: 16px; }
   .tile-grid.core { grid-template-columns: 1fr 1fr; }
-  .tile-grid.rest { grid-template-columns: 1fr 1fr 1fr; }
-  @media (max-width: 840px) { .tile-grid.core { grid-template-columns: 1fr; } .tile-grid.rest { grid-template-columns: 1fr 1fr; } }
+  .tile-grid.rest { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 960px) { .tile-grid.rest { grid-template-columns: 1fr 1fr 1fr; } }
+  @media (max-width: 720px) { .tile-grid.core { grid-template-columns: 1fr; } .tile-grid.rest { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 520px) { .tile-grid.rest { grid-template-columns: 1fr; } }
 
   .tile { background: var(--d-card); border: 1px solid var(--d-line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.14s ease, box-shadow 0.14s ease; }
@@ -70,6 +72,8 @@
   .tile .tile-cta .primary:hover { background: var(--d-pine-deep); }
   .tile .tile-cta .ghost { border: 1.5px solid currentColor; }
   .tile .tile-cta .ghost:hover { background: var(--d-pine); color: #fff; border-color: var(--d-pine); }
+  .tile.not-live { border-color: #e57373; }
+  .tile .not-live-hint { font-size: 12px; color: #c44; margin-top: 6px; }
 
   /* status chips */
   .st { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 16px; white-space: nowrap; }
@@ -150,7 +154,11 @@
         </span>
       </div>
       <div class="tile-desc">
-        {% if menu_area.status == "yours" %}Your menu is live. Edit it any time.{% else %}Upload your real menu (even a PDF) and it replaces the sample in seconds.{% endif %}
+        {% if menu_area.status == "yours" %}
+          {% set menus = menu_area.fields.menus.value %}
+          {% for m in menus[:4] %}<div style="font-size:13px;font-weight:600;color:#3E3528">{{ m.name }}</div>{% endfor %}
+          {% if menus | length > 4 %}<div style="font-size:12px;color:#6E665B">+ {{ menus | length - 4 }} more</div>{% endif %}
+        {% else %}Upload your real menu (even a PDF) and it replaces the sample in seconds.{% endif %}
       </div>
       <div class="tile-cta">
         {% if menu_area.status == "yours" %}
@@ -196,7 +204,13 @@
         </span>
       </div>
       <div class="tile-desc">
-        {% if home_area.status == "yours" %}Your hero, logo, and tagline are set.{% elif home_area.status == "partial" %}Almost there — set your hero photo and tagline.{% else %}Set your hero image, logo, and tagline to make the front page yours.{% endif %}
+        {% if home_area.status == "yours" %}Your hero and tagline are set.
+        {% else %}
+          {% set missing = [] %}
+          {% if home_area.fields.hero.source != "real" %}{% set _ = missing.append("hero image") %}{% endif %}
+          {% if home_area.fields.tagline.source != "real" %}{% set _ = missing.append("tagline") %}{% endif %}
+          {% if missing %}Add your {{ missing | join(" and ") }}.{% else %}Almost there.{% endif %}
+        {% endif %}
       </div>
       <div class="tile-cta">
         <a href="/admin/front-page" class="ghost">{% if home_area.status == "yours" %}Edit front page{% else %}Set up front page{% endif %}</a>
@@ -206,7 +220,7 @@
 
   {# Our Story tile #}
   {% set story_area = site_view["our_story"] %}
-  <div class="tile">
+  <div class="tile{% if story_area.status != 'yours' %} not-live{% endif %}">
     <div class="tile-body">
       <div class="tile-head">
         <span class="tile-name">Our Story</span>
@@ -215,7 +229,8 @@
         </span>
       </div>
       <div class="tile-desc">
-        {% if story_area.status == "yours" %}Your story is live. Edit it any time.{% else %}Tell people who you are — a placeholder story is showing.{% endif %}
+        {% if story_area.status == "yours" %}Your story is live. Edit it any time.{% else %}Tell people who you are.{% endif %}
+        {% if story_area.status != "yours" %}<div class="not-live-hint">Not visible to visitors yet.</div>{% endif %}
       </div>
       <div class="tile-cta">
         <a href="/admin/our-story" class="ghost">{% if story_area.status == "yours" %}Edit your story{% else %}Write your story{% endif %}</a>
@@ -234,7 +249,14 @@
         </span>
       </div>
       <div class="tile-desc">
-        {% if visit_area.status == "yours" %}Your details and hours are set.{% else %}We've got your name. Add your address and hours.{% endif %}
+        {% if visit_area.status == "yours" %}Your details and hours are set.
+        {% else %}
+          {% set missing = [] %}
+          {% if visit_area.fields.address.source != "real" %}{% set _ = missing.append("address") %}{% endif %}
+          {% if visit_area.fields.hours.source != "real" %}{% set _ = missing.append("opening hours") %}{% endif %}
+          {% if visit_area.fields.contact.source != "real" %}{% set _ = missing.append("phone or email") %}{% endif %}
+          {% if missing %}Add your {{ missing | join(" and ") }}.{% else %}Almost there.{% endif %}
+        {% endif %}
       </div>
       <div class="tile-cta">
         <a href="/admin/visit" class="ghost">{% if visit_area.status == "yours" %}Edit details{% else %}Add your details{% endif %}</a>
@@ -244,7 +266,7 @@
 
   {# Gallery tile #}
   {% set gallery_area = site_view["gallery"] %}
-  <div class="tile">
+  <div class="tile{% if gallery_area.status != 'yours' %} not-live{% endif %}">
     <div class="tile-body">
       <div class="tile-head">
         <span class="tile-name">Gallery</span>
@@ -254,9 +276,30 @@
       </div>
       <div class="tile-desc">
         {% if gallery_area.status == "yours" %}Your gallery photos are live.{% else %}Show off your dishes and space.{% endif %}
+        {% if gallery_area.status != "yours" %}<div class="not-live-hint">Not visible to visitors yet.</div>{% endif %}
       </div>
       <div class="tile-cta">
         <a href="/admin/gallery" class="ghost">{% if gallery_area.status == "yours" %}Edit gallery{% else %}Add photos{% endif %}</a>
+      </div>
+    </div>
+  </div>
+
+  {# What's On (events) tile #}
+  {% set events_area = site_view["events"] %}
+  <div class="tile{% if events_area.status != 'yours' %} not-live{% endif %}">
+    <div class="tile-body">
+      <div class="tile-head">
+        <span class="tile-name">What's On</span>
+        <span class="st {{ events_area.status }}"><span class="dot"></span>
+          {% if events_area.status == "yours" %}Yours{% else %}Still sample{% endif %}
+        </span>
+      </div>
+      <div class="tile-desc">
+        {% if events_area.status == "yours" %}Your events and specials are live.{% else %}List your upcoming events and standing specials.{% endif %}
+        {% if events_area.status != "yours" %}<div class="not-live-hint">Not visible to visitors yet.</div>{% endif %}
+      </div>
+      <div class="tile-cta">
+        <a href="/admin/events" class="ghost">{% if events_area.status == "yours" %}Edit events{% else %}Add events{% endif %}</a>
       </div>
     </div>
   </div>

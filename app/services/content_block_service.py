@@ -1,8 +1,9 @@
 """Content-block CRUD — scoped to the owner's site via auth_ctx."""
 
 import uuid
+from datetime import date
 
-from sqlalchemy import delete, select
+from sqlalchemy import case, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,7 +12,9 @@ from app.models.content_block import ContentBlock
 from app.services import photo_service
 from app.services.exceptions import ContentBlockNotFound, EmptyBlock, NoSiteInScope
 
-ALLOWED_PAGE_KEYS = {"our_story"}
+ALLOWED_PAGE_KEYS = {"our_story", "events"}
+
+_SENTINEL = object()  # distinguishes "not provided" from None (clear image)
 
 
 # ---------------------------------------------------------------------------
@@ -41,20 +44,42 @@ async def _get_owner_block(
 # ---------------------------------------------------------------------------
 
 async def list_blocks(
-    db: AsyncSession, auth_ctx: AuthContext, page_key: str
+    db: AsyncSession, auth_ctx: AuthContext, page_key: str,
+    *, upcoming_only: bool = False, visible_only: bool = False,
 ) -> list[ContentBlock]:
     if auth_ctx.scoped_site_id is None:
         raise NoSiteInScope()
 
-    result = await db.execute(
+    stmt = (
         select(ContentBlock)
         .options(selectinload(ContentBlock.image))
         .where(
             ContentBlock.site_id == auth_ctx.scoped_site_id,
             ContentBlock.page_key == page_key,
         )
-        .order_by(ContentBlock.position)
     )
+
+    if visible_only:
+        stmt = stmt.where(ContentBlock.is_visible.is_(True))
+
+    if upcoming_only:
+        # Hide past dated events; keep undated (standing specials) always
+        today = date.today()
+        stmt = stmt.where(
+            (ContentBlock.event_date.is_(None)) | (ContentBlock.event_date >= today)
+        )
+
+    if page_key == "events":
+        # Dated first (by date ASC), then undated (by position ASC)
+        stmt = stmt.order_by(
+            case((ContentBlock.event_date.is_(None), 1), else_=0),
+            ContentBlock.event_date.asc(),
+            ContentBlock.position,
+        )
+    else:
+        stmt = stmt.order_by(ContentBlock.position)
+
+    result = await db.execute(stmt)
     return list(result.scalars().all())
 
 
@@ -71,11 +96,18 @@ async def create_block(
     page_key: str,
     heading: str | None,
     body: str | None,
+    *,
+    event_date: date | None = None,
+    image_photo_id: uuid.UUID | None = None,
 ) -> ContentBlock:
     if auth_ctx.scoped_site_id is None:
         raise NoSiteInScope()
-    if _is_empty(heading, body, None):
-        raise EmptyBlock("A block must have at least a heading or body.")
+    if _is_empty(heading, body, image_photo_id):
+        raise EmptyBlock("A block must have at least a heading, body, or image.")
+
+    # Validate photo ownership if provided
+    if image_photo_id is not None:
+        await photo_service.get_owner_photo(db, auth_ctx, image_photo_id)
 
     # Next position
     result = await db.execute(
@@ -95,6 +127,8 @@ async def create_block(
         page_key=page_key,
         heading=heading.strip() if heading and heading.strip() else None,
         body=body.strip() if body and body.strip() else None,
+        event_date=event_date,
+        image_photo_id=image_photo_id,
         position=next_pos,
     )
     db.add(block)
@@ -107,16 +141,29 @@ async def update_block(
     block_id: uuid.UUID,
     heading: str | None,
     body: str | None,
+    *,
+    event_date: date | None = None,
+    image_photo_id: uuid.UUID | None = _SENTINEL,
 ) -> ContentBlock:
     block = await _get_owner_block(db, auth_ctx, block_id)
     new_heading = heading.strip() if heading and heading.strip() else None
     new_body = body.strip() if body and body.strip() else None
 
-    if _is_empty(new_heading, new_body, block.image_photo_id):
+    # Determine final image: _SENTINEL means "don't change", None means "clear"
+    final_image_id = block.image_photo_id if image_photo_id is _SENTINEL else image_photo_id
+
+    if _is_empty(new_heading, new_body, final_image_id):
         raise EmptyBlock("A block must have at least a heading, body, or image.")
+
+    # Validate photo ownership if changing to a new photo
+    if image_photo_id is not _SENTINEL and image_photo_id is not None:
+        await photo_service.get_owner_photo(db, auth_ctx, image_photo_id)
 
     block.heading = new_heading
     block.body = new_body
+    block.event_date = event_date
+    if image_photo_id is not _SENTINEL:
+        block.image_photo_id = image_photo_id
     await db.flush()
     return block
 
@@ -178,3 +225,13 @@ async def reorder_blocks(
     for pos, bid in enumerate(final_order):
         by_id[bid].position = pos
     await db.flush()
+
+
+async def toggle_visibility(
+    db: AsyncSession, auth_ctx: AuthContext, block_id: uuid.UUID,
+) -> ContentBlock:
+    """Toggle is_visible on a block. IDOR-gated."""
+    block = await _get_owner_block(db, auth_ctx, block_id)
+    block.is_visible = not block.is_visible
+    await db.flush()
+    return block

@@ -294,6 +294,32 @@ async def preview_visit(
     )
 
 
+@router.get("/preview/events", response_class=HTMLResponse)
+async def preview_events(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview the owner's Events / What's On page."""
+    from app.content.resolver import resolve_site_view
+
+    site, role_images = await _load_preview(db, auth)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="preview",
+        storage_url=storage_public_url,
+    )
+    return templates.TemplateResponse(
+        "public/linen/events.html",
+        {
+            "request": request,
+            "site": site,
+            "view": view,
+            "storage_url": storage_public_url,
+            **_PREVIEW_CTX,
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
@@ -2321,11 +2347,14 @@ async def _render_blocks(request, auth, db):
     """Re-render the block list partial after a mutation."""
     try:
         blocks = await content_block_service.list_blocks(db, auth, PAGE_KEY)
+        photos = await photo_service.list_photos(db, auth)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
     return _render(
-        request, "admin/_block_list.html", auth,
+        request, "admin/_content_block_list.html", auth,
         blocks=blocks, storage_url=storage_public_url,
+        page_url_prefix="/admin/our-story", show_date=False,
+        show_visibility=False, photos=photos,
     )
 
 
@@ -2339,10 +2368,13 @@ async def our_story_page(
         return _render(
             request, "admin/our_story.html", auth,
             blocks=[], is_internal_admin=True, storage_url=None,
+            page_url_prefix="/admin/our-story", show_date=False,
+            show_visibility=False, photos=[],
         )
 
     try:
         blocks = await content_block_service.list_blocks(db, auth, PAGE_KEY)
+        photos = await photo_service.list_photos(db, auth)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
 
@@ -2350,6 +2382,8 @@ async def our_story_page(
         request, "admin/our_story.html", auth,
         blocks=blocks, is_internal_admin=False,
         storage_url=storage_public_url,
+        page_url_prefix="/admin/our-story", show_date=False,
+        show_visibility=False, photos=photos,
     )
 
 
@@ -2362,13 +2396,26 @@ async def our_story_add(
     form_data = await request.form()
     heading = form_data.get("heading", "").strip() or None
     body = form_data.get("body", "").strip() or None
+    photo_id_str = form_data.get("photo_id", "").strip()
+
+    image_photo_id = None
+    if photo_id_str:
+        try:
+            image_photo_id = uuid.UUID(photo_id_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid photo_id")
 
     try:
-        await content_block_coordinator.create_block(db, auth, PAGE_KEY, heading, body)
+        await content_block_coordinator.create_block(
+            db, auth, PAGE_KEY, heading, body,
+            image_photo_id=image_photo_id,
+        )
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
     except EmptyBlock:
-        raise HTTPException(status_code=400, detail="Block must have a heading or body")
+        raise HTTPException(status_code=400, detail="Block must have a heading, body, or image")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
 
     return await _render_blocks(request, auth, db)
 
@@ -2382,14 +2429,16 @@ async def our_story_edit_form(
 ):
     try:
         block = await content_block_service._get_owner_block(db, auth, block_id)
+        photos = await photo_service.list_photos(db, auth)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
     except ContentBlockNotFound:
         raise HTTPException(status_code=404, detail="Block not found")
 
     return _render(
-        request, "admin/_block_edit.html", auth,
-        block=block,
+        request, "admin/_content_block_edit.html", auth,
+        block=block, page_url_prefix="/admin/our-story", show_date=False,
+        photos=photos, storage_url=storage_public_url,
     )
 
 
@@ -2403,15 +2452,34 @@ async def our_story_update(
     form_data = await request.form()
     heading = form_data.get("heading", "").strip() or None
     body = form_data.get("body", "").strip() or None
+    photo_id_str = form_data.get("photo_id", "")
+
+    from app.services.content_block_service import _SENTINEL
+    if photo_id_str is not None:
+        photo_id_str = photo_id_str.strip()
+        if photo_id_str == "":
+            image_photo_id = None
+        else:
+            try:
+                image_photo_id = uuid.UUID(photo_id_str)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid photo_id")
+    else:
+        image_photo_id = _SENTINEL
 
     try:
-        await content_block_coordinator.update_block(db, auth, block_id, heading, body)
+        await content_block_coordinator.update_block(
+            db, auth, block_id, heading, body,
+            image_photo_id=image_photo_id,
+        )
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
     except ContentBlockNotFound:
         raise HTTPException(status_code=404, detail="Block not found")
     except EmptyBlock:
         raise HTTPException(status_code=400, detail="Block must have a heading, body, or image")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
 
     return await _render_blocks(request, auth, db)
 
@@ -2543,6 +2611,257 @@ async def our_story_move(
 
 
 # ---------------------------------------------------------------------------
+# Events (What's On) — reuses content_block with page_key="events"
+# ---------------------------------------------------------------------------
+
+EVENTS_PAGE_KEY = "events"
+
+
+async def _render_event_blocks(request, auth, db):
+    """Re-render the events block list partial after a mutation."""
+    from datetime import date as date_type
+
+    try:
+        blocks = await content_block_service.list_blocks(db, auth, EVENTS_PAGE_KEY)
+        photos = await photo_service.list_photos(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    return _render(
+        request, "admin/_content_block_list.html", auth,
+        blocks=blocks, storage_url=storage_public_url,
+        page_url_prefix="/admin/events", show_date=True,
+        show_visibility=True, today=date_type.today(), photos=photos,
+    )
+
+
+@router.get("/events", response_class=HTMLResponse)
+async def events_page(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import date as date_type
+
+    if auth.is_internal_admin:
+        return _render(
+            request, "admin/events.html", auth,
+            blocks=[], is_internal_admin=True, storage_url=None,
+            page_url_prefix="/admin/events", show_date=True,
+            show_visibility=True, today=date_type.today(), photos=[],
+        )
+
+    try:
+        blocks = await content_block_service.list_blocks(db, auth, EVENTS_PAGE_KEY)
+        photos = await photo_service.list_photos(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    return _render(
+        request, "admin/events.html", auth,
+        blocks=blocks, is_internal_admin=False,
+        storage_url=storage_public_url,
+        page_url_prefix="/admin/events", show_date=True,
+        show_visibility=True, today=date_type.today(), photos=photos,
+    )
+
+
+@router.post("/events/add", response_class=HTMLResponse)
+async def events_add(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import date as date_type
+
+    form_data = await request.form()
+    heading = form_data.get("heading", "").strip() or None
+    body = form_data.get("body", "").strip() or None
+    date_str = form_data.get("event_date", "").strip()
+    photo_id_str = form_data.get("photo_id", "").strip()
+
+    event_date = None
+    if date_str:
+        try:
+            event_date = date_type.fromisoformat(date_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date")
+
+    image_photo_id = None
+    if photo_id_str:
+        try:
+            image_photo_id = uuid.UUID(photo_id_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid photo_id")
+
+    try:
+        await content_block_coordinator.create_block(
+            db, auth, EVENTS_PAGE_KEY, heading, body,
+            event_date=event_date, image_photo_id=image_photo_id,
+        )
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except EmptyBlock:
+        raise HTTPException(status_code=400, detail="Must have at least a heading, description, or image")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    return await _render_event_blocks(request, auth, db)
+
+
+@router.get("/events/{block_id}/edit", response_class=HTMLResponse)
+async def events_edit_form(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        block = await content_block_service._get_owner_block(db, auth, block_id)
+        photos = await photo_service.list_photos(db, auth)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+
+    return _render(
+        request, "admin/_content_block_edit.html", auth,
+        block=block, page_url_prefix="/admin/events", show_date=True,
+        photos=photos, storage_url=storage_public_url,
+    )
+
+
+@router.post("/events/{block_id}/update", response_class=HTMLResponse)
+async def events_update(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import date as date_type
+
+    form_data = await request.form()
+    heading = form_data.get("heading", "").strip() or None
+    body = form_data.get("body", "").strip() or None
+    date_str = form_data.get("event_date", "").strip()
+    photo_id_str = form_data.get("photo_id", "")
+
+    event_date = None
+    if date_str:
+        try:
+            event_date = date_type.fromisoformat(date_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date")
+
+    # Determine image: empty string = clear, non-empty = set, missing = don't change
+    from app.services.content_block_service import _SENTINEL
+    if photo_id_str is not None:
+        photo_id_str = photo_id_str.strip()
+        if photo_id_str == "":
+            image_photo_id = None  # clear
+        else:
+            try:
+                image_photo_id = uuid.UUID(photo_id_str)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid photo_id")
+    else:
+        image_photo_id = _SENTINEL
+
+    try:
+        await content_block_coordinator.update_block(
+            db, auth, block_id, heading, body,
+            event_date=event_date, image_photo_id=image_photo_id,
+        )
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+    except EmptyBlock:
+        raise HTTPException(status_code=400, detail="Must have at least a heading, description, or image")
+    except PhotoNotFound:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    return await _render_event_blocks(request, auth, db)
+
+
+@router.post("/events/{block_id}/delete", response_class=HTMLResponse)
+async def events_delete(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await content_block_coordinator.delete_block(db, auth, block_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+
+    return await _render_event_blocks(request, auth, db)
+
+
+@router.post("/events/move", response_class=HTMLResponse)
+async def events_move(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    form_data = await request.form()
+    block_id_str = form_data.get("block_id", "")
+    direction = form_data.get("direction", "")
+
+    try:
+        block_id = uuid.UUID(block_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid block_id")
+
+    if direction not in ("up", "down"):
+        raise HTTPException(status_code=400, detail="Invalid direction")
+
+    try:
+        blocks = await content_block_service.list_blocks(db, auth, EVENTS_PAGE_KEY)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+
+    # Only reorder among undated (standing specials) — dated sort by date
+    undated = [b for b in blocks if b.event_date is None]
+    ids = [b.block_id for b in undated]
+
+    if block_id in ids:
+        idx = ids.index(block_id)
+        if direction == "up" and idx > 0:
+            ids[idx], ids[idx - 1] = ids[idx - 1], ids[idx]
+        elif direction == "down" and idx < len(ids) - 1:
+            ids[idx], ids[idx + 1] = ids[idx + 1], ids[idx]
+
+        # Include dated blocks in the full reorder to preserve their positions
+        dated_ids = [b.block_id for b in blocks if b.event_date is not None]
+        try:
+            await content_block_coordinator.reorder_blocks(db, auth, EVENTS_PAGE_KEY, dated_ids + ids)
+        except NoSiteInScope:
+            raise HTTPException(status_code=400, detail="Reorder failed")
+
+    return await _render_event_blocks(request, auth, db)
+
+
+@router.post("/events/{block_id}/toggle-visibility", response_class=HTMLResponse)
+async def events_toggle_visibility(
+    request: Request,
+    block_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await content_block_coordinator.toggle_visibility(db, auth, block_id)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except ContentBlockNotFound:
+        raise HTTPException(status_code=404, detail="Block not found")
+
+    return await _render_event_blocks(request, auth, db)
+
+
+# ---------------------------------------------------------------------------
 # Hours
 # ---------------------------------------------------------------------------
 
@@ -2574,6 +2893,11 @@ async def visit_page(
         locations = await location_service.list_locations(db, auth)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
+
+    # Auto-create a default location if none exists (single-location product)
+    if not locations:
+        await location_coordinator.create_location(db, auth)
+        locations = await location_service.list_locations(db, auth)
 
     # Load hours + exceptions per location
     loc_data = []

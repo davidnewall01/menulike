@@ -45,7 +45,7 @@
       {% for m in menus_field.value %}
       <button class="menu-tab"
               :class="tab === {{ loop.index0 }} && 'menu-tab--on'"
-              @click="tab = {{ loop.index0 }}">{{ m.display_title or m.name }}</button>
+              @click="tab = {{ loop.index0 }}; $el.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'})">{{ m.display_title or m.name }}</button>
       {% endfor %}
     </div>
 

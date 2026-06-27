@@ -1,28 +1,28 @@
 {% extends "admin/base.html" %}
-{% block title %}Our Story{% endblock %}
+{% block title %}What's On{% endblock %}
 {% block content %}
 <a href="/admin/" class="admin-back">&larr; Back to dashboard</a>
-<h1 class="text-2xl font-bold mb-2">Our Story</h1>
-<p class="text-sm text-base-content/60 mb-6">Build your story with content blocks — each can have a heading, body text, and an image.</p>
+<h1 class="text-2xl font-bold mb-2">What's On</h1>
+<p class="text-sm text-base-content/60 mb-6">List your upcoming events and standing specials. Events with a date auto-hide once the date passes. Specials without a date stay visible until you remove them.</p>
 
 {% if is_internal_admin %}
 <div class="alert alert-info">Internal admin — select a site to manage content.</div>
 {% else %}
 
 <button type="button" class="btn btn-primary btn-sm mb-4"
-        onclick="document.getElementById('add-block-modal').style.display='flex'">+ Add block</button>
+        onclick="document.getElementById('add-block-modal').style.display='flex'">+ Add event or special</button>
 
 <div id="block-list">
     {% include "admin/_content_block_list.html" %}
 </div>
 
-{# Add modal #}
+{# Add modal — follows _photo_picker.html pattern #}
 <div id="add-block-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" style="display:none"
      onclick="if(event.target===this)this.style.display='none'">
   <div class="bg-base-100 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto mx-4" onclick="event.stopPropagation()">
     <div class="p-5">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-semibold">Add block</h2>
+        <h2 class="text-lg font-semibold">Add event or special</h2>
         <button type="button" onclick="document.getElementById('add-block-modal').style.display='none'" class="btn btn-ghost btn-sm btn-circle">&times;</button>
       </div>
       {% include "admin/_content_block_form.html" %}
@@ -31,6 +31,7 @@
 </div>
 
 <script>
+// Close modal + reset form on successful submit
 document.getElementById('add-block-modal').addEventListener('htmx:afterRequest', function(evt) {
     if (evt.detail.successful) {
         this.style.display = 'none';

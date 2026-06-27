@@ -1,6 +1,7 @@
 """Content-block coordinator — owns the commit boundary."""
 
 import uuid
+from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,8 +13,14 @@ from app.services import content_block_service
 async def create_block(
     db: AsyncSession, auth_ctx: AuthContext,
     page_key: str, heading: str | None, body: str | None,
+    *,
+    event_date: date | None = None,
+    image_photo_id: uuid.UUID | None = None,
 ) -> ContentBlock:
-    block = await content_block_service.create_block(db, auth_ctx, page_key, heading, body)
+    block = await content_block_service.create_block(
+        db, auth_ctx, page_key, heading, body,
+        event_date=event_date, image_photo_id=image_photo_id,
+    )
     await db.commit()
     return block
 
@@ -21,8 +28,14 @@ async def create_block(
 async def update_block(
     db: AsyncSession, auth_ctx: AuthContext,
     block_id: uuid.UUID, heading: str | None, body: str | None,
+    *,
+    event_date: date | None = None,
+    image_photo_id: uuid.UUID | None = content_block_service._SENTINEL,
 ) -> ContentBlock:
-    block = await content_block_service.update_block(db, auth_ctx, block_id, heading, body)
+    block = await content_block_service.update_block(
+        db, auth_ctx, block_id, heading, body,
+        event_date=event_date, image_photo_id=image_photo_id,
+    )
     await db.commit()
     return block
 
@@ -57,3 +70,11 @@ async def reorder_blocks(
 ) -> None:
     await content_block_service.reorder_blocks(db, auth_ctx, page_key, ordered_ids)
     await db.commit()
+
+
+async def toggle_visibility(
+    db: AsyncSession, auth_ctx: AuthContext, block_id: uuid.UUID,
+) -> ContentBlock:
+    block = await content_block_service.toggle_visibility(db, auth_ctx, block_id)
+    await db.commit()
+    return block

@@ -1,0 +1,82 @@
+{# Single content-block row in the admin list.
+   Expects: block, page_url_prefix, show_date, storage_url, csrf_token, is_past, show_visibility #}
+<div class="p-3 bg-base-100 rounded-lg border {% if show_visibility and not block.is_visible %}opacity-50{% endif %}" id="block-{{ block.block_id }}">
+    <div class="flex items-start gap-3">
+        {# Image thumbnail #}
+        <div class="flex-shrink-0">
+            {% if block.image_photo_id and block.image %}
+            <img src="{{ storage_url(block.image.s3_key) }}"
+                 alt="{{ block.image.alt_text or '' }}"
+                 class="rounded w-20 h-14 object-cover">
+            {% else %}
+            <div class="rounded w-20 h-14 bg-base-300 flex items-center justify-center text-base-content/30 text-xs border border-dashed">
+                No img
+            </div>
+            {% endif %}
+        </div>
+
+        {# Content preview #}
+        <div class="flex-1 min-w-0">
+            {% if block.heading %}
+            <div class="font-semibold text-sm">{{ block.heading }}</div>
+            {% endif %}
+            {% if show_date and block.event_date %}
+            <div class="text-xs text-primary">
+                {{ block.event_date.strftime('%a') }} {{ block.event_date.day }} {{ block.event_date.strftime('%b %Y') }}
+                {% if is_past %}<span class="badge badge-ghost badge-xs ml-1">past</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if show_visibility and not block.is_visible %}
+            <div class="text-xs text-warning font-medium">Hidden</div>
+            {% endif %}
+            {% if block.body %}
+            <div class="text-sm text-base-content/60 truncate">{{ block.body[:80] }}{% if block.body | length > 80 %}...{% endif %}</div>
+            {% endif %}
+            {% if not block.heading and not block.body and not block.image_photo_id %}
+            <div class="text-sm text-base-content/40 italic">Empty block</div>
+            {% elif not block.heading and not block.body %}
+            <div class="text-sm text-base-content/40 italic">Image only</div>
+            {% endif %}
+        </div>
+
+        {# Actions #}
+        <div class="flex gap-1 flex-shrink-0">
+            {% if show_visibility %}
+            <button class="btn btn-ghost btn-xs {% if not block.is_visible %}text-warning{% endif %}"
+                    hx-post="{{ page_url_prefix }}/{{ block.block_id }}/toggle-visibility"
+                    hx-target="#block-list"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}"}'
+                    title="{% if block.is_visible %}Hide from public{% else %}Show on public{% endif %}">
+                {% if block.is_visible %}Hide{% else %}Show{% endif %}
+            </button>
+            {% endif %}
+            {% if not show_date or not block.event_date %}
+            {# Move buttons only for position-ordered blocks (specials, or non-events) #}
+            <button class="btn btn-ghost btn-xs"
+                    hx-post="{{ page_url_prefix }}/move"
+                    hx-target="#block-list"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}", "block_id": "{{ block.block_id }}", "direction": "up"}'
+                    title="Move up">&uarr;</button>
+            <button class="btn btn-ghost btn-xs"
+                    hx-post="{{ page_url_prefix }}/move"
+                    hx-target="#block-list"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}", "block_id": "{{ block.block_id }}", "direction": "down"}'
+                    title="Move down">&darr;</button>
+            {% endif %}
+            <button class="btn btn-ghost btn-xs"
+                    hx-get="{{ page_url_prefix }}/{{ block.block_id }}/edit"
+                    hx-target="#block-{{ block.block_id }}"
+                    hx-swap="outerHTML"
+                    title="Edit">Edit</button>
+            <button class="btn btn-outline btn-error btn-xs"
+                    hx-post="{{ page_url_prefix }}/{{ block.block_id }}/delete"
+                    hx-target="#block-list"
+                    hx-swap="innerHTML"
+                    hx-vals='{"csrf_token": "{{ csrf_token }}"}'
+                    hx-confirm="Delete this?">Del</button>
+        </div>
+    </div>
+</div>

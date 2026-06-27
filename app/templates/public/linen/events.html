@@ -1,0 +1,146 @@
+{% extends "public/linen/base.html" %}
+
+{% block content %}
+{% set events_field = view.events.fields.events %}
+{% set events_data = events_field.value or {"upcoming": [], "specials": []} %}
+{% set is_sample = events_field.source == "sample" %}
+{% set upcoming = events_data.upcoming or [] %}
+{% set specials = events_data.specials or [] %}
+{% set has_upcoming = upcoming | length > 0 %}
+{% set has_specials = specials | length > 0 %}
+{# Default tab: upcoming if any, else specials #}
+{% set default_tab = "upcoming" if has_upcoming else "specials" %}
+
+<div class="events-page wrap">
+  <div class="story-header">
+    <p class="eyebrow">Events</p>
+    <h1 class="story-title">What's On</h1>
+  </div>
+
+  {# Tabs — only show if both categories have content #}
+  {% if has_upcoming and has_specials %}
+  <div class="events-tabs">
+    <button class="events-tab{% if default_tab == 'upcoming' %} active{% endif %}"
+            onclick="document.querySelectorAll('.events-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active');document.getElementById('tab-upcoming').style.display='';document.getElementById('tab-specials').style.display='none'">
+      Upcoming Events
+    </button>
+    <button class="events-tab{% if default_tab == 'specials' %} active{% endif %}"
+            onclick="document.querySelectorAll('.events-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active');document.getElementById('tab-specials').style.display='';document.getElementById('tab-upcoming').style.display='none'">
+      Specials
+    </button>
+  </div>
+  {% endif %}
+
+  {# Upcoming Events #}
+  {% if has_upcoming %}
+  <div id="tab-upcoming" class="story-blocks" {% if default_tab != 'upcoming' %}style="display:none"{% endif %}>
+    {% for block in upcoming %}
+    {% set has_heading = block.heading %}
+    {% set has_body = block.body %}
+    {% set has_image = block.image_url %}
+    {% set img_right = loop.index0 % 2 == 0 %}
+
+    {% if has_image %}
+    <div class="story-block story-block--split{% if img_right %} story-block--img-right{% else %} story-block--img-left{% endif %}">
+      <div class="story-block__text">
+        {% if block.event_date %}
+        <p class="event-date">{{ block.event_date.strftime('%A') }} {{ block.event_date.day }} {{ block.event_date.strftime('%B') }}</p>
+        {% endif %}
+        {% if has_heading %}
+        <h2 class="story-block__heading">
+          {% if is_sample %}<span class="sample-badge">Sample</span> {% endif %}
+          {{ block.heading }}
+        </h2>
+        {% endif %}
+        {% if has_body %}
+        {% for para in block.body.split('\n\n') %}
+        {% if para.strip() %}
+        <p>{{ para.strip() }}</p>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+      </div>
+      <div class="story-block__media">
+        <img src="{{ block.image_url }}" alt="{{ block.image_alt }}">
+      </div>
+    </div>
+    {% else %}
+    <div class="story-block story-block--prose">
+      {% if block.event_date %}
+      <p class="event-date">{{ block.event_date.strftime('%A') }} {{ block.event_date.day }} {{ block.event_date.strftime('%B') }}</p>
+      {% endif %}
+      {% if has_heading %}
+      <h2 class="story-block__heading">
+        {% if is_sample %}<span class="sample-badge">Sample</span> {% endif %}
+        {{ block.heading }}
+      </h2>
+      {% endif %}
+      {% if has_body %}
+      {% for para in block.body.split('\n\n') %}
+      {% if para.strip() %}
+      <p>{{ para.strip() }}</p>
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# Standing Specials #}
+  {% if has_specials %}
+  <div id="tab-specials" class="story-blocks" {% if default_tab != 'specials' %}style="display:none"{% endif %}>
+    {% for block in specials %}
+    {% set has_heading = block.heading %}
+    {% set has_body = block.body %}
+    {% set has_image = block.image_url %}
+    {% set img_right = loop.index0 % 2 == 0 %}
+
+    {% if has_image %}
+    <div class="story-block story-block--split{% if img_right %} story-block--img-right{% else %} story-block--img-left{% endif %}">
+      <div class="story-block__text">
+        {% if has_heading %}
+        <h2 class="story-block__heading">
+          {% if is_sample %}<span class="sample-badge">Sample</span> {% endif %}
+          {{ block.heading }}
+        </h2>
+        {% endif %}
+        {% if has_body %}
+        {% for para in block.body.split('\n\n') %}
+        {% if para.strip() %}
+        <p>{{ para.strip() }}</p>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+      </div>
+      <div class="story-block__media">
+        <img src="{{ block.image_url }}" alt="{{ block.image_alt }}">
+      </div>
+    </div>
+    {% else %}
+    <div class="story-block story-block--prose">
+      {% if has_heading %}
+      <h2 class="story-block__heading">
+        {% if is_sample %}<span class="sample-badge">Sample</span> {% endif %}
+        {{ block.heading }}
+      </h2>
+      {% endif %}
+      {% if has_body %}
+      {% for para in block.body.split('\n\n') %}
+      {% if para.strip() %}
+      <p>{{ para.strip() }}</p>
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not has_upcoming and not has_specials %}
+  <p class="story-empty">Coming soon.</p>
+  {% endif %}
+</div>
+{% endblock %}

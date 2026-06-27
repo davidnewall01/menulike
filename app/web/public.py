@@ -101,8 +101,34 @@ async def our_story(request: Request, site: Site = Depends(resolve_tenant), db: 
         site=site, role_images=role_images, mode="public",
         storage_url=storage_public_url,
     )
+    # No real story blocks → redirect home
+    if view["our_story"].fields["blocks"].source != "real":
+        return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse(
         page_path(template, "our_story"),
+        {
+            "request": request,
+            "site": site,
+            "view": view,
+            "storage_url": storage_public_url,
+            "render_mode": "public",
+        },
+    )
+
+
+@router.get("/events", response_class=HTMLResponse)
+async def events(request: Request, site: Site = Depends(resolve_tenant), db: AsyncSession = Depends(get_db)):
+    template = resolve_template(site.template)
+    role_images = await image_role_service.load_role_images(db, site.site_id)
+    view = resolve_site_view(
+        site=site, role_images=role_images, mode="public",
+        storage_url=storage_public_url,
+    )
+    # No upcoming events or specials → redirect home
+    if view["events"].fields["events"].source != "real":
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse(
+        page_path(template, "events"),
         {
             "request": request,
             "site": site,

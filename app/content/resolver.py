@@ -16,6 +16,7 @@ Only the VALUE/SOURCE of each field changes by mode.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, Callable, Literal
 
 from app.content import samples
@@ -69,6 +70,7 @@ _STATUS_FIELDS: dict[str, frozenset[str]] = {
     "visit": frozenset({"name", "address", "hours", "contact"}),
     "gallery": frozenset({"photos"}),
     "menu": frozenset({"menus"}),
+    "events": frozenset({"events"}),
 }
 
 # Visit fields that are factual and should NOT show sample data even in
@@ -128,6 +130,7 @@ def resolve_site_view(
         "visit": _resolve_visit(site, location, mode),
         "gallery": _resolve_gallery(role_images, mode, storage_url),
         "menu": _resolve_menu(site, mode),
+        "events": _resolve_events(site, mode, storage_url),
         "seo": _resolve_seo(site, location),
     }
 
@@ -214,7 +217,8 @@ def _resolve_our_story(
     storage_url: Callable[[str], str],
 ) -> AreaView:
     story_blocks = [
-        b for b in site.content_blocks if b.page_key == "our_story"
+        b for b in site.content_blocks
+        if b.page_key == "our_story" and b.is_visible
     ]
     has_blocks = len(story_blocks) > 0
 
@@ -246,6 +250,81 @@ def _resolve_our_story(
         ),
     }
     return AreaView(status=_compute_status("our_story", fields), fields=fields)
+
+
+def _resolve_events(
+    site: Any, mode: RenderMode,
+    storage_url: Callable[[str], str],
+) -> AreaView:
+    today = date.today()
+    event_blocks = [
+        b for b in site.content_blocks
+        if b.page_key == "events" and b.is_visible
+    ]
+
+    # Split: upcoming (dated, future/today) vs standing specials (undated)
+    upcoming = sorted(
+        [b for b in event_blocks if b.event_date is not None and b.event_date >= today],
+        key=lambda b: b.event_date,
+    )
+    specials = sorted(
+        [b for b in event_blocks if b.event_date is None],
+        key=lambda b: b.position,
+    )
+
+    has_events = len(upcoming) > 0 or len(specials) > 0
+
+    def _block_dict(b: Any) -> dict:
+        return {
+            "heading": b.heading,
+            "body": b.body,
+            "event_date": b.event_date,
+            "image_url": storage_url(b.image.s3_key) if b.image else None,
+            "image_alt": (b.image.alt_text or "") if b.image else "",
+        }
+
+    real_value = {
+        "upcoming": [_block_dict(b) for b in upcoming],
+        "specials": [_block_dict(b) for b in specials],
+    }
+    sample_value = {
+        "upcoming": [
+            {
+                "heading": samples.EVENT_UPCOMING_1_HEADING,
+                "body": samples.EVENT_UPCOMING_1_BODY,
+                "event_date": samples.event_sample_date(3),
+                "image_url": None, "image_alt": "",
+            },
+            {
+                "heading": samples.EVENT_UPCOMING_2_HEADING,
+                "body": samples.EVENT_UPCOMING_2_BODY,
+                "event_date": samples.event_sample_date(10),
+                "image_url": None, "image_alt": "",
+            },
+        ],
+        "specials": [
+            {
+                "heading": samples.EVENT_SPECIAL_1_HEADING,
+                "body": samples.EVENT_SPECIAL_1_BODY,
+                "event_date": None, "image_url": None, "image_alt": "",
+            },
+            {
+                "heading": samples.EVENT_SPECIAL_2_HEADING,
+                "body": samples.EVENT_SPECIAL_2_BODY,
+                "event_date": None, "image_url": None, "image_alt": "",
+            },
+        ],
+    }
+
+    fields = {
+        "events": _resolve_field(
+            has_real=has_events,
+            real_value=real_value,
+            sample_value=sample_value,
+            mode=mode,
+        ),
+    }
+    return AreaView(status=_compute_status("events", fields), fields=fields)
 
 
 def _resolve_visit(site: Any, location: Any | None, mode: RenderMode) -> AreaView:
