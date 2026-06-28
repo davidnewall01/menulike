@@ -5,7 +5,7 @@ feature_image_mode (which stays in code — render behaviour, not
 marketing metadata).
 """
 
-from sqlalchemy import Column, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -35,6 +35,7 @@ class TemplateMeta(Base):
     template_key: Mapped[str] = mapped_column(String, primary_key=True)
     display_name: Mapped[str] = mapped_column(String, nullable=False)
     descriptor: Mapped[str] = mapped_column(Text, nullable=False)
+    is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     tags: Mapped[list["TagVocabulary"]] = relationship(
         secondary=template_tag,

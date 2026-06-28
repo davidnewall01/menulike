@@ -309,6 +309,150 @@ async def delete_showcase_thumbnail(
 
 
 # ---------------------------------------------------------------------------
+# Template catalog editor (admin-only, platform-level)
+# ---------------------------------------------------------------------------
+
+from app.web.template_resolver import FEATURE_IMAGE_MODE
+
+
+@router.get("/templates", response_class=HTMLResponse)
+async def templates_page(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    templates_list = await template_meta_service.list_templates(db)
+    vocabulary = await template_meta_service.list_vocabulary(db)
+    return _render(
+        request, "admin/templates.html", auth,
+        templates_list=templates_list,
+        vocabulary=vocabulary,
+        feature_image_modes=FEATURE_IMAGE_MODE,
+    )
+
+
+@router.get("/templates/vocab-modal", response_class=HTMLResponse)
+async def vocab_modal(
+    request: Request,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    vocabulary = await template_meta_service.list_vocabulary(db)
+    return _render(request, "admin/_vocab_modal.html", auth, vocabulary=vocabulary)
+
+
+@router.get("/templates/{template_key}/edit-modal", response_class=HTMLResponse)
+async def template_edit_modal(
+    request: Request,
+    template_key: str,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    tpl = await template_meta_service.get_template_meta(db, template_key)
+    if tpl is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+    vocabulary = await template_meta_service.list_vocabulary(db)
+    return _render(
+        request, "admin/_template_edit_modal.html", auth,
+        tpl=tpl, vocabulary=vocabulary,
+        feature_image_mode=FEATURE_IMAGE_MODE.get(template_key, "single"),
+    )
+
+
+@router.post("/templates/{template_key}/update", response_class=HTMLResponse)
+async def templates_update(
+    request: Request,
+    template_key: str,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    form_data = await request.form()
+    display_name = form_data.get("display_name", "").strip()
+    descriptor = form_data.get("descriptor", "").strip()
+    is_available = form_data.get("is_available") == "on"
+    tag_ids = [int(v) for v in form_data.getlist("tag_ids") if v.strip()]
+
+    if not display_name or not descriptor:
+        raise HTTPException(status_code=400, detail="Name and descriptor required")
+
+    await template_meta_service.update_template(
+        db, template_key,
+        display_name=display_name, descriptor=descriptor,
+        is_available=is_available, tag_ids=tag_ids,
+    )
+    await db.commit()
+
+    return RedirectResponse(url="/admin/templates", status_code=303)
+
+
+@router.post("/templates/vocab/add", response_class=HTMLResponse)
+async def vocab_add(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    form_data = await request.form()
+    value = form_data.get("value", "").strip().lower()
+    if not value:
+        raise HTTPException(status_code=400, detail="Tag value required")
+
+    try:
+        await template_meta_service.add_tag(db, value)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        # Likely duplicate
+    return RedirectResponse(url="/admin/templates", status_code=303)
+
+
+@router.post("/templates/vocab/{tag_id}/rename", response_class=HTMLResponse)
+async def vocab_rename(
+    request: Request,
+    tag_id: int,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    form_data = await request.form()
+    new_value = form_data.get("value", "").strip().lower()
+    if not new_value:
+        raise HTTPException(status_code=400, detail="Tag value required")
+
+    await template_meta_service.rename_tag(db, tag_id, new_value)
+    await db.commit()
+    return RedirectResponse(url="/admin/templates", status_code=303)
+
+
+@router.post("/templates/vocab/{tag_id}/delete", response_class=HTMLResponse)
+async def vocab_delete(
+    request: Request,
+    tag_id: int,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    await template_meta_service.delete_tag(db, tag_id)
+    await db.commit()
+    return RedirectResponse(url="/admin/templates", status_code=303)
+
+
+# ---------------------------------------------------------------------------
 # Preview (draft-inclusive, real Linen templates, resolver-driven)
 # ---------------------------------------------------------------------------
 
@@ -537,7 +681,10 @@ async def dashboard(
 
     role_images = await image_role_service.load_role_images(db, site.site_id)
     site_view = resolve_site_view(site=site, role_images=role_images, mode="public", storage_url=storage_public_url)
-    eligible, reasons = site_service.can_publish(site_view)
+    tpl_meta = await template_meta_service.get_template_meta(db, site.template)
+    eligible, reasons = site_service.can_publish(
+        site_view, template_available=tpl_meta.is_available if tpl_meta else False,
+    )
 
     # Count areas with status "yours" for progress bar
     yours_count = sum(1 for area in site_view.values() if area.status == "yours")
@@ -581,7 +728,10 @@ async def publish_site(
     role_images = await image_role_service.load_role_images(db, site.site_id)
     site_view = resolve_site_view(site=site, role_images=role_images, mode="public", storage_url=storage_public_url)
 
-    eligible, _reasons = site_service.can_publish(site_view)
+    tpl_meta = await template_meta_service.get_template_meta(db, site.template)
+    eligible, _reasons = site_service.can_publish(
+        site_view, template_available=tpl_meta.is_available if tpl_meta else False,
+    )
     if not eligible:
         return RedirectResponse(url="/admin/", status_code=303)
 
@@ -2138,10 +2288,16 @@ async def appearance_page(
     except SiteNotFound:
         raise HTTPException(status_code=400, detail="Scoped site not found")
 
+    # Owners see only available templates; admins acting-as see all
+    if auth.is_internal_admin:
+        tpl_choices = await template_meta_service.available_template_choices(db)
+    else:
+        tpl_choices = await template_meta_service.public_template_choices(db)
+
     return _render(
         request, "admin/appearance.html", auth,
         is_internal_admin=False,
-        available_templates=await template_meta_service.available_template_choices(db),
+        available_templates=tpl_choices,
         current_template=site.template,
     )
 

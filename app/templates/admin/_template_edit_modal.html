@@ -1,0 +1,65 @@
+<div id="tpl-edit-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+     onclick="if(event.target===this)this.remove()">
+  <div class="bg-base-100 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto mx-4"
+       onclick="event.stopPropagation()">
+    <div class="p-5">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">Edit: {{ tpl.display_name }}</h2>
+        <button type="button" onclick="document.getElementById('tpl-edit-modal').remove()"
+                class="btn btn-ghost btn-sm btn-circle">&times;</button>
+      </div>
+
+      <form method="post" action="/admin/templates/{{ tpl.template_key }}/update" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div>
+          <label class="label label-text text-xs font-semibold">Display Name</label>
+          <input type="text" name="display_name" value="{{ tpl.display_name }}"
+                 class="input input-bordered input-sm w-full" required>
+        </div>
+
+        <div>
+          <label class="label label-text text-xs font-semibold">Descriptor</label>
+          <textarea name="descriptor" class="textarea textarea-bordered w-full" rows="3" required>{{ tpl.descriptor }}</textarea>
+        </div>
+
+        <div>
+          <label class="label label-text text-xs font-semibold">Available</label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="is_available" class="toggle toggle-sm toggle-success"
+                   {% if tpl.is_available %}checked{% endif %}>
+            <span class="text-xs text-base-content/60">Offer in appearance picker + public template gallery</span>
+          </label>
+        </div>
+
+        <div>
+          <label class="label label-text text-xs font-semibold">Feature Image Mode</label>
+          <div class="text-sm text-base-content/50"><code>{{ feature_image_mode }}</code> <span class="text-xs">(code-controlled, read-only)</span></div>
+        </div>
+
+        <div>
+          <label class="label label-text text-xs font-semibold">Tags</label>
+          <div class="flex flex-wrap gap-2">
+            {% set tpl_tag_ids = tpl.tags | map(attribute='tag_id') | list %}
+            {% for tag in vocabulary %}
+            {% set is_on = tag.tag_id in tpl_tag_ids %}
+            <label class="cursor-pointer inline-block px-3 py-1 rounded-full text-xs font-medium border transition-colors
+                          {% if is_on %}bg-primary text-primary-content border-primary{% else %}border-base-content/20 text-base-content/60{% endif %}"
+                   onclick="var c=this.querySelector('input');setTimeout(function(){var on=c.checked;if(on){this.classList.add('bg-primary','text-primary-content','border-primary');this.classList.remove('border-base-content/20','text-base-content/60')}else{this.classList.remove('bg-primary','text-primary-content','border-primary');this.classList.add('border-base-content/20','text-base-content/60')}}.bind(this),0)">
+              <input type="checkbox" name="tag_ids" value="{{ tag.tag_id }}" class="hidden"
+                     {% if is_on %}checked{% endif %}>
+              {{ tag.value }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="document.getElementById('tpl-edit-modal').remove()"
+                  class="btn btn-ghost btn-sm">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -45,7 +45,15 @@ async def get_auth_context(
     if user.role == "internal_admin":
         act_as_token = request.cookies.get(ACT_AS_COOKIE)
         if act_as_token:
-            acting_site_id = decode_act_as(act_as_token)
+            candidate_id = decode_act_as(act_as_token)
+            if candidate_id is not None:
+                # Validate the site still exists (stale cookie after DB reset)
+                from app.models.site import Site
+                check = await db.execute(
+                    select(Site.site_id).where(Site.site_id == candidate_id)
+                )
+                if check.scalar_one_or_none() is not None:
+                    acting_site_id = candidate_id
 
     return AuthContext(
         user_id=user.user_id,

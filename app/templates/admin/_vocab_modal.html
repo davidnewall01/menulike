@@ -1,0 +1,39 @@
+<div id="vocab-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+     onclick="if(event.target===this)this.remove()">
+  <div class="bg-base-100 rounded-xl shadow-xl w-full max-w-sm max-h-[80vh] overflow-y-auto mx-4"
+       onclick="event.stopPropagation()">
+    <div class="p-5">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">Tag Vocabulary</h2>
+        <button type="button" onclick="document.getElementById('vocab-modal').remove()"
+                class="btn btn-ghost btn-sm btn-circle">&times;</button>
+      </div>
+
+      <p class="text-xs text-base-content/50 mb-4">Removing a tag pulls it off any templates using it.</p>
+
+      <div class="space-y-1 mb-4">
+        {% for tag in vocabulary %}
+        <div class="flex items-center gap-2 group">
+          <span class="flex-1 text-sm py-1">{{ tag.value }}</span>
+          <form method="post" action="/admin/templates/vocab/{{ tag.tag_id }}/delete"
+                onsubmit="return confirm('Remove &quot;{{ tag.value }}&quot;?')" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn btn-ghost btn-xs text-error opacity-40 group-hover:opacity-100">&times;</button>
+          </form>
+        </div>
+        {% endfor %}
+        {% if not vocabulary %}
+        <p class="text-sm text-base-content/40 italic">No tags yet.</p>
+        {% endif %}
+      </div>
+
+      <div class="border-t pt-3">
+        <form method="post" action="/admin/templates/vocab/add" class="flex items-center gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="text" name="value" class="input input-bordered input-sm flex-1" placeholder="new-tag" required>
+          <button type="submit" class="btn btn-primary btn-sm">Add</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

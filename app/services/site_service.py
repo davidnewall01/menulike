@@ -340,17 +340,21 @@ async def set_template(
 # Publish / go-live
 # ---------------------------------------------------------------------------
 
-def can_publish(site_view: dict) -> tuple[bool, list[str]]:
+def can_publish(
+    site_view: dict, *, template_available: bool = True,
+) -> tuple[bool, list[str]]:
     """Check whether a site is eligible to go live.
 
-    Pure function — reads the resolver's SiteView (mode-independent status).
+    Pure function — reads the resolver's SiteView (mode-independent status)
+    plus an optional template_available flag (resolved by the caller from DB).
     Returns (eligible, reasons) where reasons lists unmet requirements.
 
-    Minimum bar for the pilot: menu is real AND home hero is real.
-    Keys on the mode-independent status/source, so can_publish agrees
-    with the dashboard tiles by construction.
+    Minimum bar: menu is real AND home hero is real AND template is available.
     """
     reasons: list[str] = []
+
+    if not template_available:
+        reasons.append("Template not available yet")
 
     if site_view["menu"].status == "sample":
         reasons.append("Add your menu")

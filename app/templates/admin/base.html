@@ -31,6 +31,9 @@
             <ul class="menu menu-horizontal px-1">
                 <li><a href="/admin/">Dashboard</a></li>
                 <li><a href="/admin/preview">Preview</a></li>
+                {% if _auth is defined and _auth.is_internal_admin %}
+                <li><a href="/admin/templates">Templates</a></li>
+                {% endif %}
             </ul>
             <form method="post" action="/admin/logout">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

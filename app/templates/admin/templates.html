@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+{% block title %}Templates{% endblock %}
+{% block main_width %}max-w-5xl{% endblock %}
+
+{% block content %}
+<a href="/admin/" class="admin-back">&larr; Back to dashboard</a>
+
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">Template Catalog</h1>
+  <button class="btn btn-outline btn-sm"
+          hx-get="/admin/templates/vocab-modal"
+          hx-target="body" hx-swap="beforeend">Manage Tags</button>
+</div>
+
+<div class="overflow-x-auto">
+  <table class="table bg-base-100">
+    <thead>
+      <tr>
+        <th>Template</th>
+        <th>Status</th>
+        <th>Image Mode</th>
+        <th>Tags</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tpl in templates_list %}
+      <tr>
+        <td>
+          <div class="font-semibold">{{ tpl.display_name }}</div>
+          <div class="text-xs text-base-content/50 mt-0.5">{{ tpl.descriptor[:60] }}{% if tpl.descriptor | length > 60 %}...{% endif %}</div>
+        </td>
+        <td>
+          {% if tpl.is_available %}
+          <span class="badge badge-success badge-sm gap-1"><span class="w-1.5 h-1.5 rounded-full bg-success-content inline-block"></span>Available</span>
+          {% else %}
+          <span class="badge badge-ghost badge-sm gap-1"><span class="w-1.5 h-1.5 rounded-full bg-base-content/30 inline-block"></span>Unavailable</span>
+          {% endif %}
+        </td>
+        <td class="text-sm text-base-content/60"><code>{{ feature_image_modes.get(tpl.template_key, 'single') }}</code></td>
+        <td>
+          <div class="flex flex-wrap gap-1">
+            {% for tag in tpl.tags %}
+            <span class="badge badge-outline badge-xs">{{ tag.value }}</span>
+            {% endfor %}
+            {% if not tpl.tags %}<span class="text-xs text-base-content/30 italic">none</span>{% endif %}
+          </div>
+        </td>
+        <td>
+          <button class="btn btn-ghost btn-sm"
+                  hx-get="/admin/templates/{{ tpl.template_key }}/edit-modal"
+                  hx-target="body" hx-swap="beforeend">Edit</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

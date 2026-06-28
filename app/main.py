@@ -64,6 +64,56 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+# ---------------------------------------------------------------------------
+# Public render error boundary — defence-in-depth.
+#
+# Catches unhandled exceptions on PUBLIC site routes so visitors see a clean
+# error page instead of a raw 500 / stack trace. Logs the real exception
+# server-side. Does NOT wrap admin/auth routes (those should surface errors
+# to the developer during dev).
+# ---------------------------------------------------------------------------
+
+import logging
+
+_public_error_logger = logging.getLogger("menulike.public_render")
+_error_templates = Jinja2Templates(
+    directory=str(Path(__file__).resolve().parent / "templates")
+)
+
+
+@app.middleware("http")
+async def public_render_error_boundary(request: Request, call_next):
+    """Catch template render errors on public routes only."""
+    response = None
+    try:
+        response = await call_next(request)
+    except Exception:
+        # Only catch for public routes (not /admin, /setup, /health, /static)
+        path = request.url.path
+        if path.startswith(("/admin", "/setup", "/health", "/static")):
+            raise  # Re-raise for admin/dev — don't blind debugging
+        _public_error_logger.exception(
+            "Public render error: %s %s", request.method, request.url
+        )
+        return HTMLResponse(
+            content=(
+                '<!DOCTYPE html><html><head><meta charset="utf-8">'
+                "<title>Something went wrong</title>"
+                '<style>body{font-family:system-ui;display:flex;align-items:center;'
+                "justify-content:center;min-height:100vh;margin:0;background:#f5f0e8;"
+                "color:#3e3528}div{text-align:center;max-width:400px;padding:40px}"
+                "h1{font-size:24px;margin:0 0 12px}p{color:#6e665b;font-size:14px}</style>"
+                "</head><body><div>"
+                "<h1>Something went wrong</h1>"
+                "<p>We're sorry — this page isn't loading right now. "
+                "Please try again in a moment.</p>"
+                "</div></body></html>"
+            ),
+            status_code=500,
+        )
+    return response
+
+
 app.mount(
     "/static",
     StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
