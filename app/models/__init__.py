@@ -13,6 +13,7 @@ from app.models.photo import Photo
 from app.models.regular_hours import RegularHours
 from app.models.site import Site
 from app.models.site_image_role import SiteImageRole
+from app.models.template_meta import TagVocabulary, TemplateMeta
 from app.models.user import User
 
 __all__ = [
@@ -29,5 +30,7 @@ __all__ = [
     "Site",
     "SiteImageRole",
     "Subsection",
+    "TagVocabulary",
+    "TemplateMeta",
     "User",
 ]

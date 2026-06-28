@@ -28,6 +28,7 @@
                 <th>Template</th>
                 <th>Published</th>
                 <th>Showcase</th>
+                <th>Thumbnail</th>
                 <th></th>
             </tr>
         </thead>
@@ -39,6 +40,33 @@
                 <td class="text-sm">{{ s.template }}</td>
                 <td>{% if s.is_published %}<span class="badge badge-success badge-sm">Live</span>{% else %}<span class="badge badge-ghost badge-sm">Draft</span>{% endif %}</td>
                 <td>{% if s.is_showcase %}<span class="badge badge-info badge-sm">Showcase</span>{% endif %}</td>
+                <td class="text-xs">
+                    {% if s.thumbnail_key %}
+                    <div class="flex items-center gap-2">
+                        <img src="{{ storage_url(s.thumbnail_key) }}" alt="Thumbnail" class="w-16 h-10 object-cover rounded border">
+                        <div class="flex flex-col gap-1">
+                            <form method="post" action="/admin/showcase/thumbnail" enctype="multipart/form-data" class="inline flex items-center gap-1">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="site_id" value="{{ s.site_id }}">
+                                <input type="file" name="file" accept="image/*" class="file-input file-input-bordered file-input-xs w-24">
+                                <button type="submit" class="btn btn-ghost btn-xs">Replace</button>
+                            </form>
+                            <form method="post" action="/admin/showcase/thumbnail/delete" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="site_id" value="{{ s.site_id }}">
+                                <button type="submit" class="btn btn-ghost btn-xs text-error" onclick="return confirm('Remove thumbnail?')">Remove</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% elif s.is_showcase %}
+                    <form method="post" action="/admin/showcase/thumbnail" enctype="multipart/form-data" class="inline flex items-center gap-1">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="site_id" value="{{ s.site_id }}">
+                        <input type="file" name="file" accept="image/*" class="file-input file-input-bordered file-input-xs w-24">
+                        <button type="submit" class="btn btn-outline btn-xs">Upload</button>
+                    </form>
+                    {% endif %}
+                </td>
                 <td>
                     <form method="post" action="/admin/act-as/{{ s.site_id }}" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -54,6 +82,9 @@
 <div class="divider"></div>
 
 <h2 class="text-lg font-semibold mb-3">Create showcase site</h2>
+{% if showcase_error is defined and showcase_error %}
+<div class="alert alert-error mb-3 text-sm">{{ showcase_error }}</div>
+{% endif %}
 <form method="post" action="/admin/showcase/create" class="flex flex-wrap gap-3 items-end">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div>
@@ -67,9 +98,9 @@
     <div>
         <label class="label label-text text-xs">Template</label>
         <select name="template" class="select select-bordered select-sm">
-            <option value="linen">Linen</option>
-            <option value="slate">Slate</option>
-            <option value="olive">Olive</option>
+            {% for value, label in available_templates %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
         </select>
     </div>
     <button type="submit" class="btn btn-outline btn-sm">Create</button>

@@ -14,7 +14,7 @@ from app.models.site import Site
 from app.models.user import User
 from app.schemas.site import SiteDetailsForm
 from app.services.exceptions import AlreadyHasSite, InvalidTemplate, NoSiteInScope, SiteNotFound
-from app.web.template_resolver import AVAILABLE_TEMPLATES
+from app.services import template_meta_service
 
 
 # Shared eager-load options for public-render site queries. Used by both
@@ -311,19 +311,17 @@ async def update_seo(
     return site
 
 
-_AVAILABLE_KEYS = {k for k, _ in AVAILABLE_TEMPLATES}
-
-
 async def set_template(
     db: AsyncSession, auth_ctx: AuthContext, template: str
 ) -> Site:
     """Set the template for the owner's scoped site. Flush only.
 
-    Validates the template value against AVAILABLE_TEMPLATES.
+    Validates the template value against the template_meta DB table.
     """
     if auth_ctx.scoped_site_id is None:
         raise NoSiteInScope()
-    if template not in _AVAILABLE_KEYS:
+    available = await template_meta_service.get_available_keys(db)
+    if template not in available:
         raise InvalidTemplate(f"Unknown template '{template}'")
 
     result = await db.execute(
@@ -394,7 +392,7 @@ async def create_showcase_site(
         slug=slug,
         template=template,
         is_showcase=True,
-        is_published=True,
+        is_published=False,
     )
     db.add(site)
     await db.flush()

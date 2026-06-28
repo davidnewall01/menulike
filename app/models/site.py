@@ -72,6 +72,8 @@ class Site(TimestampMixin, Base):
     showcase_position: Mapped[int | None] = mapped_column(
         SmallInteger, nullable=True
     )
+    # Marketing screenshot for the template picker (S3 key, NOT a photo-library image)
+    thumbnail_key: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Design config (JSONB)
     settings: Mapped[dict] = mapped_column(

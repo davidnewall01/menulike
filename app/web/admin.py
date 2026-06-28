@@ -50,7 +50,8 @@ from app.services.menu_extraction_service import (
     InvalidPDF,
 )
 from app.services.storage import StorageNotConfigured
-from app.web.template_resolver import AVAILABLE_TEMPLATES, FEATURE_IMAGE_MODE
+from app.services import template_meta_service
+from app.web.template_resolver import get_feature_image_mode, page_path_safe, resolve_template
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 
@@ -205,13 +206,104 @@ async def create_showcase(
     if not name or not slug:
         raise HTTPException(status_code=400, detail="Name and slug required")
 
+    # Check slug uniqueness before creating
+    existing = await db.execute(select(Site).where(Site.slug == slug))
+    if existing.scalar_one_or_none() is not None:
+        all_sites = await site_service.list_all_sites(db)
+        return _render(
+            request, "admin/dashboard_admin.html", auth,
+            email=auth.email, role=auth.role, is_internal_admin=True,
+            sites=all_sites, storage_url=storage_public_url,
+            available_templates=await template_meta_service.available_template_choices(db),
+            showcase_error=f"A site with slug \"{slug}\" already exists. Choose a different slug.",
+        )
+
     from app.services.site_service import create_showcase_site
+    await create_showcase_site(db, name, slug, template)
+    await db.commit()
+
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+@router.post("/showcase/thumbnail", response_class=HTMLResponse)
+async def upload_showcase_thumbnail(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: upload a marketing thumbnail for a showcase site.
+
+    Stores directly to S3 — does NOT go through photo_service (it's a
+    marketing screenshot, not a restaurant photo).
+    """
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    form_data = await request.form()
+    site_id_str = form_data.get("site_id", "")
+    file = form_data.get("file")
+
     try:
-        await create_showcase_site(db, name, slug, template)
+        target_site_id = uuid.UUID(site_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid site_id")
+
+    if not file or not hasattr(file, "read"):
+        return RedirectResponse(url="/admin/", status_code=303)
+
+    file_data = await file.read()
+    if len(file_data) == 0:
+        return RedirectResponse(url="/admin/", status_code=303)
+
+    content_type = getattr(file, "content_type", "image/png") or "image/png"
+
+    ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+    ext = ext_map.get(content_type, "png")
+
+    # Validate site exists
+    result = await db.execute(select(Site).where(Site.site_id == target_site_id))
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    # Upload to S3 (marketing path, not photo library)
+    from app.services import storage
+    key = f"sites/{target_site_id}/thumbnails/{uuid.uuid4()}.{ext}"
+    await storage.upload(file_data, key, content_type)
+
+    site.thumbnail_key = key
+    await db.commit()
+
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+@router.post("/showcase/thumbnail/delete", response_class=HTMLResponse)
+async def delete_showcase_thumbnail(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: remove the thumbnail from a showcase site."""
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    form_data = await request.form()
+    site_id_str = form_data.get("site_id", "")
+    try:
+        target_site_id = uuid.UUID(site_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid site_id")
+
+    result = await db.execute(select(Site).where(Site.site_id == target_site_id))
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    if site.thumbnail_key:
+        from app.services import storage
+        await storage.delete(site.thumbnail_key)
+        site.thumbnail_key = None
         await db.commit()
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail="Could not create — slug may already exist")
 
     return RedirectResponse(url="/admin/", status_code=303)
 
@@ -249,13 +341,15 @@ async def preview_home(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
     )
+    tpl = resolve_template(site.template)
     return templates.TemplateResponse(
-        "public/linen/home.html",
+        page_path_safe(tpl, "home"),
         {
             "request": request,
             "site": site,
             "view": view,
             "storage_url": storage_public_url,
+            "role_images": role_images,
             **_PREVIEW_CTX,
         },
     )
@@ -275,8 +369,9 @@ async def preview_menu(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
     )
+    tpl = resolve_template(site.template)
     return templates.TemplateResponse(
-        "public/linen/menu.html",
+        page_path_safe(tpl, "menu"),
         {
             "request": request,
             "site": site,
@@ -301,8 +396,9 @@ async def preview_our_story(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
     )
+    tpl = resolve_template(site.template)
     return templates.TemplateResponse(
-        "public/linen/our_story.html",
+        page_path_safe(tpl, "our_story"),
         {
             "request": request,
             "site": site,
@@ -327,8 +423,9 @@ async def preview_gallery(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
     )
+    tpl = resolve_template(site.template)
     return templates.TemplateResponse(
-        "public/linen/gallery.html",
+        page_path_safe(tpl, "gallery"),
         {
             "request": request,
             "site": site,
@@ -364,8 +461,9 @@ async def preview_visit(
         exc for exc in (location.hours_exceptions if location else [])
         if exc.end_date >= today
     ]
+    tpl = resolve_template(site.template)
     return templates.TemplateResponse(
-        "public/linen/visit.html",
+        page_path_safe(tpl, "visit"),
         {
             "request": request,
             "site": site,
@@ -393,8 +491,9 @@ async def preview_events(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
     )
+    tpl = resolve_template(site.template)
     return templates.TemplateResponse(
-        "public/linen/events.html",
+        page_path_safe(tpl, "events"),
         {
             "request": request,
             "site": site,
@@ -424,6 +523,8 @@ async def dashboard(
             role=auth.role,
             is_internal_admin=True,
             sites=all_sites,
+            storage_url=storage_public_url,
+            available_templates=await template_meta_service.available_template_choices(db),
         )
 
     # Owner OR admin acting-as: tiled dashboard for the scoped site
@@ -522,7 +623,7 @@ async def front_page(
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
 
-    mode = FEATURE_IMAGE_MODE.get(site.template, "single")
+    mode = get_feature_image_mode(site.template)
     by_key = _roles_by_key(roles)
     by_key_list = _roles_list_by_key(roles)
 
@@ -559,7 +660,7 @@ async def front_page_save(
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
 
-    mode = FEATURE_IMAGE_MODE.get(site.template, "single")
+    mode = get_feature_image_mode(site.template)
     by_key = _roles_by_key(roles)
     by_key_list = _roles_list_by_key(roles)
 
@@ -2029,7 +2130,7 @@ async def appearance_page(
         return _render(
             request, "admin/appearance.html", auth,
             is_internal_admin=True,
-            available_templates=AVAILABLE_TEMPLATES, current_template=None,
+            available_templates=await template_meta_service.available_template_choices(db), current_template=None,
         )
 
     try:
@@ -2040,7 +2141,7 @@ async def appearance_page(
     return _render(
         request, "admin/appearance.html", auth,
         is_internal_admin=False,
-        available_templates=AVAILABLE_TEMPLATES,
+        available_templates=await template_meta_service.available_template_choices(db),
         current_template=site.template,
     )
 
