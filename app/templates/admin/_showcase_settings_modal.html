@@ -1,0 +1,73 @@
+<div id="showcase-settings-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+     onclick="if(event.target===this)this.remove()">
+  <div class="bg-base-100 rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-y-auto mx-4"
+       onclick="event.stopPropagation()">
+    <div class="p-5">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">Settings: {{ site.restaurant_name }}</h2>
+        <button type="button" onclick="document.getElementById('showcase-settings-modal').remove()"
+                class="btn btn-ghost btn-sm btn-circle">&times;</button>
+      </div>
+
+      {% if publish_error is defined and publish_error %}
+      <div class="alert alert-error mb-3 text-sm py-2">{{ publish_error }}</div>
+      {% endif %}
+
+      {# Thumbnail — HTMX in-place (stays in modal) #}
+      <div class="mb-4">
+        <label class="label label-text text-xs font-semibold">Thumbnail</label>
+        {% if site.thumbnail_key %}
+        <div class="flex items-center gap-3 mb-2">
+          <img src="{{ storage_url(site.thumbnail_key) }}" alt="Thumbnail"
+               class="w-24 h-16 object-cover rounded border">
+          <form hx-post="/admin/showcase/thumbnail/delete"
+                hx-target="#showcase-settings-modal" hx-swap="outerHTML"
+                hx-vals='{"site_id": "{{ site.site_id }}", "csrf_token": "{{ csrf_token }}"}'
+                class="inline">
+            <button type="submit" class="btn btn-ghost btn-xs text-error"
+                    onclick="return confirm('Remove thumbnail?')">Remove</button>
+          </form>
+        </div>
+        {% endif %}
+        <form hx-post="/admin/showcase/thumbnail"
+              hx-target="#showcase-settings-modal" hx-swap="outerHTML"
+              hx-encoding="multipart/form-data"
+              class="flex items-center gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="site_id" value="{{ site.site_id }}">
+          <input type="file" name="file" accept="image/*" class="file-input file-input-bordered file-input-xs flex-1">
+          <button type="submit" class="btn btn-outline btn-xs">{% if site.thumbnail_key %}Replace{% else %}Upload{% endif %}</button>
+        </form>
+      </div>
+
+      {# Position + Published #}
+      <form hx-post="/admin/showcase/{{ site.site_id }}/update"
+            hx-target="#showcase-settings-modal" hx-swap="outerHTML"
+            class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div>
+          <label class="label label-text text-xs font-semibold">Picker Position</label>
+          <input type="number" name="showcase_position" value="{{ site.showcase_position if site.showcase_position is not none else '' }}"
+                 class="input input-bordered input-sm w-24" min="0" placeholder="0">
+          <span class="text-xs text-base-content/50 ml-2">Lower = earlier in the picker</span>
+        </div>
+
+        <div>
+          <label class="label label-text text-xs font-semibold">Published</label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="is_published" class="toggle toggle-sm toggle-success"
+                   {% if site.is_published %}checked{% endif %}>
+            <span class="text-xs text-base-content/60">Live — visible on public subdomain + picker</span>
+          </label>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="document.getElementById('showcase-settings-modal').remove()"
+                  class="btn btn-ghost btn-sm">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

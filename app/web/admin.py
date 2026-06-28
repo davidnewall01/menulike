@@ -213,7 +213,9 @@ async def create_showcase(
         return _render(
             request, "admin/dashboard_admin.html", auth,
             email=auth.email, role=auth.role, is_internal_admin=True,
-            sites=all_sites, storage_url=storage_public_url,
+            customer_sites=[s for s in all_sites if not s.is_showcase],
+            showcase_sites=[s for s in all_sites if s.is_showcase],
+            storage_url=storage_public_url,
             available_templates=await template_meta_service.available_template_choices(db),
             showcase_error=f"A site with slug \"{slug}\" already exists. Choose a different slug.",
         )
@@ -222,7 +224,7 @@ async def create_showcase(
     await create_showcase_site(db, name, slug, template)
     await db.commit()
 
-    return RedirectResponse(url="/admin/", status_code=303)
+    return RedirectResponse(url="/admin/?tab=showcase", status_code=303)
 
 
 @router.post("/showcase/thumbnail", response_class=HTMLResponse)
@@ -249,11 +251,11 @@ async def upload_showcase_thumbnail(
         raise HTTPException(status_code=400, detail="Invalid site_id")
 
     if not file or not hasattr(file, "read"):
-        return RedirectResponse(url="/admin/", status_code=303)
+        return RedirectResponse(url="/admin/?tab=showcase", status_code=303)
 
     file_data = await file.read()
     if len(file_data) == 0:
-        return RedirectResponse(url="/admin/", status_code=303)
+        return RedirectResponse(url="/admin/?tab=showcase", status_code=303)
 
     content_type = getattr(file, "content_type", "image/png") or "image/png"
 
@@ -274,7 +276,13 @@ async def upload_showcase_thumbnail(
     site.thumbnail_key = key
     await db.commit()
 
-    return RedirectResponse(url="/admin/", status_code=303)
+    # HTMX request (from modal) → return updated modal; normal POST → redirect
+    if request.headers.get("HX-Request"):
+        return _render(
+            request, "admin/_showcase_settings_modal.html", auth,
+            site=site, storage_url=storage_public_url,
+        )
+    return RedirectResponse(url="/admin/?tab=showcase", status_code=303)
 
 
 @router.post("/showcase/thumbnail/delete", response_class=HTMLResponse)
@@ -305,7 +313,85 @@ async def delete_showcase_thumbnail(
         site.thumbnail_key = None
         await db.commit()
 
-    return RedirectResponse(url="/admin/", status_code=303)
+    if request.headers.get("HX-Request"):
+        return _render(
+            request, "admin/_showcase_settings_modal.html", auth,
+            site=site, storage_url=storage_public_url,
+        )
+    return RedirectResponse(url="/admin/?tab=showcase", status_code=303)
+
+
+@router.get("/showcase/{site_id}/settings-modal", response_class=HTMLResponse)
+async def showcase_settings_modal(
+    request: Request,
+    site_id: uuid.UUID,
+    auth: AuthContext = Depends(require_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the showcase settings modal partial (HTMX-loaded)."""
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    result = await db.execute(select(Site).where(Site.site_id == site_id))
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+    return _render(
+        request, "admin/_showcase_settings_modal.html", auth,
+        site=site, storage_url=storage_public_url,
+    )
+
+
+@router.post("/showcase/{site_id}/update", response_class=HTMLResponse)
+async def showcase_update(
+    request: Request,
+    site_id: uuid.UUID,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update showcase metadata (position, published)."""
+    if not auth.is_internal_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    result = await db.execute(select(Site).where(Site.site_id == site_id))
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    form_data = await request.form()
+    pos_str = form_data.get("showcase_position", "").strip()
+    site.showcase_position = int(pos_str) if pos_str else None
+
+    want_published = form_data.get("is_published") == "on"
+    if want_published and not site.is_published:
+        # Check publish guard (template availability)
+        from app.content.resolver import resolve_site_view
+        full_site = await site_service.get_site_by_id_public(db, site.site_id)
+        if full_site is None:
+            full_site = site
+        role_images = await image_role_service.load_role_images(db, site.site_id)
+        site_view = resolve_site_view(
+            site=full_site, role_images=role_images, mode="public",
+            storage_url=storage_public_url,
+        )
+        tpl_meta = await template_meta_service.get_template_meta(db, site.template)
+        eligible, reasons = site_service.can_publish(
+            site_view, template_available=tpl_meta.is_available if tpl_meta else False,
+        )
+        if not eligible:
+            return _render(
+                request, "admin/_showcase_settings_modal.html", auth,
+                site=site, storage_url=storage_public_url,
+                publish_error="Cannot publish: " + "; ".join(reasons),
+            )
+    site.is_published = want_published
+    await db.commit()
+
+    # HTMX: redirect via header (modal closes, page reloads to showcase tab)
+    if request.headers.get("HX-Request"):
+        response = HTMLResponse("")
+        response.headers["HX-Redirect"] = "/admin/?tab=showcase"
+        return response
+    return RedirectResponse(url="/admin/?tab=showcase", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -661,12 +747,15 @@ async def dashboard(
     # Internal admin with no acting site: show site picker
     if auth.is_internal_admin and auth.scoped_site_id is None:
         all_sites = await site_service.list_all_sites(db)
+        customer_sites = [s for s in all_sites if not s.is_showcase]
+        showcase_sites = [s for s in all_sites if s.is_showcase]
         return _render(
             request, "admin/dashboard_admin.html", auth,
             email=auth.email,
             role=auth.role,
             is_internal_admin=True,
-            sites=all_sites,
+            customer_sites=customer_sites,
+            showcase_sites=showcase_sites,
             storage_url=storage_public_url,
             available_templates=await template_meta_service.available_template_choices(db),
         )

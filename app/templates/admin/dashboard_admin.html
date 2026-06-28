@@ -17,93 +17,130 @@
     </div>
 </div>
 
-{% if sites is defined %}
-<h2 class="text-lg font-semibold mb-3">All sites</h2>
-<div class="overflow-x-auto">
-    <table class="table table-sm bg-base-100">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>Template</th>
-                <th>Published</th>
-                <th>Showcase</th>
-                <th>Thumbnail</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for s in sites %}
-            <tr>
-                <td class="font-medium">{{ s.restaurant_name }}</td>
-                <td class="text-sm text-base-content/60">{{ s.slug }}</td>
-                <td class="text-sm">{{ s.template }}</td>
-                <td>{% if s.is_published %}<span class="badge badge-success badge-sm">Live</span>{% else %}<span class="badge badge-ghost badge-sm">Draft</span>{% endif %}</td>
-                <td>{% if s.is_showcase %}<span class="badge badge-info badge-sm">Showcase</span>{% endif %}</td>
-                <td class="text-xs">
-                    {% if s.thumbnail_key %}
-                    <div class="flex items-center gap-2">
-                        <img src="{{ storage_url(s.thumbnail_key) }}" alt="Thumbnail" class="w-16 h-10 object-cover rounded border">
-                        <div class="flex flex-col gap-1">
-                            <form method="post" action="/admin/showcase/thumbnail" enctype="multipart/form-data" class="inline flex items-center gap-1">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                                <input type="hidden" name="site_id" value="{{ s.site_id }}">
-                                <input type="file" name="file" accept="image/*" class="file-input file-input-bordered file-input-xs w-24">
-                                <button type="submit" class="btn btn-ghost btn-xs">Replace</button>
-                            </form>
-                            <form method="post" action="/admin/showcase/thumbnail/delete" class="inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                                <input type="hidden" name="site_id" value="{{ s.site_id }}">
-                                <button type="submit" class="btn btn-ghost btn-xs text-error" onclick="return confirm('Remove thumbnail?')">Remove</button>
-                            </form>
-                        </div>
-                    </div>
-                    {% elif s.is_showcase %}
-                    <form method="post" action="/admin/showcase/thumbnail" enctype="multipart/form-data" class="inline flex items-center gap-1">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input type="hidden" name="site_id" value="{{ s.site_id }}">
-                        <input type="file" name="file" accept="image/*" class="file-input file-input-bordered file-input-xs w-24">
-                        <button type="submit" class="btn btn-outline btn-xs">Upload</button>
-                    </form>
-                    {% endif %}
-                </td>
-                <td>
-                    <form method="post" action="/admin/act-as/{{ s.site_id }}" class="inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="btn btn-primary btn-xs">Manage</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+{% if customer_sites is defined %}
+
+{# --- Tabs --- #}
+<div class="tabs tabs-bordered mb-4" id="site-tabs">
+    <a class="tab tab-active" onclick="switchTab(this,'customers')">Customers ({{ customer_sites | length }})</a>
+    <a class="tab" onclick="switchTab(this,'showcase')">Showcase ({{ showcase_sites | length }})</a>
 </div>
 
-<div class="divider"></div>
+{# --- Customers tab --- #}
+<div id="tab-customers">
+    {% if customer_sites %}
+    <div class="overflow-x-auto">
+        <table class="table table-sm bg-base-100">
+            <thead>
+                <tr><th>Name</th><th>Slug</th><th>Template</th><th>Published</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for s in customer_sites %}
+                <tr>
+                    <td class="font-medium">{{ s.restaurant_name }}</td>
+                    <td class="text-sm text-base-content/60">{{ s.slug }}</td>
+                    <td class="text-sm">{{ s.template }}</td>
+                    <td>{% if s.is_published %}<span class="badge badge-success badge-sm">Live</span>{% else %}<span class="badge badge-ghost badge-sm">Draft</span>{% endif %}</td>
+                    <td>
+                        <form method="post" action="/admin/act-as/{{ s.site_id }}" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-primary btn-xs">Manage</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-base-content/50 py-4">No customer sites yet.</p>
+    {% endif %}
+</div>
 
-<h2 class="text-lg font-semibold mb-3">Create showcase site</h2>
-{% if showcase_error is defined and showcase_error %}
-<div class="alert alert-error mb-3 text-sm">{{ showcase_error }}</div>
-{% endif %}
-<form method="post" action="/admin/showcase/create" class="flex flex-wrap gap-3 items-end">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <div>
-        <label class="label label-text text-xs">Name</label>
-        <input type="text" name="restaurant_name" class="input input-bordered input-sm" placeholder="The Linen Table" required>
+{# --- Showcase tab --- #}
+<div id="tab-showcase" style="display:none">
+    {% if showcase_sites %}
+    <div class="overflow-x-auto">
+        <table class="table table-sm bg-base-100">
+            <thead>
+                <tr><th>Name</th><th>Slug</th><th>Template</th><th>Published</th><th>Thumb</th><th>Pos</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for s in showcase_sites %}
+                <tr>
+                    <td class="font-medium">{{ s.restaurant_name }}</td>
+                    <td class="text-sm text-base-content/60">{{ s.slug }}</td>
+                    <td class="text-sm">{{ s.template }}</td>
+                    <td>{% if s.is_published %}<span class="badge badge-success badge-sm">Live</span>{% else %}<span class="badge badge-ghost badge-sm">Draft</span>{% endif %}</td>
+                    <td>
+                        {% if s.thumbnail_key %}
+                        <img src="{{ storage_url(s.thumbnail_key) }}" alt="" class="w-12 h-8 object-cover rounded border">
+                        {% else %}
+                        <span class="text-xs text-base-content/30">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-sm text-base-content/60">{{ s.showcase_position if s.showcase_position is not none else '—' }}</td>
+                    <td class="flex gap-1">
+                        <form method="post" action="/admin/act-as/{{ s.site_id }}" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-primary btn-xs">Manage</button>
+                        </form>
+                        <button class="btn btn-outline btn-xs"
+                                hx-get="/admin/showcase/{{ s.site_id }}/settings-modal"
+                                hx-target="body" hx-swap="beforeend">Settings</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    <div>
-        <label class="label label-text text-xs">Slug</label>
-        <input type="text" name="slug" class="input input-bordered input-sm" placeholder="linen-demo" required>
-    </div>
-    <div>
-        <label class="label label-text text-xs">Template</label>
-        <select name="template" class="select select-bordered select-sm">
-            {% for value, label in available_templates %}
-            <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <button type="submit" class="btn btn-outline btn-sm">Create</button>
-</form>
+    {% else %}
+    <p class="text-sm text-base-content/50 py-4">No showcase sites yet.</p>
+    {% endif %}
+
+    <div class="divider"></div>
+
+    <h3 class="text-sm font-semibold mb-3">Create showcase site</h3>
+    {% if showcase_error is defined and showcase_error %}
+    <div class="alert alert-error mb-3 text-sm">{{ showcase_error }}</div>
+    {% endif %}
+    <form method="post" action="/admin/showcase/create" class="flex flex-wrap gap-3 items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+            <label class="label label-text text-xs">Name</label>
+            <input type="text" name="restaurant_name" class="input input-bordered input-sm" placeholder="The Linen Table" required>
+        </div>
+        <div>
+            <label class="label label-text text-xs">Slug</label>
+            <input type="text" name="slug" class="input input-bordered input-sm" placeholder="linen-demo" required>
+        </div>
+        <div>
+            <label class="label label-text text-xs">Template</label>
+            <select name="template" class="select select-bordered select-sm">
+                {% for value, label in available_templates %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-outline btn-sm">Create</button>
+    </form>
+</div>
+
+<script>
+function switchTab(el, tab) {
+    document.querySelectorAll('#site-tabs .tab').forEach(function(t) { t.classList.remove('tab-active'); });
+    el.classList.add('tab-active');
+    document.getElementById('tab-customers').style.display = tab === 'customers' ? '' : 'none';
+    document.getElementById('tab-showcase').style.display = tab === 'showcase' ? '' : 'none';
+}
+// Auto-select tab from ?tab= query param
+(function() {
+    var p = new URLSearchParams(window.location.search);
+    if (p.get('tab') === 'showcase') {
+        var tabs = document.querySelectorAll('#site-tabs .tab');
+        if (tabs.length >= 2) switchTab(tabs[1], 'showcase');
+    }
+})();
+</script>
+
 {% endif %}
 {% endblock %}
