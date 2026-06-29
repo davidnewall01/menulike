@@ -1509,11 +1509,14 @@ async def item_create(
         return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
 
     try:
-        await menu_coordinator.create_item(db, auth, uuid.UUID(subsection_id), form, extras=extras)
+        item = await menu_coordinator.create_item(db, auth, uuid.UUID(subsection_id), form, extras=extras)
     except (NoSiteInScope, SubsectionNotFound) as exc:
         _not_found(exc)
 
-    return RedirectResponse(url=f"/admin/menu/{menu_id}", status_code=303)
+    return RedirectResponse(
+        url=f"/admin/menu/{menu_id}?expand_item={item.menu_item_id}",
+        status_code=303,
+    )
 
 
 @router.get("/item/{item_id}", response_class=HTMLResponse)

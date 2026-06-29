@@ -151,4 +151,37 @@
     {% set menu_id = menu.menu_id %}
     {% include "admin/_footer_block_edit.html" %}
 </details>
+
+<script>
+(function() {
+    var itemId = new URLSearchParams(location.search).get("expand_item");
+    if (!itemId) return;
+    var el = document.getElementById("item-" + itemId);
+    if (!el) return;
+
+    function expand(bodyEl) {
+        if (!bodyEl) return;
+        bodyEl.classList.remove("hidden");
+        var toggle = document.querySelector('[data-collapse="' + bodyEl.id + '"]');
+        if (toggle) {
+            var chev = toggle.querySelector(".chevron");
+            if (chev) chev.textContent = "\u25be";
+            var summary = toggle.parentElement.querySelector(".collapse-summary");
+            if (summary) summary.classList.add("hidden");
+        }
+    }
+
+    expand(document.getElementById("item-body-" + itemId));
+    var subBody = el.closest('[id^="subsection-body-"]');
+    if (subBody) expand(subBody);
+    var secBody = el.closest('[id^="section-body-"]');
+    if (secBody) expand(secBody);
+
+    el.scrollIntoView({behavior: "smooth", block: "center"});
+    el.style.outline = "2px solid oklch(0.65 0.15 250)";
+    setTimeout(function() { el.style.outline = ""; }, 2000);
+
+    history.replaceState(null, "", location.pathname);
+})();
+</script>
 {% endblock %}
