@@ -4,7 +4,7 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.auth.context import AuthContext
 from app.models.content_block import ContentBlock
@@ -25,6 +25,9 @@ _PUBLIC_SITE_OPTIONS = (
     .selectinload(Section.subsections)
     .selectinload(Subsection.items)
     .selectinload(MenuItem.variants),
+    selectinload(Site.menus.and_(Menu.is_published.is_(True)))
+    .selectinload(Menu.sections)
+    .selectinload(Section.photo),
     selectinload(Site.menus.and_(Menu.is_published.is_(True)))
     .selectinload(Menu.footer_blocks),
     selectinload(Site.locations)
@@ -177,6 +180,9 @@ async def get_owner_site_preview(
             .selectinload(Section.subsections)
             .selectinload(Subsection.items)
             .selectinload(MenuItem.variants),
+            selectinload(Site.menus)
+            .selectinload(Menu.sections)
+            .selectinload(Section.photo),
             selectinload(Site.menus)
             .selectinload(Menu.footer_blocks),
             selectinload(Site.locations)

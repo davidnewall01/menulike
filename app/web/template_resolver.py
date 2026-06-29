@@ -27,6 +27,7 @@ FEATURE_IMAGE_MODE: dict[str, str] = {
     "linen": "single",
     "slate": "single",
     "olive": "carousel",
+    "crema": "carousel",
 }
 
 

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{{ view.seo.fields.meta_title.value or site.restaurant_name }}</title>
+  {% if view.seo.fields.meta_description.value %}
+  <meta name="description" content="{{ view.seo.fields.meta_description.value }}">
+  {% endif %}
+  {% include "public/crema/tokens.html" %}
+  <link rel="stylesheet" href="/static/themes/crema/crema.css?v=11">
+  {% block head %}{% endblock %}
+</head>
+{% set nav_prefix = nav_prefix | default("") %}
+{% if view is defined and view.home is defined %}
+  {% set logo_url = view.home.fields.logo.value %}
+{% elif logo_photo is defined and logo_photo %}
+  {% set logo_url = storage_url(logo_photo.s3_key) %}
+{% else %}
+  {% set logo_url = none %}
+{% endif %}
+<body class="{% block body_class %}{% endblock %}{% if render_mode == 'preview' %} has-preview-banner{% endif %}">
+  {% if render_mode == "preview" %}
+  <div class="preview-banner">
+    <span>Preview — sample content is marked</span>
+    <a href="/admin/">← Back to dashboard</a>
+  </div>
+  {% endif %}
+  <div class="page-col">
+    {% include "public/crema/_nav.html" %}
+    {% block content %}{% endblock %}
+    {% block footer %}{% include "public/crema/_footer.html" %}{% endblock %}
+  </div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<nav class="nav">
+  <div class="nav__in">
+    <a class="brand" href="{{ nav_prefix or '/' }}">
+      {% if logo_url %}
+      <img src="{{ logo_url }}" alt="{{ site.restaurant_name }}" class="brand__logo">
+      {% else %}
+      <span>{{ site.restaurant_name }}</span>
+      {% endif %}
+    </a>
+    {# Scroll-aware visibility: hide anchor links for empty sections in public mode #}
+    {% set show_story = render_mode != "public" or view.our_story.fields.blocks.source == "real" %}
+    {% set show_gallery = render_mode != "public" or view.gallery.fields.photos.source == "real" %}
+    {% set visit = view["visit"] %}
+    {% set show_findus = render_mode != "public" or visit.fields.address.source == "real" or visit.fields.hours.source == "real" or visit.fields.contact.source == "real" %}
+    <div class="nav__links">
+      <a href="{{ nav_prefix }}/menu">Menu</a>
+      {% if show_story %}<a href="#our-story">Our Story</a>{% endif %}
+      {% if show_gallery %}<a href="#gallery">Gallery</a>{% endif %}
+      {% if show_findus %}<a href="#find-us">Find Us</a>{% endif %}
+      {% if site.booking_url %}
+      <a href="{{ site.booking_url }}" class="btn nav__book">Book</a>
+      {% endif %}
+    </div>
+    <button class="burger" aria-label="Menu" onclick="this.classList.toggle('open');this.closest('.nav').querySelector('.mobile-menu').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="mobile-menu">
+      <a href="{{ nav_prefix }}/menu">Menu</a>
+      {% if show_story %}<a href="#our-story">Our Story</a>{% endif %}
+      {% if show_gallery %}<a href="#gallery">Gallery</a>{% endif %}
+      {% if show_findus %}<a href="#find-us">Find Us</a>{% endif %}
+      {% if site.booking_url %}
+      <a href="{{ site.booking_url }}" class="btn">Book</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>

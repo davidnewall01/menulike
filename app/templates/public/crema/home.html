@@ -1,0 +1,326 @@
+{% extends "public/crema/base.html" %}
+
+{% block body_class %}home{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block head %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% endblock %}
+
+{% block content %}
+{% set home = view.home %}
+{% set hero = home.fields.hero %}
+{% set hero_images = home.fields.hero_images %}
+{% set logo = home.fields.logo %}
+{% set tagline = home.fields.tagline %}
+{% set menus_field = view.menu.fields.menus %}
+
+{# ── HERO SPLIT: carousel left, content right ── #}
+{% set photos = hero_images.value or [] %}
+<section class="split">
+  <div class="split__img carousel"
+       x-data="{ idx: 0, total: {{ photos|length or 1 }} }"
+       x-init="total > 1 && setInterval(() => { idx = (idx + 1) % total }, 5000)">
+    <div class="carousel__track" :style="'transform:translateX(-' + (idx * 100) + '%)'">
+      {% if photos %}
+        {% for url in photos %}
+        <div class="slide" style="background-image:url('{{ url }}')"></div>
+        {% endfor %}
+      {% else %}
+        <div class="slide slide--placeholder"></div>
+      {% endif %}
+    </div>
+
+    {% if photos|length > 1 %}
+    <button class="carousel__btn carousel__btn--prev"
+            @click="idx = (idx - 1 + total) % total"
+            aria-label="Previous">&#8249;</button>
+    <button class="carousel__btn carousel__btn--next"
+            @click="idx = (idx + 1) % total"
+            aria-label="Next">&#8250;</button>
+    <div class="carousel__dots">
+      {% for url in photos %}
+      <span class="dot" :class="idx === {{ loop.index0 }} && 'is-active'"
+            @click="idx = {{ loop.index0 }}"></span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if render_mode == "preview" and hero.source != "real" %}
+    <a href="/admin/front-page" class="preview-prompt carousel__prompt">Add your photos &rarr;</a>
+    {% endif %}
+  </div>
+
+  <div class="split__panel">
+    <div class="split__content">
+      <div class="eyebrow">Neighbourhood Cafe</div>
+      {% if logo.value %}
+      <img src="{{ logo.value }}" alt="{{ site.restaurant_name }}" class="split__logo">
+      {% else %}
+      <h1 class="split__wordmark">{{ site.restaurant_name }}</h1>
+      {% endif %}
+      {% if render_mode == "preview" and logo.source != "real" %}
+      <a href="/admin/front-page" class="preview-prompt">Add your logo &rarr;</a>
+      {% endif %}
+
+      {% if tagline.value %}
+      <p class="split__tagline">
+        {% if tagline.source == "sample" %}<span class="sample-badge">Sample</span> {% endif %}
+        {{ tagline.value }}
+      </p>
+      {% endif %}
+      {% if render_mode == "preview" and tagline.source != "real" %}
+      <a href="/admin/front-page" class="preview-prompt">Add your tagline &rarr;</a>
+      {% endif %}
+
+      <div class="split__cta">
+        <a href="{{ nav_prefix }}/menu" class="btn">View Menu</a>
+        {% if site.booking_url %}
+        <a href="{{ site.booking_url }}" class="btn btn--outline">Book a Table</a>
+        {% endif %}
+      </div>
+
+      {# Contact strip #}
+      {% set addr = view["visit"].fields.address.value %}
+      {% set contact = view["visit"].fields.contact.value %}
+      {% if addr or (contact and contact.phone) %}
+      <div class="split__contact">
+        {% if addr %}
+        <span>{{ addr.street }}{% if addr.suburb %}, {{ addr.suburb }}{% endif %}</span>
+        {% endif %}
+        {% if contact and contact.phone %}
+        <span>{{ contact.phone }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ── SECTION-GRID: menu sections as photo tiles ── #}
+{% if menus_field.value %}
+  {% set all_sections = [] %}
+  {% for menu in menus_field.value %}
+    {% for section in menu.sections %}
+      {% if all_sections.append(section) %}{% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  {% if all_sections %}
+  {# Count→columns mapping: clean rows, centred short last row #}
+  {% set n = all_sections|length %}
+  {% if n <= 5 %}{% set cols = n %}
+  {% elif n == 6 %}{% set cols = 3 %}
+  {% elif n == 7 %}{% set cols = 4 %}
+  {% elif n == 8 %}{% set cols = 4 %}
+  {% elif n == 9 %}{% set cols = 3 %}
+  {% elif n == 10 %}{% set cols = 5 %}
+  {% elif n == 11 %}{% set cols = 4 %}
+  {% elif n == 12 %}{% set cols = 3 %}
+  {% else %}{% set cols = 4 %}
+  {% endif %}
+  <section class="section-grid" id="explore">
+    <h2 class="section-grid__heading">Explore Our Menu</h2>
+    <div class="section-grid__tiles" style="--grid-cols:{{ cols }}">
+      {% for section in all_sections %}
+      <a href="{{ nav_prefix }}/menu#section-{{ section.section_id }}" class="tile">
+        {% if section.photo and section.photo.s3_key %}
+        <div class="tile__img" style="background-image:url('{{ storage_url(section.photo.s3_key) }}')"></div>
+        {% else %}
+        <div class="tile__img tile__img--placeholder"></div>
+        {% endif %}
+        <div class="tile__label">{{ section.name }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+{% elif render_mode == "preview" %}
+{# No real menus yet — show placeholder tiles so the owner sees the grid shape #}
+<section class="section-grid section-grid--sample" id="explore">
+  <h2 class="section-grid__heading">
+    <span class="sample-badge">Sample</span> Explore Our Menu
+  </h2>
+  <div class="section-grid__tiles" style="--grid-cols:4">
+    {% for label in ["Brunch", "Mains", "Coffee", "Desserts"] %}
+    <div class="tile tile--sample">
+      <div class="tile__img tile__img--placeholder"></div>
+      <div class="tile__label">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <a href="/admin/menus" class="preview-prompt" style="display:block;text-align:center;margin-top:16px">Add your menu sections &rarr;</a>
+</section>
+{% endif %}
+
+{# ── OUR STORY (scroll section) ── #}
+{% set blocks_field = view.our_story.fields.blocks %}
+{% set story_blocks = blocks_field.value or [] %}
+{% set story_is_sample = blocks_field.source == "sample" %}
+{% if render_mode == "preview" or blocks_field.source == "real" %}
+<section class="scroll-section" id="our-story">
+  <div class="scroll-section__inner">
+    <div class="eyebrow">About</div>
+    <h2 class="scroll-section__heading">Our Story</h2>
+    {% if render_mode == "preview" and blocks_field.source != "real" %}
+    <a href="/admin/our-story" class="preview-prompt">Add your story &rarr;</a>
+    {% endif %}
+    {% for block in story_blocks %}
+    <div class="story-block{% if block.image_url %} story-block--has-image{% endif %}">
+      {% if block.image_url %}
+      <div class="story-block__img" style="background-image:url('{{ block.image_url }}')"></div>
+      {% endif %}
+      <div class="story-block__text">
+        {% if block.heading %}
+        <h3>
+          {% if story_is_sample %}<span class="sample-badge">Sample</span> {% endif %}
+          {{ block.heading }}
+        </h3>
+        {% endif %}
+        {% if block.body %}
+        {% for para in block.body.split('\n\n') %}
+        <p>{{ para }}</p>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{# ── GALLERY (scroll section) ── #}
+{% set photos_field = view.gallery.fields.photos %}
+{% set gallery_photos = photos_field.value or [] %}
+{% if render_mode == "preview" or photos_field.source == "real" %}
+<section class="scroll-section" id="gallery">
+  <div class="scroll-section__inner">
+    <div class="eyebrow">Photos</div>
+    <h2 class="scroll-section__heading">Gallery</h2>
+    {% if render_mode == "preview" and photos_field.source != "real" %}
+    <a href="/admin/gallery" class="preview-prompt">Add your gallery photos &rarr;</a>
+    {% endif %}
+    {% if gallery_photos %}
+    <div class="gallery-grid">
+      {% for photo in gallery_photos %}
+      <img src="{{ photo.url }}" alt="{{ photo.alt_text }}"
+           loading="{{ 'eager' if loop.index <= 4 else 'lazy' }}">
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{# ── FIND US (scroll section) ── #}
+{% set visit_view = view["visit"] %}
+{% set addr = visit_view.fields.address %}
+{% set hours_field = visit_view.fields.hours %}
+{% set contact_field = visit_view.fields.contact %}
+{% set has_any_visit = addr.source == "real" or hours_field.source == "real" or contact_field.source == "real" %}
+{% if render_mode == "preview" or has_any_visit %}
+<section class="scroll-section" id="find-us">
+  <div class="scroll-section__inner">
+    <div class="eyebrow">Visit</div>
+    <h2 class="scroll-section__heading">Find Us</h2>
+    <div class="visit-cards">
+      {# Hours card #}
+      <div class="visit-card">
+        <h3 class="visit-card__title">Hours</h3>
+        {% set has_hours = hours_by_day is defined and hours_by_day | length > 0 %}
+        {% if has_hours %}
+        <dl class="hours-list">
+          {% for day_idx in range(7) %}
+          {% set ranges = hours_by_day.get(day_idx, []) %}
+          <div class="hours-row">
+            <dt>{{ day_names[day_idx] }}</dt>
+            <dd>
+              {% if ranges %}
+                {% for h in ranges %}
+                {{ h.open_time.strftime('%I:%M%p').lower().lstrip('0') }} – {{ h.close_time.strftime('%I:%M%p').lower().lstrip('0') }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+              {% else %}
+                Closed
+              {% endif %}
+            </dd>
+          </div>
+          {% endfor %}
+        </dl>
+        {% if hours_exceptions is defined and hours_exceptions %}
+        <div class="hours-exceptions">
+          {% for exc in hours_exceptions %}
+          <p class="hours-exc">
+            <strong>{{ exc.label or ("Closed" if exc.is_closed else "Special hours") }}</strong>
+            {{ exc.start_date.strftime('%d %b') }}{% if exc.end_date != exc.start_date %} – {{ exc.end_date.strftime('%d %b') }}{% endif %}
+            {% if not exc.is_closed and exc.special_hours %}
+              {% for sh in exc.special_hours %}· {{ sh.open }} – {{ sh.close }}{% endfor %}
+            {% elif exc.is_closed %}· Closed
+            {% endif %}
+          </p>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="visit-card__empty">
+          {% if render_mode == "preview" %}
+          <a href="/admin/hours" class="preview-prompt">Add your hours &rarr;</a>
+          {% else %}Hours not set{% endif %}
+        </p>
+        {% endif %}
+      </div>
+
+      {# Address card #}
+      <div class="visit-card">
+        <h3 class="visit-card__title">Where</h3>
+        {% if addr.value %}
+        <p>{{ addr.value.street }}</p>
+        <p>{{ addr.value.suburb }}{% if addr.value.state %}, {{ addr.value.state }}{% endif %}{% if addr.value.postcode %} {{ addr.value.postcode }}{% endif %}</p>
+        {% else %}
+        <p class="visit-card__empty">
+          {% if render_mode == "preview" %}
+          <a href="/admin/visit" class="preview-prompt">Add your address &rarr;</a>
+          {% else %}Address not set{% endif %}
+        </p>
+        {% endif %}
+      </div>
+
+      {# Contact card #}
+      <div class="visit-card">
+        <h3 class="visit-card__title">Contact</h3>
+        {% set cv = contact_field.value %}
+        {% if cv and cv.phone %}
+        <p><a href="tel:{{ cv.phone }}">{{ cv.phone }}</a></p>
+        {% endif %}
+        {% if cv and cv.email %}
+        <p><a href="mailto:{{ cv.email }}">{{ cv.email }}</a></p>
+        {% endif %}
+        {% if site.booking_url %}
+        <p style="margin-top:12px"><a href="{{ site.booking_url }}" class="btn btn--outline">Book a Table</a></p>
+        {% endif %}
+        {% if (not cv or (not cv.phone and not cv.email)) and not site.booking_url %}
+        <p class="visit-card__empty">
+          {% if render_mode == "preview" %}
+          <a href="/admin/visit" class="preview-prompt">Add contact details &rarr;</a>
+          {% else %}Contact details not set{% endif %}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ── FOOTER ── #}
+<footer class="foot foot--home">
+  <div class="foot__brand">{{ site.restaurant_name }}</div>
+  {% set f_addr = visit_view.fields.address.value %}
+  {% set f_contact = visit_view.fields.contact.value %}
+  {% if f_addr %}
+  <p>{{ f_addr.street }}{% if f_addr.suburb %}, {{ f_addr.suburb }}{% endif %}</p>
+  {% endif %}
+  {% if f_contact and f_contact.phone %}
+  <p>{{ f_contact.phone }}</p>
+  {% endif %}
+</footer>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% set addr = view["visit"].fields.address.value %}
+{% set contact = view["visit"].fields.contact.value %}
+<footer class="foot">
+  <div class="foot__brand">{{ site.restaurant_name }}</div>
+  {% if addr %}
+  <p>{{ addr.street }}{% if addr.suburb %}, {{ addr.suburb }}{% endif %}</p>
+  {% endif %}
+  {% if contact and contact.phone %}
+  <p>{{ contact.phone }}</p>
+  {% endif %}
+</footer>

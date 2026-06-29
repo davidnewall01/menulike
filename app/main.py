@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
-from app.services.exceptions import OwnerNeedsSetup  # noqa: E402
+from app.services.exceptions import NoSiteInScope, OwnerNeedsSetup  # noqa: E402
 from app.web.tenancy import SiteNotPublished  # noqa: E402
 from app.web.admin import router as admin_router  # noqa: E402
 from app.web.auth import router as auth_router  # noqa: E402
@@ -38,6 +38,16 @@ async def owner_needs_setup_handler(request: Request, exc: OwnerNeedsSetup):
     renders as JSON and the browser doesn't follow.
     """
     return RedirectResponse(url="/setup/restaurant", status_code=303)
+
+
+@app.exception_handler(NoSiteInScope)
+async def no_site_in_scope_handler(request: Request, exc: NoSiteInScope):
+    """Redirect to admin dashboard when the act-as cookie is stale/missing.
+
+    Happens when an internal_admin's session outlives the act-as cookie
+    (e.g. server restart). Re-entering via the dashboard re-sets the cookie.
+    """
+    return RedirectResponse(url="/admin/", status_code=303)
 
 
 _coming_soon_templates = Jinja2Templates(

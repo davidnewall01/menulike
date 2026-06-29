@@ -40,6 +40,7 @@ async def home(
             "request": request,
             "site": site,
             "view": view,
+            **_build_hours_context(site),
             "storage_url": storage_public_url,
             "render_mode": "public",
         },
@@ -142,6 +143,28 @@ async def events(request: Request, site: Site = Depends(resolve_tenant), db: Asy
 _DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
+def _build_hours_context(site: Site) -> dict:
+    """Build hours_by_day, day_names, hours_exceptions for visit rendering.
+
+    Shared by the /visit route and the home route (for scroll templates).
+    """
+    location = site.locations[0] if site.locations else None
+    hours_by_day: dict[int, list] = {}
+    if location:
+        for h in location.regular_hours:
+            hours_by_day.setdefault(h.day_of_week, []).append(h)
+    today = date.today()
+    active_exceptions = [
+        exc for exc in (location.hours_exceptions if location else [])
+        if exc.end_date >= today
+    ]
+    return {
+        "hours_by_day": hours_by_day,
+        "day_names": _DAY_NAMES,
+        "hours_exceptions": active_exceptions,
+    }
+
+
 @router.get("/visit", response_class=HTMLResponse)
 async def visit(request: Request, site: Site = Depends(resolve_tenant), db: AsyncSession = Depends(get_db)):
     template = resolve_template(site.template)
@@ -150,27 +173,13 @@ async def visit(request: Request, site: Site = Depends(resolve_tenant), db: Asyn
         site=site, role_images=role_images, mode="public",
         storage_url=storage_public_url,
     )
-    # Group hours from the default (first) location
-    location = site.locations[0] if site.locations else None
-    hours_by_day: dict[int, list] = {}
-    if location:
-        for h in location.regular_hours:
-            hours_by_day.setdefault(h.day_of_week, []).append(h)
-    # Filter exceptions: active + upcoming only (end_date >= today)
-    today = date.today()
-    active_exceptions = [
-        exc for exc in (location.hours_exceptions if location else [])
-        if exc.end_date >= today
-    ]
     return templates.TemplateResponse(
         page_path(template, "visit"),
         {
             "request": request,
             "site": site,
             "view": view,
-            "hours_by_day": hours_by_day,
-            "day_names": _DAY_NAMES,
-            "hours_exceptions": active_exceptions,
+            **_build_hours_context(site),
             "storage_url": storage_public_url,
             "render_mode": "public",
         },

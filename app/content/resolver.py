@@ -193,6 +193,15 @@ def _resolve_home(
             sample_value=samples.HERO_IMAGE_URL,
             mode=mode,
         ),
+        # All feature images as URL list — used by carousel templates.
+        # Single-hero templates ignore this; carousel templates read it.
+        # NOT status-bearing (hero field covers status).
+        "hero_images": _resolve_field(
+            has_real=len(feature_images) > 0,
+            real_value=[storage_url(p.s3_key) for p in feature_images],
+            sample_value=[samples.HERO_IMAGE_URL],
+            mode=mode,
+        ),
         "tagline": _resolve_field(
             has_real=bool(site.tagline),
             real_value=site.tagline,

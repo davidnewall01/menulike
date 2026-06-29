@@ -572,6 +572,9 @@ async def preview_home(
         storage_url=storage_public_url,
     )
     tpl = resolve_template(site.template)
+    # Build hours context for scroll templates (e.g. Crema) that render
+    # the Find Us section inline on the home page.
+    from app.web.public import _build_hours_context
     return templates.TemplateResponse(
         page_path_safe(tpl, "home"),
         {
@@ -580,6 +583,7 @@ async def preview_home(
             "view": view,
             "storage_url": storage_public_url,
             "role_images": role_images,
+            **_build_hours_context(site),
             **_PREVIEW_CTX,
         },
     )
