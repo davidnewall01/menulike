@@ -131,6 +131,64 @@ presentation-independent content) keep these cheap later.
 
 ---
 
+## 3b. Template strategy — purpose-fit, not just pretty 🔭
+
+> Sharpened during competitive research (June 2026, vs Sociavore/BentoBox). The moat isn't "a dozen
+> pretty templates" — it's **a dozen templates each purpose-fit by TYPE, SHAPE, and CAPACITY**. That's
+> three dimensions of fit generic builders (one-size templates) and font-freedom platforms (Sociavore)
+> structurally don't have. A menulike template is a *look + a content-shape + a capacity*, all tuned
+> to guarantee beauty.
+
+**Three dimensions every template declares:**
+
+1. **Best-fit descriptor (restaurant TYPE)** — each template advertises who it's for, surfaced in the
+   template picker. *Linen = "classy restaurants, cafes, focused menus."* The picker guides owners to
+   self-select the right template for their content, which both prevents bad outcomes (wrong-shape
+   content in the wrong template) and reinforces the always-beautiful promise. Positions menulike as
+   the platform that *understands restaurants*, not a template dump.
+
+2. **Content-SHAPE fit** — templates fit a menu *architecture*, not just an aesthetic. Two shapes
+   identified so far:
+   - **Discrete-small-menus (Linen):** a few separate menus (Food, Drinks), each modest. Tabs = *which
+     menu*. Editorial, whitespace-heavy — the aesthetic *depends* on modest content volume.
+   - **Big-sectioned-single-menu (🔭 future — Indian/Chinese/diner/large-pub):** ONE large menu, many
+     sections (Starters, Chicken, Lamb, Seafood, Breads…). Nav = *jump to a section* within one long
+     scrolling menu, with scroll-tracking section-nav (the pattern Gusto's real site used). A big menu
+     *wants* this; forcing it into Linen's discrete-menu tab model is a mismatch.
+   - The data model (menu→section→subsection→item) already holds any shape; templates differ in how
+     they *render and navigate* it.
+
+3. **Designed CAPACITY (max menus)** — a template declares how much it holds beautifully. *Linen ≈ 8
+   menus* (and modest sections each). The capacity is a **feature, not a limitation** — same logic as
+   "Linen uses these two fonts": the constraint *is* the quality guarantee. (Rhetorical check: what
+   restaurant has 8 *menus* live at once? Almost none — so the cap rarely bites in practice, it just
+   prevents the absurd case.) The cap lives in the template's manifest/config, read by the menu-list
+   screen.
+   - **Enforced at the THREE menu-creation entry points** (a cap is only real if every door is
+     guarded): (a) create by hand, (b) create by extraction, (c) **section split/move** — promoting a
+     section to its own menu is *also* menu-creation through a side door, and the easiest to forget.
+     (This third door is exactly what created the Gusto 13-tab overflow — a section-split spree.)
+   - Lean: **hard block** at the limit ("Linen supports max 8 menus — combine some or switch
+     template") over soft warn, consistent with the constrain-to-guarantee-beauty philosophy. (Build-
+     time call.)
+
+**The unifying principle: CONSTRAIN → GUIDE → DEGRADE** (same philosophy as the font/theme
+constraints, §3):
+- **Constrain** — cap menus / curate fonts, so the beauty-breaking case can't happen.
+- **Guide** — the picker's best-fit descriptors + config-screen alerts steer owners to the right
+  template/structure before they hit a wall.
+- **Degrade** — even so, render gracefully past the ideal (e.g. mobile menu-tabs scroll + centre-on-
+  tap) so it never *breaks*, just isn't *optimised*. The graceful fallback is the backstop, NOT the
+  primary solution — prevention (capacity) does the heavy lifting.
+
+**Status:** Linen ships today as the discrete-small-menus template (its implicit capacity ~8). The
+declared best-fit/shape/capacity *properties*, the picker descriptors, the config-screen alerts, and
+the 3-entry-point cap enforcement are 🔭 **Phase C (template-infrastructure / "factory") work** —
+captured here as the strategy; built when the factory exists. The big-sectioned-menu template is a
+future addition once the factory is in place and a customer of that shape pulls for it.
+
+---
+
 ## 4. Surfaces
 
 Three distinct surfaces by audience — easy to conflate, important to separate.
@@ -417,7 +475,58 @@ menu_item_variants(id, item_id, label?, price, position)
 
 ---
 
-## 10. Open questions / next ❓
+## 9b. Scalability — the public-read-path story 🔭
+
+> **Status: nothing to build now (one live site). This is the reference for *when* it gets
+> slow — the levers, and why the architecture makes them all *additive* (no rearchitect).**
+
+**The load profile is lopsided — that's the key insight.** Two traffic types, wildly different:
+- **Admin/editing** — a few hundred owners occasionally editing. Low, infrequent, write-ish.
+  **Never the bottleneck.** Even thousands of owners editing occasionally is trivial. Do NOT
+  optimise the admin app.
+- **Public site serving** — thousands of public sites served to anonymous diners (someone Googles
+  "<restaurant> menu" → lands on the page). Read-heavy, public, scales with success. **This is the
+  only path that matters for scale.**
+
+So the whole scale question = *how cheaply do we serve a public restaurant page to a diner?*
+Everything else is noise.
+
+**The levers (all ADDITIVE later — the architecture already puts the seams in the right places):**
+
+1. **Cache the resolved public view.** Every public page-load currently runs the tenant-resolve +
+   the eager-loaded site/menu/photos/hours/blocks bundle. But a restaurant's content is
+   **read-mostly** (menu changes ~monthly). So the resolved view is highly cacheable. *Because the
+   **resolver** centralises "produce the view," we cache **its output** without touching routes or
+   templates.* The #1 scale lever; the architecture is already cache-ready for it.
+2. **Cache tenant resolution.** Host → site_id is a DB lookup per request (esp. the custom-domain
+   table query). host→site_id rarely changes → a tiny, high-hit-rate cache. Single chokepoint
+   (resolve_tenant) = easy to cache.
+3. **Image CDN in front of S3** (already §7/§5 backlog). Photos are the heavy payload; serving from
+   S3 ap-southeast-2 means a London diner hits Sydney per image. CloudFront/Cloudflare → edge-cached
+   globally. **The most *user-perceived* scale fix** (slow images = slow-feeling site), so likely
+   *higher* priority than its Phase-E placement once real diner traffic exists. Already on S3 (not
+   app-served) → CDN drops in cleanly.
+4. **Postgres / Railway tier** = a *dial*, not a redesign. Single shared Postgres handles serious
+   load for a long time; scale the instance (and read-replicas if/when reads dominate — they will)
+   when metrics say so. **Don't pre-optimise infrastructure.**
+
+**Shared-DB multi-tenancy scales fine for thousands of tenants** — row-level `site_id` scoping is
+the standard SaaS pattern. Per-tenant databases are NOT needed at this scale (probably ever). Set
+that worry down.
+
+**The ONE thing worth checking proactively (cheap, today): N+1 in the menu tree.** The 4-level tree
+(menu→section→subsection→item→variant) must not fire a query *per section/item*. Eager-loading
+(`selectinload`) should make it a handful of queries regardless of menu size — but *verify* by
+rendering a big menu (100+ items) with SQL logging and counting queries. If query count scales with
+item count, that's an N+1 to fix. Verifiable now; a real foot-gun if present.
+
+**Principle:** architect so these fixes stay *additive* (keep the resolver the single place public
+rendering happens → it stays cacheable; keep tenant-resolution a single chokepoint; keep images on
+S3 not app-served). Then add caching + CDN **when traffic metrics demand it** — not before.
+Premature scale-optimisation against unobserved load is the trap.
+
+---
+
 
 - [ ] Validate the 4-level menu model against the **Drinks** menu (wine → Red/White/Sparkling).
 - [~] Detail the remaining content entities to the menu's depth: **hours done** (regular +
@@ -458,6 +567,25 @@ menu_item_variants(id, item_id, label?, price, position)
 ---
 
 ## Changelog
+
+- **2026-06-26** — **Added §3b Template strategy (purpose-fit).** Sharpened during competitive
+  research (vs Sociavore/BentoBox). The moat reframed: not "a dozen pretty templates" but a dozen each
+  purpose-fit by THREE dimensions — best-fit TYPE (picker descriptor: Linen = classy/cafes/focused
+  menus), content-SHAPE (discrete-small-menus like Linen vs a future big-sectioned-single-menu for
+  Indian/Chinese/diners), and designed CAPACITY (Linen ≈ 8 menus, a feature not a limit, enforced at
+  the 3 menu-creation doors: hand / extraction / section-split — the third caused the Gusto 13-tab
+  overflow). Unifying principle CONSTRAIN → GUIDE → DEGRADE (cap to guarantee beauty; picker/alerts
+  guide; graceful render as backstop, e.g. mobile menu-tab scroll+centre-on-tap). All Phase C
+  (template-factory) work; captured as strategy now.
+
+- **2026-06-26** — **Added §9b Scalability (public-read-path story).** Reference-only (nothing to
+  build at one live site). Load profile is lopsided — admin editing is never the bottleneck; the
+  public read path (thousands of cacheable, read-mostly sites served to anonymous diners) is the
+  only thing that scales. Levers — all *additive* because the architecture centralises the seams:
+  (1) cache the resolved public view (resolver output), (2) cache tenant resolution (host→site_id),
+  (3) image CDN in front of S3, (4) Postgres/Railway tier as a dial. Shared-DB multi-tenancy scales
+  fine for thousands of tenants. One cheap proactive check: verify no N+1 in the menu tree (render a
+  big menu with SQL logging). Add caching/CDN when traffic metrics demand it — not before.
 
 - **2026-06-20** — **Our Story shipped + content-block primitive built → site content-complete.**
   `content_block` is the narrative primitive: one flexible `{heading?, body?, image?}` shape (not a
