@@ -188,11 +188,16 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   height: 100%;
   transition: transform .6s ease;
+  will-change: transform;
 }
 .slide {
   min-width: 100%; height: 100%;
-  background-size: cover;
-  background-position: center;
+  flex-shrink: 0;
+}
+.slide img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .slide--placeholder {
   background: linear-gradient(135deg, var(--latte) 0%, var(--cream) 100%);

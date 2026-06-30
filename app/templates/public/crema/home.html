@@ -24,7 +24,9 @@
     <div class="carousel__track" :style="'transform:translateX(-' + (idx * 100) + '%)'">
       {% if photos %}
         {% for url in photos %}
-        <div class="slide" style="background-image:url('{{ url }}')"></div>
+        <div class="slide">
+          <img src="{{ url }}" alt="{{ site.name }} photo {{ loop.index }}" loading="eager" decoding="async" fetchpriority="{{ 'high' if loop.first else 'low' }}">
+        </div>
         {% endfor %}
       {% else %}
         <div class="slide slide--placeholder"></div>
