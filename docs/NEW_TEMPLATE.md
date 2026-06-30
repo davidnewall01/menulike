@@ -303,6 +303,29 @@ Story text gets its own `max-width: 640px` to stay readable without constraining
 section. Recurrence of the earlier hero/grid alignment fix — establish the canonical page
 container ONCE and have everything use it.
 
+### Section-led menu page (the big-sectioned-single-menu shape)
+
+The menu page proves the section-led content shape on a full page (the home-grid was the
+teaser). Key decisions:
+
+- **Lists beat cards for menu items.** Item-tiling risks the cluttered product-catalogue look
+  templates exist to rescue cafes FROM. Section-panels (warm surface cards) + item-lists
+  (name/tags left, price right-aligned) is the warm-but-readable answer. Item-tiles are a
+  PARKED future variant for food-photography-heavy menus — not the default.
+- **Two-column within sections** (CSS `columns: 2` with `break-inside: avoid`) — items flow
+  naturally across columns with browser-balanced heights. Short sections (≤3 items) stay
+  single-column to avoid the 1-item + empty-column look. Columnar sections (variant_display=
+  "columnar") render as full-width price tables instead.
+- **Dual prices** (small/large, glass/bottle) are MenuItemVariant objects. Three rendering
+  paths: single unlabelled → inline price; single labelled → "Label: $X"; multi → inline
+  separated by `·`; columnar → table with label column headers.
+- **Deep-linking** from home-grid tiles works: tile href `/menu#section-{uuid}` matches
+  `id="section-{uuid}"` on menu page panels + `scroll-margin-top` offset.
+
+**Effort:** ~80% of menu item/variant/tag rendering logic reused from Linen's patterns; ~20%
+new (section-panel layout, two-column flow, warm-surface styling, anchor IDs). The data
+reading is identical — only the presentation layer is new.
+
 ### Hero arrangement variants (future feature — NOT built)
 
 The restyle chose "Option B" (loose side-by-side, contained carousel). Other archetypes

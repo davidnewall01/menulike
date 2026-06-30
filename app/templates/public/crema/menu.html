@@ -1,0 +1,168 @@
+{% extends "public/crema/base.html" %}
+
+{% block body_class %}menu-page{% endblock %}
+
+{% block content %}
+{% set menus_field = view.menu.fields.menus %}
+
+<div class="menu-wrap">
+  {# ── Sample / empty state ── #}
+  {% if menus_field.source == "sample" %}
+    <div class="eyebrow">Menu</div>
+    <h1 class="menu-wrap__title"><span class="sample-badge">Sample</span> Sample Menu</h1>
+    {% if render_mode == "preview" %}
+    <a href="/admin/menus" class="preview-prompt" style="display:block;margin-bottom:24px">Add your menu &rarr;</a>
+    {% endif %}
+
+  {% elif not menus_field.value or menus_field.value | length == 0 %}
+    <div class="eyebrow">Menu</div>
+    <h1 class="menu-wrap__title">Menu</h1>
+    <p class="cm-empty">No menus available.</p>
+
+  {% else %}
+    {# ── Real menus ── #}
+    {% for m in menus_field.value %}
+    <div class="cm-menu">
+      <div class="cm-menu__header">
+        <div class="eyebrow">Menu</div>
+        <h1 class="menu-wrap__title">{{ m.display_title or m.name }}</h1>
+        {% if m.availability_note %}
+        <p class="cm-menu__avail">{{ m.availability_note }}</p>
+        {% endif %}
+      </div>
+
+      {% for section in m.sections %}
+      {# ── Section panel ── #}
+      {% set item_count = namespace(n=0) %}
+      {% for sub in section.subsections %}{% set item_count.n = item_count.n + sub.items|length %}{% endfor %}
+
+      <div class="cm-panel" id="section-{{ section.section_id }}">
+        {# Section header #}
+        <div class="cm-panel__header">
+          {% if section.photo and section.photo.s3_key %}
+          <div class="cm-panel__thumb" style="background-image:url('{{ storage_url(section.photo.s3_key) }}')"></div>
+          {% endif %}
+          <div>
+            <h2 class="cm-panel__name">{{ section.name }}</h2>
+            {% if section.description %}
+            <p class="cm-panel__desc">{{ section.description }}</p>
+            {% endif %}
+            {% if section.note %}
+            <p class="cm-panel__note">{{ section.note }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if section.variant_display == "columnar" %}
+        {# ── Columnar (price-table) — full width ── #}
+        {% set ns = namespace(labels=[], max_count=0) %}
+        {% for subsection in section.subsections %}
+          {% for item in subsection.items %}
+            {% set labelled = item.variants | selectattr("label") | list %}
+            {% if labelled | length > ns.max_count %}
+              {% set ns.max_count = labelled | length %}
+              {% set ns.labels = labelled | map(attribute="label") | list %}
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+        {% for subsection in section.subsections %}
+          {% for item in subsection.items %}
+            {% for v in item.variants %}
+              {% if v.label and v.label not in ns.labels %}
+                {% set ns.labels = ns.labels + [v.label] %}
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        {% endfor %}
+
+        {% if ns.labels | length > 0 %}
+        <table class="cm-col-table">
+          <thead>
+            <tr>
+              <th class="cm-col-table__hdr"></th>
+              {% for lbl in ns.labels %}
+              <th class="cm-col-table__var-hdr">{{ lbl }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for subsection in section.subsections %}
+              {% if subsection.name %}
+              <tr><td class="cm-col-table__sub-hdr" colspan="{{ ns.labels|length + 1 }}">{{ subsection.name }}</td></tr>
+              {% endif %}
+              {% for item in subsection.items %}
+              <tr class="{% if item.featured %}cm-col-table__row--feat{% endif %}">
+                <td class="cm-col-table__item">
+                  <span class="cm-item__name">{{ item.name }}</span>
+                  {% if item.dietary_tags %}<span class="cm-item__tags">{{ item.dietary_tags | join(", ") }}</span>{% endif %}
+                  {% if item.description %}<span class="cm-col-table__desc">{{ item.description }}</span>{% endif %}
+                  {% if item.extras %}<span class="cm-col-table__extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</span>{% endif %}
+                </td>
+                {% set price_map = {} %}
+                {% for v in item.variants %}{% if v.label %}{% set _ = price_map.update({v.label: v.price}) %}{% endif %}{% endfor %}
+                {% for lbl in ns.labels %}
+                <td class="cm-col-table__price">{% if lbl in price_map %}${{ "%.2f" | format(price_map[lbl]) }}{% endif %}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        {# Columnar but no labelled variants — fall back to inline #}
+        <div class="cm-items">
+          {% for subsection in section.subsections %}
+            {% if subsection.name %}<h3 class="cm-sub__name">{{ subsection.name }}</h3>{% endif %}
+            {% for item in subsection.items %}{% include "public/crema/_menu_item.html" %}{% endfor %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        {# ── Inline — two balanced columns for substantial sections ── #}
+        <div class="cm-items{% if item_count.n > 3 %} cm-items--two-col{% endif %}">
+          {% for subsection in section.subsections %}
+            {% if subsection.name %}<h3 class="cm-sub__name">{{ subsection.name }}</h3>{% endif %}
+            {% if subsection.description %}<p class="cm-sub__desc">{{ subsection.description }}</p>{% endif %}
+            {% for item in subsection.items %}{% include "public/crema/_menu_item.html" %}{% endfor %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      {# ── Footer blocks ── #}
+      {% if m.footer_blocks %}
+      <div class="cm-footer">
+        {% for block in m.footer_blocks %}
+        <div class="cm-footer__block cm-footer__block--{{ block.block_type }}">
+          {% if block.title %}<h3 class="cm-footer__title">{{ block.title }}</h3>{% endif %}
+          {% if block.block_type == 'charges' %}
+          <div class="cm-footer__badges">
+            {% for entry in block.entries %}
+            <span class="cm-footer__badge">{% if entry.label %}{{ entry.label }} {{ entry.description or '' }}{% else %}{{ entry.description or '' }}{% endif %}</span>
+            {% endfor %}
+          </div>
+          {% elif block.block_type in ('legend', 'glossary') %}
+          <dl class="cm-footer__defs">
+            {% for entry in block.entries %}
+            <div class="cm-footer__def">
+              {% if entry.label %}<dt>{{ entry.label }}</dt><dd>{{ entry.description or '' }}</dd>{% else %}<dd>{{ entry.description or '' }}</dd>{% endif %}
+            </div>
+            {% endfor %}
+          </dl>
+          {% else %}
+          <div class="cm-footer__text">
+            {% for entry in block.entries %}<p>{{ entry.description or '' }}</p>{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

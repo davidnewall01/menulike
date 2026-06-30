@@ -1,0 +1,21 @@
+<div class="cm-item{% if item.featured %} cm-item--feat{% endif %}">
+  <div class="cm-item__head">
+    <span class="cm-item__name">{{ item.name }}{% if item.dietary_tags %} <span class="cm-item__tags">{{ item.dietary_tags | join(", ") }}</span>{% endif %}</span>
+    {% if item.variants | length == 1 and not item.variants[0].label %}
+    <span class="cm-item__price">${{ "%.2f" | format(item.variants[0].price) }}</span>
+    {% endif %}
+  </div>
+  {% if item.description %}
+  <p class="cm-item__desc">{{ item.description }}</p>
+  {% endif %}
+  {% if item.extras %}
+  <p class="cm-item__extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>
+  {% endif %}
+  {% if item.variants | length > 1 or (item.variants | length == 1 and item.variants[0].label) %}
+  <div class="cm-item__vars">
+    {% for v in item.variants %}
+    <span>{% if v.label %}{{ v.label }}: {% endif %}${{ "%.2f" | format(v.price) }}</span>{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
