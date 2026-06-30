@@ -114,7 +114,12 @@ if ($FirstDeploy) {
 }
 else {
     Write-Host "--- Step 1: Database Backup ---" -ForegroundColor Cyan
-    Confirm-Step "Backup production database?"
+    $backupResponse = Read-Host "Backup production database? (y/N)"
+    if ($backupResponse -ne "y") {
+        Write-Log "User skipped backup -- proceeding without backup" "WARN"
+        Write-Host ""
+    }
+    else {
 
     if (-not (Test-Path $BackupsDir)) {
         New-Item -ItemType Directory -Path $BackupsDir -Force | Out-Null
@@ -150,6 +155,8 @@ else {
         }
     }
     Write-Host ""
+
+    } # end else (backup accepted)
 }
 
 # === Step 2: Run Migration ===================================================
