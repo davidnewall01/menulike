@@ -21,17 +21,17 @@
   <div class="split__img carousel"
        x-data="{ idx: 0, total: {{ photos|length or 1 }} }"
        x-init="total > 1 && setInterval(() => { idx = (idx + 1) % total }, 5000)">
-    <div class="carousel__track" :style="'transform:translateX(-' + (idx * 100) + '%)'">
-      {% if photos %}
-        {% for url in photos %}
-        <div class="slide">
-          <img src="{{ url }}" alt="{{ site.name }} photo {{ loop.index }}" loading="eager" decoding="async" fetchpriority="{{ 'high' if loop.first else 'low' }}">
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="slide slide--placeholder"></div>
-      {% endif %}
-    </div>
+    {% if photos %}
+      {% for url in photos %}
+      <img class="carousel__slide" src="{{ url }}"
+           alt="{{ site.name }} photo {{ loop.index }}"
+           loading="eager" decoding="async"
+           fetchpriority="{{ 'high' if loop.first else 'low' }}"
+           :class="idx === {{ loop.index0 }} && 'is-active'">
+      {% endfor %}
+    {% else %}
+      <div class="carousel__slide carousel__slide--placeholder is-active"></div>
+    {% endif %}
 
     {% if photos|length > 1 %}
     <button class="carousel__btn carousel__btn--prev"
