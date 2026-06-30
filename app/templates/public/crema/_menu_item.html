@@ -9,7 +9,18 @@
   <p class="cm-item__desc">{{ item.description }}</p>
   {% endif %}
   {% if item.extras %}
-  <p class="cm-item__extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>
+    {% if section.extras_display == "stacked" %}
+    <div class="cm-item__extras-stacked">
+      {% for e in item.extras %}
+      <div class="cm-extra-row">
+        <span class="cm-extra-row__label">{{ e.label }}</span>
+        {% if e.price %}<span class="cm-extra-row__price">(${{ e.price }})</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="cm-item__extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} (${{ e.price }}){% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>
+    {% endif %}
   {% endif %}
   {% if item.variants | length > 1 or (item.variants | length == 1 and item.variants[0].label) %}
   <div class="cm-item__vars">

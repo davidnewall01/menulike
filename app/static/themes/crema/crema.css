@@ -682,6 +682,24 @@ a { color: inherit; text-decoration: none; }
   display: block;
   margin: 2px 0;
 }
+.cm-item__extras-stacked {
+  margin: 4px 0 2px;
+  padding-left: 12px;
+}
+.cm-extra-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 1px 0;
+  font-size: .82rem;
+  color: var(--espresso-soft);
+}
+.cm-extra-row__price {
+  font-size: .78rem;
+  color: var(--espresso);
+  white-space: nowrap;
+  margin-left: 12px;
+}
 .cm-item__vars {
   font-size: .82rem;
   color: var(--espresso-soft);

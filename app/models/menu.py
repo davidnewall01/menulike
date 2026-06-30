@@ -68,6 +68,9 @@ class Section(TimestampMixin, Base):
     variant_display: Mapped[str] = mapped_column(
         String, nullable=False, default="inline", server_default="inline"
     )
+    extras_display: Mapped[str] = mapped_column(
+        String, nullable=False, default="inline", server_default="inline"
+    )
     photo_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("photos.photo_id", ondelete="SET NULL"),

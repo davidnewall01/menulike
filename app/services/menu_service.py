@@ -237,6 +237,7 @@ async def update_section(
     section.description = form.description
     section.note = form.note
     section.variant_display = form.variant_display
+    section.extras_display = form.extras_display
     await db.flush()
     return section
 

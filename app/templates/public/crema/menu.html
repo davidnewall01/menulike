@@ -96,7 +96,7 @@
                   <span class="cm-item__name">{{ item.name }}</span>
                   {% if item.dietary_tags %}<span class="cm-item__tags">{{ item.dietary_tags | join(", ") }}</span>{% endif %}
                   {% if item.description %}<span class="cm-col-table__desc">{{ item.description }}</span>{% endif %}
-                  {% if item.extras %}<span class="cm-col-table__extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} ${{ e.price }}{% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</span>{% endif %}
+                  {% if item.extras %}<span class="cm-col-table__extras">{% for e in item.extras %}{{ e.label }}{% if e.price %} (${{ e.price }}){% endif %}{% if not loop.last %} &middot; {% endif %}{% endfor %}</span>{% endif %}
                 </td>
                 {% set price_map = {} %}
                 {% for v in item.variants %}{% if v.label %}{% set _ = price_map.update({v.label: v.price}) %}{% endif %}{% endfor %}

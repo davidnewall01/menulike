@@ -59,6 +59,7 @@ class SectionForm(BaseModel):
     description: str | None = None
     note: str | None = None
     variant_display: str = "inline"
+    extras_display: str = "inline"
 
     @field_validator("description", "note", mode="before")
     @classmethod
@@ -79,6 +80,14 @@ class SectionForm(BaseModel):
     @classmethod
     def valid_variant_display(cls, v: str) -> str:
         allowed = {"inline", "columnar"}
+        if v not in allowed:
+            return "inline"
+        return v
+
+    @field_validator("extras_display")
+    @classmethod
+    def valid_extras_display(cls, v: str) -> str:
+        allowed = {"inline", "stacked"}
         if v not in allowed:
             return "inline"
         return v

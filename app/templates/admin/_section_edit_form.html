@@ -32,6 +32,13 @@
                 <option value="columnar"{% if section.variant_display == 'columnar' %} selected{% endif %}>Columns — sizes as column headers</option>
             </select>
         </div>
+        <div class="form-control">
+            <label class="label py-0"><span class="label-text text-xs">Extras / add-ons layout</span></label>
+            <select name="extras_display" class="select select-bordered select-sm w-full">
+                <option value="inline"{% if section.extras_display == 'inline' %} selected{% endif %}>Inline — compact, on one line</option>
+                <option value="stacked"{% if section.extras_display == 'stacked' %} selected{% endif %}>Stacked — one per line, prices aligned</option>
+            </select>
+        </div>
         <div class="flex items-center gap-2">
             <button type="submit" class="btn btn-primary btn-xs">Save</button>
             <button type="button" class="btn btn-outline btn-xs"
