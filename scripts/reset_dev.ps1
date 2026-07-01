@@ -57,6 +57,14 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
+Write-Host "--- Seeding Kin ---"
+python -m scripts.seed_kin
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Seed (Kin) failed - aborting." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
 Write-Host "--- Seeding admin users ---"
 python -m scripts.seed_admin_users
 if ($LASTEXITCODE -ne 0) {

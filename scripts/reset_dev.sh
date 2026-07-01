@@ -88,6 +88,10 @@ echo "--- Seeding Porto Azzurro ---"
 python -m scripts.seed_porto_azzurro
 
 echo ""
+echo "--- Seeding Kin ---"
+python -m scripts.seed_kin
+
+echo ""
 echo "--- Seeding admin users ---"
 python -m scripts.seed_admin_users
 

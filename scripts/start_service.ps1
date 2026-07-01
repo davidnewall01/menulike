@@ -1,4 +1,5 @@
-# Kill whatever holds port 8000, then start uvicorn.
+# Kill whatever holds port 8000, then start uvicorn with auto-reload.
+# --reload picks up Python/template edits without a manual restart (dev only).
 # Usage: .\scripts\start_service.ps1
 
 $port = 8000
@@ -30,4 +31,4 @@ if ($final) {
     exit 1
 }
 
-uvicorn app.main:app --port $port
+uvicorn app.main:app --port $port --reload

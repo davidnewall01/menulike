@@ -22,3 +22,6 @@ tools/
 
 # Deploy backups / logs (local only)
 scripts/backups/
+
+# Dev DB snapshots (pg_dump golden state — local only, S3 binaries not included)
+scripts/snapshots/

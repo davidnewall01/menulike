@@ -40,4 +40,5 @@ if lsof -ti "tcp:$PORT" >/dev/null 2>&1; then
 fi
 
 # --- Start server -----------------------------------------------------------
-python -m uvicorn app.main:app --port "$PORT"
+# --reload picks up Python/template edits without a manual restart (dev only).
+python -m uvicorn app.main:app --port "$PORT" --reload
