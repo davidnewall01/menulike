@@ -336,6 +336,22 @@ def _resolve_events(
     return AreaView(status=_compute_status("events", fields), fields=fields)
 
 
+def _clean_social(raw: Any) -> list[dict]:
+    """Shape social_links for public render: a list of {platform, url}, dropping
+    any entry missing either. Returns [] for None/absent/malformed input."""
+    if not raw:
+        return []
+    out: list[dict] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        platform = (entry.get("platform") or "").strip()
+        url = (entry.get("url") or "").strip()
+        if platform and url:
+            out.append({"platform": platform, "url": url})
+    return out
+
+
 def _resolve_visit(site: Any, location: Any | None, mode: RenderMode) -> AreaView:
     has_address = bool(location and location.address_street)
     has_hours = bool(location and len(location.regular_hours) > 0)
@@ -378,8 +394,16 @@ def _resolve_visit(site: Any, location: Any | None, mode: RenderMode) -> AreaVie
             mode=mode,
             never_sample=True,
         ),
+        # Social: never sampled. Direct FieldView so value is ALWAYS a list
+        # ([] when empty) — the footer reads .value and expects a list.
+        "social": _social_field(location),
     }
     return AreaView(status=_compute_status("visit", fields), fields=fields)
+
+
+def _social_field(location: Any | None) -> FieldView:
+    social = _clean_social(location.social_links if location else None)
+    return FieldView(value=social, source="real" if social else "empty")
 
 
 def _resolve_gallery(

@@ -42,6 +42,7 @@ def make_location(
     address_postcode: str | None = None,
     phone: str | None = None,
     email: str | None = None,
+    social_links: list | None = None,
     regular_hours: list | None = None,
     hours_exceptions: list | None = None,
 ) -> SimpleNamespace:
@@ -52,6 +53,7 @@ def make_location(
         address_postcode=address_postcode,
         phone=phone,
         email=email,
+        social_links=social_links or [],
         regular_hours=regular_hours or [],
         hours_exceptions=hours_exceptions or [],
     )

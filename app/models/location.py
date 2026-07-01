@@ -1,6 +1,7 @@
 """Location entity — address + hours + contact per venue.
 
-Location is deliberately content-free — address/hours/contact ONLY.
+Location is deliberately content-free — address/hours/contact (including
+social handles, a contact channel) ONLY.
 Never add menu or other content (design doc §6b bright line).
 A site has MANY locations (multi-venue); each location carries its own
 address, opening hours, and contact details. Different menu = a future
@@ -12,6 +13,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Numeric, SmallInteger, String, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -47,6 +49,11 @@ class Location(TimestampMixin, Base):
     )
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
     email: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Contact channel: list of {"platform": str, "url": str}. Normalisation
+    # happens at the form layer; the resolver shapes it for public render.
+    social_links: Mapped[list] = mapped_column(
+        JSONB, nullable=False, server_default="[]"
+    )
     position: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, default=0, server_default="0"
     )

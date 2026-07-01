@@ -99,6 +99,7 @@ async def create_location(
     address_postcode: str | None = None,
     phone: str | None = None,
     email: str | None = None,
+    social_links: list | None = None,
 ) -> Location:
     """Create a new location for the owner's site. Flush only."""
     if auth_ctx.scoped_site_id is None:
@@ -123,6 +124,7 @@ async def create_location(
         address_postcode=address_postcode,
         phone=phone,
         email=email,
+        social_links=social_links or [],
         position=next_pos,
     )
     db.add(loc)
@@ -143,6 +145,7 @@ async def update_location(
     longitude=None,
     phone: str | None = None,
     email: str | None = None,
+    social_links: list | None = None,
 ) -> Location:
     """Update a location's fields. Scoped-load first (IDOR gate). Flush only."""
     loc = await get_owner_location(db, auth_ctx, location_id)
@@ -156,6 +159,10 @@ async def update_location(
         loc.longitude = longitude
     loc.phone = phone
     loc.email = email
+    # Conditional (like latitude/longitude): a partial update that doesn't send
+    # social_links must not wipe it. The address form has no social field yet.
+    if social_links is not None:
+        loc.social_links = social_links
     await db.flush()
     return loc
 
