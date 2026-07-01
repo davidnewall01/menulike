@@ -2,7 +2,7 @@ import uuid
 from datetime import time
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, SmallInteger, Time, UUID
+from sqlalchemy import ForeignKey, SmallInteger, String, Time, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -35,6 +35,10 @@ class RegularHours(TimestampMixin, Base):
     )  # 0=Mon .. 6=Sun
     open_time: Mapped[time] = mapped_column(Time, nullable=False)
     close_time: Mapped[time] = mapped_column(Time, nullable=False)
+    # Optional named service period: None (all-day) | breakfast | lunch | dinner.
+    # Drives public grouping ("Lunch — Thu–Fri 12–2pm"); allowed set enforced
+    # in hours_service, not the DB.
+    label: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     # Relationships
     site: Mapped["Site"] = relationship(back_populates="regular_hours")

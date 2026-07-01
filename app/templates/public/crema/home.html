@@ -1,7 +1,7 @@
 {% extends "public/crema/base.html" %}
 
 {% block body_class %}home{% endblock %}
-{% block footer %}{% endblock %}
+{% block footer %}{% set footer_mod = "foot--home" %}{% include "public/crema/_footer.html" %}{% endblock %}
 
 {% block head %}
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -24,7 +24,7 @@
     {% if photos %}
       {% for url in photos %}
       <img class="carousel__slide" src="{{ url }}"
-           alt="{{ site.name }} photo {{ loop.index }}"
+           alt="{{ site.restaurant_name }} photo {{ loop.index }}"
            loading="eager" decoding="async"
            fetchpriority="{{ 'high' if loop.first else 'low' }}"
            :class="idx === {{ loop.index0 }} && 'is-active'">
@@ -232,6 +232,16 @@
         <h3 class="visit-card__title">Hours</h3>
         {% set has_hours = hours_by_day is defined and hours_by_day | length > 0 %}
         {% if has_hours %}
+        {% if hours_display_mode == "summary" and hours_summary %}
+        <dl class="hours-list hours-list--summary">
+          {% for row in hours_summary %}
+          <div class="hours-row">
+            <dt>{% if row.heading %}{{ row.heading }} — {% endif %}{{ row.days }}</dt>
+            <dd>{{ row.times | join(', ') }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+        {% else %}
         <dl class="hours-list">
           {% for day_idx in range(7) %}
           {% set ranges = hours_by_day.get(day_idx, []) %}
@@ -249,6 +259,7 @@
           </div>
           {% endfor %}
         </dl>
+        {% endif %}
         {% if hours_exceptions is defined and hours_exceptions %}
         <div class="hours-exceptions">
           {% for exc in hours_exceptions %}
@@ -312,17 +323,4 @@
   </div>
 </section>
 {% endif %}
-
-{# ── FOOTER ── #}
-<footer class="foot foot--home">
-  <div class="foot__brand">{{ site.restaurant_name }}</div>
-  {% set f_addr = visit_view.fields.address.value %}
-  {% set f_contact = visit_view.fields.contact.value %}
-  {% if f_addr %}
-  <p>{{ f_addr.street }}{% if f_addr.suburb %}, {{ f_addr.suburb }}{% endif %}</p>
-  {% endif %}
-  {% if f_contact and f_contact.phone %}
-  <p>{{ f_contact.phone }}</p>
-  {% endif %}
-</footer>
 {% endblock %}

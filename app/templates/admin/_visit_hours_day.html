@@ -31,6 +31,11 @@
                         <option value="{{ tv }}" {% if tv == r.close_time.strftime('%H:%M') %}selected{% endif %}>{{ hr }}:{{ "%02d"|format(m) }} {{ ap }}</option>
                         {% endfor %}{% endfor %}
                     </select>
+                    <select name="label" class="hours-select hours-select--label" title="Service (optional)">
+                        {% for opt in ["", "breakfast", "lunch", "dinner"] %}
+                        <option value="{{ opt }}" {% if (r.label or "") == opt %}selected{% endif %}>{{ opt|capitalize if opt else "No label" }}</option>
+                        {% endfor %}
+                    </select>
                 </form>
                 <button class="btn btn-outline btn-error btn-xs"
                         hx-post="/admin/hours/{{ r.regular_hours_id }}/delete"

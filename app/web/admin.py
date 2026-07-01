@@ -1,6 +1,7 @@
 """Admin routes — login/logout, dashboard, details, menu/section/subsection/item/variant CRUD."""
 
 import uuid
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -23,7 +24,8 @@ from app.schemas.extraction import ExtractedMenu
 from app.schemas.menu import ItemForm, MenuForm, SectionForm, SubsectionForm, VariantForm, parse_extras
 from app.schemas.site import SiteDetailsForm
 from app.services import auth_service, content_block_service, hours_exception_service, hours_service, image_role_service, location_service, menu_extraction_service, menu_service, photo_service, site_service
-from app.services.hours_service import HoursRangeNotFound
+from app.services.hours_service import HoursRangeNotFound, InvalidHoursLabel
+from app.services.location_service import InvalidHoursDisplayMode
 from app.services.hours_exception_service import HoursExceptionNotFound, InvalidDateRange
 from app.services.storage import public_url as storage_public_url
 from app.services.exceptions import (
@@ -54,6 +56,9 @@ from app.services import template_meta_service
 from app.web.template_resolver import get_feature_image_mode, page_path_safe, resolve_template
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
+# Current year for footer copyright — evaluated per render, never hardcoded.
+# Preview renders crema templates through this env (public.py has its own copy).
+templates.env.globals["current_year"] = lambda: date.today().year
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -677,24 +682,14 @@ async def preview_visit(
     db: AsyncSession = Depends(get_db),
 ):
     """Preview the owner's Visit page."""
-    from datetime import date
     from app.content.resolver import resolve_site_view
+    from app.web.public import _build_hours_context
 
     site, role_images = await _load_preview(db, auth)
     view = resolve_site_view(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
     )
-    location = site.locations[0] if site.locations else None
-    hours_by_day: dict[int, list] = {}
-    if location:
-        for h in location.regular_hours:
-            hours_by_day.setdefault(h.day_of_week, []).append(h)
-    today = date.today()
-    active_exceptions = [
-        exc for exc in (location.hours_exceptions if location else [])
-        if exc.end_date >= today
-    ]
     tpl = resolve_template(site.template)
     return templates.TemplateResponse(
         page_path_safe(tpl, "visit"),
@@ -702,9 +697,7 @@ async def preview_visit(
             "request": request,
             "site": site,
             "view": view,
-            "hours_by_day": hours_by_day,
-            "day_names": _DAY_NAMES,
-            "hours_exceptions": active_exceptions,
+            **_build_hours_context(site),
             "storage_url": storage_public_url,
             **_PREVIEW_CTX,
         },
@@ -3517,12 +3510,16 @@ async def hours_add_range(
         except (ValueError, AttributeError):
             raise HTTPException(status_code=400, detail="Invalid location_id")
 
+    label = form_data.get("label") or None
+
     try:
-        await hours_coordinator.add_range(db, auth, day, open_time, close_time, location_id=loc_id)
+        await hours_coordinator.add_range(db, auth, day, open_time, close_time, location_id=loc_id, label=label)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
     except LocationNotFound:
         raise HTTPException(status_code=400, detail="Location not found")
+    except InvalidHoursLabel:
+        raise HTTPException(status_code=400, detail="Invalid hours label")
 
     day_target = form_data.get("day_target", None)
     return await _render_hours_day(request, auth, db, day, location_id=loc_id, day_target=day_target)
@@ -3546,12 +3543,16 @@ async def hours_update_range(
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid time values")
 
+    label = form_data.get("label") or None
+
     try:
-        await hours_coordinator.update_range(db, auth, range_id, open_time, close_time)
+        await hours_coordinator.update_range(db, auth, range_id, open_time, close_time, label=label)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
     except HoursRangeNotFound:
         raise HTTPException(status_code=404, detail="Range not found")
+    except InvalidHoursLabel:
+        raise HTTPException(status_code=400, detail="Invalid hours label")
 
     day_target = form_data.get("day_target", None)
     loc_id_str = form_data.get("location_id", "")
@@ -3580,6 +3581,34 @@ async def hours_delete_range(
     loc_id_str = form_data.get("location_id", "")
     loc_id = uuid.UUID(loc_id_str) if loc_id_str else None
     return await _render_hours_day(request, auth, db, day, location_id=loc_id, day_target=day_target)
+
+
+@router.post("/visit/hours-display", response_class=HTMLResponse)
+async def hours_display_mode(
+    request: Request,
+    auth: AuthContext = Depends(require_csrf_owner_site),
+    db: AsyncSession = Depends(get_db),
+):
+    """Live-save the public hours display mode (detailed | summary) for a location."""
+    form_data = await request.form()
+
+    loc_id_str = form_data.get("location_id", "")
+    try:
+        loc_id = uuid.UUID(loc_id_str)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid location_id")
+
+    mode = form_data.get("hours_display_mode", "")
+    try:
+        await location_coordinator.set_hours_display_mode(db, auth, loc_id, mode)
+    except NoSiteInScope:
+        raise HTTPException(status_code=400, detail="No site in scope")
+    except LocationNotFound:
+        raise HTTPException(status_code=400, detail="Location not found")
+    except InvalidHoursDisplayMode:
+        raise HTTPException(status_code=400, detail="Invalid display mode")
+
+    return Response(status_code=204)
 
 
 async def _render_hours_day(request, auth, db, day, location_id=None, day_target=None):

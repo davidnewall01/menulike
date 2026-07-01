@@ -132,6 +132,17 @@ a { color: inherit; text-decoration: none; }
   width: 26px; height: 20px;
   position: relative;
 }
+/* Expand tap target to at least 44x44 (WCAG 2.5.5) without changing the icon's
+   visual size — the 26x20 bars are untouched; only this transparent, non-layout
+   hit area grows. Pseudo-elements are not counted by :nth-child, so the span
+   selectors below are unaffected. */
+.burger::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px; min-height: 44px;
+}
 .burger span {
   display: block; position: absolute; left: 0;
   width: 100%; height: 2px;
@@ -523,6 +534,14 @@ a { color: inherit; text-decoration: none; }
   font-weight: 500;
   color: var(--espresso);
 }
+.hours-list--summary .hours-row {
+  gap: 16px;
+  align-items: baseline;
+}
+.hours-list--summary .hours-row dd {
+  text-align: right;
+  white-space: nowrap;
+}
 .hours-exceptions {
   margin-top: 12px;
   padding-top: 10px;
@@ -846,3 +865,55 @@ a { color: inherit; text-decoration: none; }
   color: var(--latte);
   margin-top: 3px;
 }
+.foot__tagline {
+  font-family: var(--display);
+  font-style: italic;
+  font-size: .95rem;
+  margin-top: 4px;
+}
+.foot__contact a {
+  color: var(--latte);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.foot__contact a:hover {
+  color: var(--cream);
+  border-bottom-color: rgba(244, 236, 225, .4);
+}
+.foot__social {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 18px;
+}
+.foot__social-link {
+  color: var(--latte);
+  display: inline-flex;
+  transition: color .15s, transform .15s;
+}
+.foot__social-link:hover { color: var(--cream); transform: translateY(-1px); }
+.foot__social-link svg { width: 20px; height: 20px; display: block; }
+.foot__hr {
+  max-width: 260px;
+  margin: 26px auto 0;
+  border-top: 1px solid rgba(244, 236, 225, .16);
+}
+.foot__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 16px;
+  margin-top: 18px;
+  font-size: .74rem;
+  color: var(--latte);
+  opacity: .8;
+}
+.foot__credit {
+  color: var(--latte);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.foot__credit:hover { color: var(--cream); border-bottom-color: rgba(244, 236, 225, .4); }

@@ -13,6 +13,14 @@ from sqlalchemy import func
 from app.services.exceptions import CannotDeleteLastLocation, LocationNotFound, NoSiteInScope
 
 
+# How opening hours render on the public site.
+HOURS_DISPLAY_MODES = frozenset({"detailed", "summary"})
+
+
+class InvalidHoursDisplayMode(Exception):
+    """Display mode wasn't one of HOURS_DISPLAY_MODES."""
+
+
 # ---------------------------------------------------------------------------
 # Scoped-load (the IDOR primitive)
 # ---------------------------------------------------------------------------
@@ -148,6 +156,23 @@ async def update_location(
         loc.longitude = longitude
     loc.phone = phone
     loc.email = email
+    await db.flush()
+    return loc
+
+
+async def set_hours_display_mode(
+    db: AsyncSession, auth_ctx: AuthContext,
+    location_id: uuid.UUID, mode: str,
+) -> Location:
+    """Set only the hours display mode. Scoped-load first (IDOR gate). Flush only.
+
+    Deliberately touches ONLY hours_display_mode so the address/contact Save
+    form and this toggle can't clobber each other.
+    """
+    if mode not in HOURS_DISPLAY_MODES:
+        raise InvalidHoursDisplayMode(f"mode={mode!r}")
+    loc = await get_owner_location(db, auth_ctx, location_id)
+    loc.hours_display_mode = mode
     await db.flush()
     return loc
 

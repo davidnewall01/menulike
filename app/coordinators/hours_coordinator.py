@@ -14,8 +14,9 @@ async def add_range(
     db: AsyncSession, auth_ctx: AuthContext,
     day_of_week: int, open_time: time, close_time: time,
     location_id: uuid.UUID | None = None,
+    label: str | None = None,
 ) -> RegularHours:
-    row = await hours_service.add_range(db, auth_ctx, day_of_week, open_time, close_time, location_id=location_id)
+    row = await hours_service.add_range(db, auth_ctx, day_of_week, open_time, close_time, location_id=location_id, label=label)
     await db.commit()
     return row
 
@@ -23,8 +24,9 @@ async def add_range(
 async def update_range(
     db: AsyncSession, auth_ctx: AuthContext,
     range_id: uuid.UUID, open_time: time, close_time: time,
+    label: str | None = None,
 ) -> RegularHours:
-    row = await hours_service.update_range(db, auth_ctx, range_id, open_time, close_time)
+    row = await hours_service.update_range(db, auth_ctx, range_id, open_time, close_time, label=label)
     await db.commit()
     return row
 

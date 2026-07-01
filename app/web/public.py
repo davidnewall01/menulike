@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
+from app.content.hours_summary import summarise_hours
 from app.content.resolver import resolve_site_view
 from app.db.session import get_db
 from app.models.site import Site
@@ -18,6 +19,8 @@ from app.web.template_resolver import page_path, resolve_template
 from app.web.tenancy import resolve_tenant
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
+# Current year for footer copyright — evaluated per render, never hardcoded.
+templates.env.globals["current_year"] = lambda: date.today().year
 
 router = APIRouter()
 
@@ -162,6 +165,8 @@ def _build_hours_context(site: Site) -> dict:
         "hours_by_day": hours_by_day,
         "day_names": _DAY_NAMES,
         "hours_exceptions": active_exceptions,
+        "hours_summary": summarise_hours(location.regular_hours) if location else [],
+        "hours_display_mode": location.hours_display_mode if location else "detailed",
     }
 
 

@@ -26,6 +26,15 @@ async def update_location(
     return loc
 
 
+async def set_hours_display_mode(
+    db: AsyncSession, auth_ctx: AuthContext,
+    location_id: uuid.UUID, mode: str,
+) -> Location:
+    loc = await location_service.set_hours_display_mode(db, auth_ctx, location_id, mode)
+    await db.commit()
+    return loc
+
+
 async def delete_location(
     db: AsyncSession, auth_ctx: AuthContext,
     location_id: uuid.UUID,

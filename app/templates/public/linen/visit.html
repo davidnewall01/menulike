@@ -14,6 +14,16 @@
       <h2 class="visit-card__title">Hours</h2>
       {% set has_hours = hours_by_day | length > 0 %}
       {% if has_hours %}
+      {% if hours_display_mode == "summary" and hours_summary %}
+      <dl class="hours-list hours-list--summary">
+        {% for row in hours_summary %}
+        <div class="hours-row">
+          <dt>{% if row.heading %}{{ row.heading }} — {% endif %}{{ row.days }}</dt>
+          <dd>{% for t in row.times %}{{ t }}{% if not loop.last %}<br>{% endif %}{% endfor %}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% else %}
       <dl class="hours-list">
         {% for day_idx in range(7) %}
         {% set ranges = hours_by_day.get(day_idx, []) %}
@@ -31,6 +41,7 @@
         </div>
         {% endfor %}
       </dl>
+      {% endif %}
       {% else %}
       <p class="visit-card__empty">
         {% if render_mode == "preview" %}

@@ -39,6 +39,11 @@
   /* Hours section within location */
   .loc-hours { margin-top: 16px; padding-top: 16px; border-top: 1px solid #E5DCCD; }
   .loc-hours h3 { font-size: 14px; font-weight: 700; margin: 0 0 10px; }
+  .loc-hours__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .loc-hours__head h3 { margin: 0; }
+  .hours-display-toggle { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+  .hours-display-toggle label { font-size: 12px; color: #6E665B; }
+  .hours-select--label { min-width: 96px; }
 
   /* Hours day row */
   .hours-day { display: flex; align-items: flex-start; gap: 12px; }
@@ -150,7 +155,21 @@
     {# --- Inline hours editor --- #}
     {% set loc_prefix = loc.location_id | string %}
     <div class="loc-hours">
-      <h3>Opening hours</h3>
+      <div class="loc-hours__head">
+        <h3>Opening hours</h3>
+        <form class="hours-display-toggle"
+              hx-post="/admin/visit/hours-display"
+              hx-trigger="change"
+              hx-swap="none">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="location_id" value="{{ loc.location_id }}">
+          <label>Public display</label>
+          <select name="hours_display_mode" class="hours-select">
+            <option value="detailed" {% if loc.hours_display_mode == "detailed" %}selected{% endif %}>List all days</option>
+            <option value="summary" {% if loc.hours_display_mode == "summary" %}selected{% endif %}>Summarise</option>
+          </select>
+        </form>
+      </div>
       <div class="space-y-1 mb-4">
         {% for day_idx in range(7) %}
         <div id="day-{{ loc_prefix }}-{{ day_idx }}">

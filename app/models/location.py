@@ -50,6 +50,11 @@ class Location(TimestampMixin, Base):
     position: Mapped[int] = mapped_column(
         SmallInteger, nullable=False, default=0, server_default="0"
     )
+    # How opening hours render publicly: "detailed" (every day listed) or
+    # "summary" (grouped by service period / collapsed day-runs).
+    hours_display_mode: Mapped[str] = mapped_column(
+        String, nullable=False, default="detailed", server_default="detailed"
+    )
 
     # Relationships
     site: Mapped["Site"] = relationship(back_populates="locations")

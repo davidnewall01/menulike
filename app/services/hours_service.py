@@ -16,6 +16,26 @@ class HoursRangeNotFound(Exception):
     """The range_id didn't resolve within the owner's scoped site."""
 
 
+class InvalidHoursLabel(Exception):
+    """Label wasn't one of the allowed service-period values."""
+
+
+# Allowed service-period labels (None = unlabelled all-day range).
+HOURS_LABELS = frozenset({"breakfast", "lunch", "dinner"})
+
+
+def _normalise_label(label: str | None) -> str | None:
+    """Blank -> None; otherwise lowercase and validate against HOURS_LABELS."""
+    if label is None:
+        return None
+    label = label.strip().lower()
+    if not label:
+        return None
+    if label not in HOURS_LABELS:
+        raise InvalidHoursLabel(f"label={label!r}")
+    return label
+
+
 # ---------------------------------------------------------------------------
 # Scoped-load helpers
 # ---------------------------------------------------------------------------
@@ -97,6 +117,7 @@ async def add_range(
     db: AsyncSession, auth_ctx: AuthContext,
     day_of_week: int, open_time: time, close_time: time,
     location_id: uuid.UUID | None = None,
+    label: str | None = None,
 ) -> RegularHours:
     """Add a time range to a day. Validates location ownership if given.
 
@@ -104,6 +125,8 @@ async def add_range(
     """
     if auth_ctx.scoped_site_id is None:
         raise NoSiteInScope()
+
+    label = _normalise_label(label)
 
     if location_id is not None:
         await _verify_location_ownership(db, auth_ctx, location_id)
@@ -120,6 +143,7 @@ async def add_range(
         day_of_week=day_of_week,
         open_time=open_time,
         close_time=close_time,
+        label=label,
     )
     db.add(row)
     await db.flush()
@@ -129,11 +153,14 @@ async def add_range(
 async def update_range(
     db: AsyncSession, auth_ctx: AuthContext,
     range_id: uuid.UUID, open_time: time, close_time: time,
+    label: str | None = None,
 ) -> RegularHours:
-    """Update an existing range's times. Scoped-load first (IDOR gate)."""
+    """Update an existing range's times + label. Scoped-load first (IDOR gate)."""
+    label = _normalise_label(label)
     row = await _get_owner_range(db, auth_ctx, range_id)
     row.open_time = open_time
     row.close_time = close_time
+    row.label = label
     await db.flush()
     return row
 

@@ -1,11 +1,79 @@
+{# ── Crema footer (single source for home + all inner pages) ──
+   Every block except the wordmark and copyright is conditional: it renders only
+   when its data exists, leaving no empty slot/heading/separator behind.
+   `footer_mod` is an optional modifier class passed by the including template
+   (home passes "foot--home"). #}
+
+{% macro social_icon(platform) %}
+{%- set p = (platform or '') | lower -%}
+{%- if p == 'instagram' -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.4" cy="6.6" r="1.2" fill="currentColor"/></svg>
+{%- elif p == 'facebook' -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-8h2.7l.4-3.1h-3.1V7.9c0-.9.25-1.5 1.55-1.5H17V3.6c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3v2.1H7.5V13h2.8v8h3.2z"/></svg>
+{%- elif p == 'tiktok' -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.5 3c.3 2 1.6 3.6 3.5 3.9v2.6c-1.3 0-2.5-.4-3.5-1.1v6.1c0 3-2.4 5.4-5.4 5.4S5.7 17.5 5.7 14.5 8.1 9.1 11.1 9.1c.3 0 .6 0 .9.1v2.7c-.3-.1-.6-.2-.9-.2-1.4 0-2.6 1.2-2.6 2.7s1.2 2.7 2.6 2.7 2.7-1.2 2.7-2.7V3h2.7z"/></svg>
+{%- elif p == 'youtube' -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M22 8.2s-.2-1.4-.8-2c-.75-.8-1.6-.8-2-.85C16.4 5.1 12 5.1 12 5.1s-4.4 0-7.2.2c-.4.05-1.25.05-2 .85-.6.6-.8 2-.8 2S1.8 9.8 1.8 11.5v1c0 1.7.2 3.3.2 3.3s.2 1.4.8 2c.75.8 1.75.75 2.2.85 1.6.15 6.8.2 6.8.2s4.4 0 7.2-.2c.4-.05 1.25-.05 2-.85.6-.6.8-2 .8-2s.2-1.6.2-3.3v-1c0-1.7-.2-3.3-.2-3.3zM10 14.6V9.4l4.5 2.6-4.5 2.6z"/></svg>
+{%- elif p == 'tripadvisor' -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 8c-2.7 0-5.2.55-7 1.6h14C17.2 8.55 14.7 8 12 8z"/><circle cx="7" cy="14" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="7" cy="14" r="1.1" fill="currentColor"/><circle cx="17" cy="14" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="14" r="1.1" fill="currentColor"/></svg>
+{%- elif p == 'google' -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.1 14.6 2.1 12 2.1 6.5 2.1 2.1 6.5 2.1 12S6.5 21.9 12 21.9c5.7 0 9.5-4 9.5-9.6 0-.65-.07-1.15-.16-1.65H12z"/></svg>
+{%- elif p == 'x' or p == 'twitter' -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.5 3h3l-6.6 7.6L21.7 21h-5.9l-4.3-5.6L6.5 21H3.5l7-8.1L2.7 3h6l3.9 5.2L17.5 3zm-1 16h1.6L7.6 4.7H5.9L16.5 19z"/></svg>
+{%- else -%}
+<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="none" stroke="currentColor" stroke-width="1.7" d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>
+{%- endif -%}
+{% endmacro %}
+
 {% set addr = view["visit"].fields.address.value %}
 {% set contact = view["visit"].fields.contact.value %}
-<footer class="foot">
+{# Social is not yet exposed by the resolver — guard so this renders nothing and
+   cannot error until a `social` field lands on the visit area. #}
+{% set social = (view["visit"].fields.social.value if view["visit"].fields.social is defined else []) or [] %}
+
+<footer class="foot {{ footer_mod | default('') }}">
+  {# 1. Wordmark — always #}
   <div class="foot__brand">{{ site.restaurant_name }}</div>
+
+  {# 2. Tagline — only if present #}
+  {% if view.home.fields.tagline.value %}
+  <p class="foot__tagline">{{ view.home.fields.tagline.value }}</p>
+  {% endif %}
+
+  {# 3. Contact cluster (Location-sourced) #}
   {% if addr %}
-  <p>{{ addr.street }}{% if addr.suburb %}, {{ addr.suburb }}{% endif %}</p>
+  {% set map_q = [addr.street, addr.suburb, addr.state, addr.postcode] | select | join(', ') %}
+  <p class="foot__contact">
+    <a href="https://www.google.com/maps/search/?api=1&amp;query={{ map_q | urlencode }}"
+       target="_blank" rel="noopener">{{ addr.street }}{% if addr.suburb %}, {{ addr.suburb }}{% endif %}</a>
+  </p>
   {% endif %}
-  {% if contact and contact.phone %}
-  <p>{{ contact.phone }}</p>
+  {% if contact and (contact.phone or contact.email) %}
+  {% set sep = joiner(" · ") %}
+  <p class="foot__contact">
+    {% if contact.phone %}{{ sep() }}<a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>{% endif %}
+    {% if contact.email %}{{ sep() }}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}
+  </p>
   {% endif %}
+
+  {# 4. Social icon row — only if non-empty #}
+  {% if social %}
+  <div class="foot__social">
+    {% for s in social %}
+    {% if s.url and s.platform %}
+    <a class="foot__social-link" href="{{ s.url }}" target="_blank" rel="noopener"
+       aria-label="{{ s.platform }}">{{ social_icon(s.platform) }}</a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# 5. Hairline divider #}
+  <div class="foot__hr" role="presentation"></div>
+
+  {# 6. Bottom bar #}
+  <div class="foot__bottom">
+    <span>&copy; {{ current_year() }} {{ site.restaurant_name }}</span>
+    <a class="foot__credit" href="https://menulike.app" target="_blank" rel="noopener">Made with menulike</a>
+  </div>
 </footer>
