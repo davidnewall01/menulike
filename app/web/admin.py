@@ -772,8 +772,10 @@ async def dashboard(
         site_view, template_available=tpl_meta.is_available if tpl_meta else False,
     )
 
-    # Count areas with status "yours" for progress bar
-    yours_count = sum(1 for area in site_view.values() if area.status == "yours")
+    # Count areas made "yours" for the progress bar. Exclude events — it's a
+    # deferred/optional section, so owners must be able to reach 100% without it.
+    progress_areas = [v for k, v in site_view.items() if k != "events"]
+    yours_count = sum(1 for area in progress_areas if area.status == "yours")
 
     # Photo library count for the "Your photos" tile
     photos = await photo_service.list_photos(db, auth)
@@ -786,7 +788,7 @@ async def dashboard(
         eligible=eligible,
         reasons=reasons,
         yours_count=yours_count,
-        total_areas=len(site_view),
+        total_areas=len(progress_areas),
         photo_count=photo_count,
         platform_domain=settings.PLATFORM_BASE_DOMAIN,
     )

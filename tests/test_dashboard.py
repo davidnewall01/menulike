@@ -177,6 +177,7 @@ class TestTileLinks:
     ):
         """All tile CTA links point to real CRUD pages."""
         site = await make_site(db_session, slug="links")
+        await make_menu(db_session, site)  # menu tile links to /admin/menu (edit) only when a menu exists
         await make_owner(db_session, site, email="links@test.dev")
         cookies = await _login(client, "links@test.dev")
 
@@ -234,7 +235,7 @@ class TestInternalAdminDashboard:
         assert resp.status_code == 200
         html = resp.text
         # Should show old admin card, not tiles
-        assert "Internal admin" in html
+        assert "Admin Dashboard" in html
         assert "tile-grid" not in html
 
 

@@ -130,6 +130,7 @@ def make_block(page_key: str = "our_story", **kwargs) -> SimpleNamespace:
         body=kwargs.get("body", "Body text"),
         image_photo_id=None,
         image=None,
+        is_visible=kwargs.get("is_visible", True),
     )
 
 
@@ -468,7 +469,7 @@ class TestUniformShapes:
         img = SimpleNamespace(s3_key="photos/story.jpg", alt_text="Kitchen")
         block = SimpleNamespace(
             page_key="our_story", heading="Our Kitchen", body="Fresh.",
-            image_photo_id="abc", image=img,
+            image_photo_id="abc", image=img, is_visible=True,
         )
         view = _resolve(
             site=make_site(content_blocks=[block]),
@@ -588,7 +589,7 @@ class TestStructure:
 
     def test_all_areas_present(self):
         view = _resolve(site=make_site(), role_images={}, mode="public")
-        assert set(view.keys()) == {"home", "our_story", "visit", "gallery", "menu", "seo"}
+        assert set(view.keys()) == {"home", "our_story", "visit", "gallery", "menu", "events", "seo"}
 
     def test_field_view_is_frozen(self):
         fv = FieldView(value="x", source="real")
