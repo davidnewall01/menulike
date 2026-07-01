@@ -10,6 +10,8 @@ Usage:
 
 import asyncio
 import sys
+import uuid
+from datetime import time
 from decimal import Decimal
 
 from dotenv import load_dotenv
@@ -22,6 +24,7 @@ from app.db.session import AsyncSessionLocal  # noqa: E402
 if settings.ENVIRONMENT != "development":
     print(f"FATAL: seed scripts are dev-only (ENVIRONMENT={settings.ENVIRONMENT})")
     sys.exit(1)
+from app.models.location import Location  # noqa: E402
 from app.models.menu import (  # noqa: E402
     Menu,
     MenuItem,
@@ -29,6 +32,7 @@ from app.models.menu import (  # noqa: E402
     Section,
     Subsection,
 )
+from app.models.regular_hours import RegularHours  # noqa: E402
 from app.models.site import Site  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
@@ -65,6 +69,7 @@ def build_site() -> Site:
     return Site(
         slug="portoazzurro",
         restaurant_name="Porto Azzurro",
+        template="crema",
         tagline="Authentic Italian by the harbour",
         address_street="14 Market Street",
         address_suburb="Fingal Bay",
@@ -81,6 +86,49 @@ def build_site() -> Site:
         menus=[
             build_dinner_menu(),
             build_drinks_menu(),
+        ],
+    )
+
+
+def build_location(site_id: uuid.UUID) -> Location:
+    """Primary location with a Lunch/Dinner split — demonstrates the
+    service-period hours summary (public display defaults to summary here).
+
+    site_id is set explicitly on each hours row; location_id is filled by the
+    relationship on flush.
+    """
+    def _h(day: int, open_hm: tuple[int, int], close_hm: tuple[int, int], label: str) -> RegularHours:
+        return RegularHours(
+            site_id=site_id,
+            day_of_week=day,
+            open_time=time(*open_hm),
+            close_time=time(*close_hm),
+            label=label,
+        )
+
+    return Location(
+        site_id=site_id,
+        address_street="14 Market Street",
+        address_suburb="Fingal Bay",
+        address_state="NSW",
+        address_postcode="2315",
+        latitude=Decimal("-33.886100"),
+        longitude=Decimal("151.210300"),
+        phone="(02) 9123 4567",
+        email="hello@portoazzurro.com.au",
+        hours_display_mode="summary",
+        regular_hours=[
+            # Lunch Fri–Sun 12–3
+            _h(4, (12, 0), (15, 0), "lunch"),
+            _h(5, (12, 0), (15, 0), "lunch"),
+            _h(6, (12, 0), (15, 0), "lunch"),
+            # Dinner Tue–Sun 5:30–10  (Monday closed)
+            _h(1, (17, 30), (22, 0), "dinner"),
+            _h(2, (17, 30), (22, 0), "dinner"),
+            _h(3, (17, 30), (22, 0), "dinner"),
+            _h(4, (17, 30), (22, 0), "dinner"),
+            _h(5, (17, 30), (22, 0), "dinner"),
+            _h(6, (17, 30), (22, 0), "dinner"),
         ],
     )
 
@@ -249,10 +297,16 @@ async def main() -> None:
 
         site = build_site()
         session.add(site)
+        await session.flush()  # assigns site.site_id
+
+        location = build_location(site.site_id)
+        session.add(location)
         await session.commit()
 
         # Report counts
-        print(f"Site: {site.restaurant_name} (id={site.site_id})")
+        print(f"Site: {site.restaurant_name} (id={site.site_id}, template={site.template})")
+        print(f"  location: {location.address_suburb} · {len(location.regular_hours)} hours rows "
+              f"(display={location.hours_display_mode})")
         menu_count = len(site.menus)
         section_count = sum(len(m.sections) for m in site.menus)
         subsection_count = sum(

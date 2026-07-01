@@ -39,6 +39,12 @@ USERS = [
         "role": "owner",
         "site_slug": "portoazzurro",
     },
+    {
+        "email": "owner@kin.dev",
+        "password": "owner123",
+        "role": "owner",
+        "site_slug": "kin",
+    },
 ]
 
 
