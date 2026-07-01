@@ -1,298 +1,338 @@
 # Crema Template Audit
 
-Audit date: 2026-07-01. AUDIT ONLY — no changes made.
+Audit date: 2026-07-01. **AUDIT ONLY: no template, model, service, route, CSS, or
+migration fixes were made.** This document is the proposed findings and task list
+for approval before implementation.
 
 ---
 
-## 1. Territory Map
+## 1. Territory map
 
-### File inventory
+### Crema template files
 
 | File | Role |
 |---|---|
-| `templates/public/crema/base.html` | Layout shell: head, nav include, content block, footer include |
-| `templates/public/crema/tokens.html` | CSS custom properties (inline `<style>`) + Google Fonts preconnect |
-| `templates/public/crema/_nav.html` | Sticky nav + burger menu (mobile) |
-| `templates/public/crema/_footer.html` | Shared footer (used by menu page, base.html default) |
-| `templates/public/crema/home.html` | Home: hero carousel, section-grid tiles, Our Story, Gallery, Find Us, inline footer |
-| `templates/public/crema/menu.html` | Full menu page: section panels, columnar tables, footer blocks |
-| `templates/public/crema/_menu_item.html` | Single item partial (inline/stacked extras, variants, tags) |
-| `static/themes/crema/crema.css` | All styles (~849 lines). Breakpoints at 860px, 768px, 680px, 520px |
+| `app/templates/public/crema/base.html` | Layout shell, meta tags, tokens/CSS include, preview banner, nav include, content block, default footer include. |
+| `app/templates/public/crema/tokens.html` | Inline design tokens and Google Fonts. Values are hardcoded CSS custom properties. |
+| `app/templates/public/crema/_nav.html` | Sticky header, brand/logo, desktop nav links, Book CTA, burger button, duplicated mobile menu links. |
+| `app/templates/public/crema/_footer.html` | Shared footer partial for non-home pages. Reads address/contact from the resolved `visit` view. |
+| `app/templates/public/crema/home.html` | One-page home experience: hero carousel, menu section tiles, story/gallery/find-us sections, and an inline footer that bypasses `_footer.html`. |
+| `app/templates/public/crema/menu.html` | Menu page: section panels, section thumbnails, inline item lists, columnar price tables, menu footer blocks. |
+| `app/templates/public/crema/_menu_item.html` | Single text-first menu item row: name, tags, price, description, extras, variants. |
+| `app/static/themes/crema/crema.css` | Crema CSS. Main breakpoints are 860px, 768px, 680px, and 520px. |
 
-### Per-venue config pattern
+Public rendering is in `app/web/public.py`: the route resolves the tenant from the
+request host, loads public site data, calls `resolve_site_view(...)`, and renders the
+selected template with `{site, view, storage_url, render_mode, ...}`.
 
-Venue-specific data flows through two paths:
+### Where per-venue config/settings live today
 
-1. **Site model columns** — `restaurant_name`, `tagline`, `booking_url`, `order_url`,
-   `meta_title`, `meta_description`, `settings` (JSONB). Read directly in templates
-   as `site.restaurant_name`, `site.booking_url` etc.
+There are three relevant paths. The important finding is that the JSONB settings
+pattern described in the project context is not currently wired into runtime reads.
 
-2. **Content resolver** (`app/content/resolver.py`) — `resolve_site_view()` builds a
-   `SiteView` dict of `AreaView` objects, each with `fields` (keyed `FieldView` with
-   `.value` and `.source`). Areas: `home`, `our_story`, `visit`, `gallery`, `menu`,
-   `events`, `seo`. Templates access as `view.home.fields.hero.value` etc.
+**Path A: `Site` columns read directly as `site.<field>`**
 
-   Visit data (address, hours, contact) comes from the **Location** model (first
-   location by position), resolved into `view["visit"].fields.*`.
+`app/models/site.py` defines columns such as `restaurant_name`, `slug`, `template`,
+`tagline`, `hero_heading`, `hero_subheading`, `booking_url`, `order_url`,
+`meta_title`, `meta_description`, and `settings`. Crema currently reads
+`site.restaurant_name`, `site.booking_url`, and `site.tagline` indirectly via the
+resolver. `hero_heading` and `hero_subheading` exist but are not read by Crema or the
+front-page admin UI.
 
-3. **`settings` JSONB** — per-site design config with `SETTINGS_DEFAULTS` pattern.
-   Currently used for other templates; Crema does not yet read any settings keys
-   (the tokens.html hardcodes all colour/font values).
+**Path B: resolver-fed `view` object**
 
-**Key observation:** `social_links` is spec'd in the design doc (§6b: `social_links —
-list of {platform, url}, optional`) but **not yet implemented** — no column on
-Location or Site, no resolver field, no admin form, no template rendering.
+`app/content/resolver.py` returns a `SiteView` dict keyed by area: `home`,
+`our_story`, `visit`, `gallery`, `menu`, `events`, and `seo`. Each area has
+`status` plus `fields`; each field is a `FieldView(value, source)`, where `source` is
+`real`, `sample`, `derived`, or `empty`.
+
+This is the dominant public-template pattern. Crema reads values such as
+`view.home.fields.logo.value`, `view.gallery.fields.photos.value`,
+`view.menu.fields.menus.value`, and `view["visit"].fields.contact.value`.
+
+For visit/contact specifically, the resolver reads the first `Location` by position.
+`_resolve_visit(...)` uses `location.address_*`, `location.phone`, `location.email`,
+and `location.regular_hours`; it does not use the older `Site.address_*`,
+`Site.phone`, or `Site.email` columns for public rendering.
+
+**Path C: `Site.settings` JSONB**
+
+`Site.settings` exists as a JSONB column with default `{}`, and `site_service.create_site`
+initialises it to `{}`. However, a runtime search found no `get_setting`, no
+`SETTINGS_DEFAULTS`, and no active public-template read of `site.settings`. The
+settings JSONB design is therefore aspirational in this repo right now. Any task that
+uses `settings` also has to build the read/default pattern first.
+
+### Components called out
+
+**Footer:** `_footer.html` renders restaurant name, street/suburb, and phone from
+`view["visit"]`. `home.html` suppresses the base footer and duplicates similar footer
+markup inline at lines 317-327. Neither footer renders email, social links, copyright,
+or year.
+
+**Nav/header:** `_nav.html` renders brand/logo, Menu, conditional in-page anchors
+for Our Story/Gallery/Find Us, and a conditional Book link from `site.booking_url`.
+The mobile menu duplicates the desktop link list manually.
+
+**Menu item:** `_menu_item.html` is text-first. It renders dietary tags inline after
+the item name and never renders item images. Section-level photos exist in
+`menu.html`, but item-level photos do not.
 
 ---
 
-## 2. Social Links — Finding & Specification
+## 2. Social links
 
 ### Current state
-- **No mechanism exists.** No model column, no admin UI, no resolver field, no
-  template rendering anywhere in the codebase.
-- The design doc specs it as a Location-level field (`social_links — list of
-  {platform, url}`), but it was never built.
 
-### Recommended implementation
+There is no implemented social-link mechanism: no model field, resolver field, admin
+input, or Crema footer markup. The design doc already lists `social_links` as a
+location/contact field (`docs/restaurant_platform_design.md`).
 
-**Where the data lives:** Add a `social_links` JSONB column to the **Location** model
-(matching the design doc). Shape: `[{"platform": "instagram", "url": "https://..."}, ...]`.
-Supported platforms: `instagram`, `facebook`, `tiktok`, `twitter` (X), `youtube`,
-`tripadvisor`, `google`. Blank/absent = not rendered.
+### Recommended data home
 
-**Why Location, not Site:** The design doc places it on Location, and it's logically
-per-venue contact info (a multi-location venue may have different Instagram accounts).
-The resolver already reads from the first Location for address/hours/contact — social
-links extend the same pattern.
+Add social links to `Location`, not to the Crema template and not to `Site.settings`.
 
-**Resolver:** Add a `social_links` field to the `visit` area in `_resolve_visit()`.
-`never_sample=True` (same as address/contact — don't show fake social links).
+Reasons:
 
-**Admin:** Add to the existing Visit/Location admin form — a repeatable
-platform+URL pair, or a simpler flat form with one input per platform.
+- The footer and Find Us contact card already read visit/contact data from
+  `Location` through `view["visit"]`.
+- The existing owner-facing `/admin/visit` screen edits address, phone, email, and
+  hours for each location; social links are the same kind of contact channel.
+- `Site.settings` is not read anywhere today, so using it would require building the
+  settings subsystem before the feature.
+- Hardcoding links in Crema would break the tenant boundary and fail the stated
+  requirement.
 
-**Template consumers:**
-- `_footer.html` (shared) — renders social icon links for any non-blank platform
-- `home.html` inline footer — same
-- Optionally: Contact card in Find Us section
+### Proposed shape
 
-**Blank platforms render nothing** — no empty icon slots, no "follow us" heading
-if all are blank.
+Use `Location.social_links` as JSONB, defaulting to an empty list:
+
+```json
+[
+  {"platform": "instagram", "url": "https://instagram.com/example"},
+  {"platform": "facebook", "url": "https://facebook.com/example"}
+]
+```
+
+A list keeps platform order venue-controlled and leaves room for new platforms.
+Known platforms for first-pass icon mapping: `instagram`, `facebook`, `tiktok`,
+`youtube`, `tripadvisor`, `google`, `x`. Any blank URL should be normalised away or
+skipped at render time; blank platforms render nothing.
+
+### Consumers
+
+- `app/content/resolver.py`: add a `social` field to the `visit` area with
+  `never_sample=True`. Value should be `[]` when absent.
+- `app/templates/public/crema/_footer.html`: render a social icon/link row if the
+  resolved list is non-empty.
+- `app/templates/public/crema/home.html`: once footer markup is consolidated, it
+  should consume the same partial. Optionally also render socials in the Find Us
+  contact card.
+- `app/templates/admin/visit.html`, `app/web/admin.py`, `app/services/location_service.py`,
+  and `app/coordinators/location_coordinator.py`: extend the existing Visit & Contact
+  edit path to save social links per scoped location.
 
 ---
 
-## 3. Dead Links Inventory
+## 3. Dead-links inventory
 
-| # | Link text | File:line | Target | Class | Action |
-|---|---|---|---|---|---|
-| 1 | `{restaurant_name}` (brand) | `_nav.html:3` | `{{ nav_prefix or '/' }}` | (a) working | OK |
-| 2 | Menu | `_nav.html:16` | `{{ nav_prefix }}/menu` | (a) working | OK |
-| 3 | Our Story | `_nav.html:17` | `#our-story` | (a) working | Conditional on source=real |
-| 4 | Gallery | `_nav.html:18` | `#gallery` | (a) working | Conditional on source=real |
-| 5 | Find Us | `_nav.html:19` | `#find-us` | (a) working | Conditional on source=real |
-| 6 | Book | `_nav.html:21` | `{{ site.booking_url }}` | (d) config-driven | OK — conditional on booking_url |
-| 7 | Menu (mobile) | `_nav.html:28` | `{{ nav_prefix }}/menu` | (a) working | OK |
-| 8 | Our Story (mobile) | `_nav.html:29` | `#our-story` | (a) working | OK |
-| 9 | Gallery (mobile) | `_nav.html:30` | `#gallery` | (a) working | OK |
-| 10 | Find Us (mobile) | `_nav.html:31` | `#find-us` | (a) working | OK |
-| 11 | Book (mobile) | `_nav.html:33` | `{{ site.booking_url }}` | (d) config-driven | OK |
-| 12 | View Menu | `home.html:79` | `{{ nav_prefix }}/menu` | (a) working | OK |
-| 13 | Book a Table | `home.html:81` | `{{ site.booking_url }}` | (d) config-driven | OK — conditional |
-| 14 | Section grid tiles | `home.html:128` | `/menu#section-{uuid}` | (a) working | OK — deep-link anchors exist |
-| 15 | Phone (contact) | `home.html:295` | `tel:{{ cv.phone }}` | (b) external | OK |
-| 16 | Email (contact) | `home.html:298` | `mailto:{{ cv.email }}` | (b) external | OK |
-| 17 | Book a Table (visit) | `home.html:301` | `{{ site.booking_url }}` | (d) config-driven | OK — conditional |
-| 18 | Eyebrow "Neighbourhood Cafe" | `home.html:58` | n/a (not a link) | **(c) HARDCODED TEXT** | **Should be config-driven or removed** |
+Classification key:
+
+- **(a) working internal nav/control**
+- **(b) external embed/service/scheme/asset**
+- **(c) dead or placeholder going nowhere**
+- **(d) should be config-driven**
+- **preview-only**: admin prompt shown only in authenticated preview mode
+
+| Link/control text | File + line | Current target | Class | Recommended action |
+|---|---:|---|---|---|
+| Brand | `_nav.html:3` | `{{ nav_prefix or '/' }}` | (a) | OK. |
+| Menu | `_nav.html:16` | `{{ nav_prefix }}/menu` | (a) | OK. |
+| Our Story | `_nav.html:17` | `#our-story` | (a) | OK; gated on real content in public mode. |
+| Gallery | `_nav.html:18` | `#gallery` | (a) | OK; gated on real content in public mode. |
+| Find Us | `_nav.html:19` | `#find-us` | (a) | OK; gated on visit content in public mode. |
+| Book | `_nav.html:21` | `{{ site.booking_url }}` | (d) | Correctly config-driven and conditional; owner-facing edit path is missing. |
+| Burger | `_nav.html:24` | inline JS toggle | (a) | Works as control; tap target is too small, see mobile findings. |
+| Mobile Menu | `_nav.html:28` | `{{ nav_prefix }}/menu` | (a) | OK; duplicated markup. |
+| Mobile Our Story | `_nav.html:29` | `#our-story` | (a) | OK; same gating. |
+| Mobile Gallery | `_nav.html:30` | `#gallery` | (a) | OK; same gating. |
+| Mobile Find Us | `_nav.html:31` | `#find-us` | (a) | OK; same gating. |
+| Mobile Book | `_nav.html:33` | `{{ site.booking_url }}` | (d) | Correctly config-driven and conditional; owner-facing edit path is missing. |
+| Back to dashboard | `base.html:27` | `/admin/` | preview-only | OK. |
+| Google Fonts preconnect | `tokens.html:1-2` | Google font origins | (b) | OK. |
+| Google Fonts stylesheet | `tokens.html:3` | Google Fonts URL | (b) | OK. |
+| Carousel prev | `home.html:37` | Alpine click handler | (a) | OK; only rendered when more than one photo. |
+| Carousel next | `home.html:40` | Alpine click handler | (a) | OK; only rendered when more than one photo. |
+| Add your photos | `home.html:52` | `/admin/front-page` | preview-only | OK. |
+| Add your logo | `home.html:65` | `/admin/front-page` | preview-only | OK. |
+| Add your tagline | `home.html:75` | `/admin/front-page` | preview-only | OK. |
+| View Menu | `home.html:79` | `{{ nav_prefix }}/menu` | (a) | OK. |
+| Book a Table | `home.html:81` | `{{ site.booking_url }}` | (d) | Correctly config-driven and conditional; owner-facing edit path is missing. |
+| Section tile | `home.html:128` | `{{ nav_prefix }}/menu#section-{{ section.section_id }}` | (a) | OK; target IDs exist in `menu.html:39`. |
+| Add menu sections | `home.html:155` | `/admin/menus` | preview-only | OK. |
+| Add your story | `home.html:169` | `/admin/our-story` | preview-only | OK. |
+| Add gallery photos | `home.html:204` | `/admin/gallery` | preview-only | OK. |
+| Add your hours | `home.html:269` | `/admin/hours` | preview-only | OK. |
+| Add your address | `home.html:284` | `/admin/visit` | preview-only | OK. |
+| Phone | `home.html:295` | `tel:{{ cv.phone }}` | (b) | OK; only rendered when phone exists. |
+| Email | `home.html:298` | `mailto:{{ cv.email }}` | (b) | OK; only rendered when email exists. |
+| Book a Table | `home.html:301` | `{{ site.booking_url }}` | (d) | Correctly config-driven and conditional; owner-facing edit path is missing. |
+| Add contact details | `home.html:306` | `/admin/visit` | preview-only | OK. |
+| Add your menu | `menu.html:14` | `/admin/menus` | preview-only | OK. |
 
 ### Findings
 
-- **No dead links** — all links are either conditional on data presence or point to
-  working internal routes.
-- **One hardcoded text issue:** `home.html:58` hardcodes `"Neighbourhood Cafe"` as
-  the eyebrow text. This is venue-specific copy — it should either come from a
-  config/settings field (e.g. `settings.eyebrow_text`) or be removed. A seafood
-  restaurant wouldn't call itself "Neighbourhood Cafe".
-- **`site.name` bug:** `home.html:27` uses `site.name` for carousel alt text, but
-  the Site model only has `site.restaurant_name`. This renders blank alt text.
-  Should be `site.restaurant_name`.
-- **Booking URL** renders correctly when present, hides cleanly when absent. No
-  admin form exists for owners to set it — currently internal-admin/seed only.
-- **`order_url`** exists on the Site model but is never referenced in any Crema
-  template. This is correct per CLAUDE.md (ordering is deferred), but worth noting.
+- No Crema link is a true `(c)` dead/placeholder link. Existing public links either
+  navigate internally, use a scheme like `tel:`/`mailto:`, or are conditional on data.
+- `booking_url` is the main should-be-config-driven CTA and is already read from
+  config/data, but no owner-facing form currently edits it. It is a `Site` column and
+  appears in Crema and other public templates.
+- `order_url` exists on `Site` but is not consumed by Crema. That is appropriate for
+  v1: ordering is a future handoff, not a payment/ordering engine.
+- Hardcoded venue-specific copy exists even though it is not a link:
+  `home.html:58` renders `Neighbourhood Cafe`. This should be config-driven or
+  omitted, because a non-cafe venue would inherit the wrong identity.
+- `home.html:27` uses `{{ site.name }}` in hero image alt text, but the model field is
+  `restaurant_name`. This likely renders blank/incorrect alt text.
 
 ---
 
-## 4. Footer + Mobile Audit
+## 4. Footer and mobile
 
-### Footer
+### Footer completeness
 
-The footer is minimal (both shared `_footer.html` and the home inline footer):
-- Restaurant name (Fraunces)
-- Address (street, suburb) if present
-- Phone if present
-- Dark background (`--ink`), cream text, centred
+Current footer content:
 
-**Missing from footer:**
-- Social links (not yet built — see section 2)
-- Email (the contact resolver provides it, footer doesn't render it)
-- Copyright/year line
-- Any navigation links (some templates include footer nav — optional)
+- restaurant name
+- street/suburb
+- phone
 
-**home.html has TWO footers:** The home page overrides `{% block footer %}` to empty
-(`_footer.html` is suppressed) and renders its own inline footer at line 317-327.
-This creates a maintenance risk — changes to `_footer.html` don't propagate to the
-home page. Should consolidate: either include the shared partial with a modifier
-class, or extract the home footer into the same partial with a flag.
+Missing:
 
-### Mobile / Responsive
+- social links
+- email, although `view["visit"].fields.contact.value.email` already exists
+- copyright/year
+- one shared footer implementation for all Crema pages
 
-**Breakpoints in crema.css:**
+The home page currently overrides the base footer with an empty block and then
+hand-rolls its own footer at `home.html:317-327`. This means footer improvements made
+in `_footer.html` will not reach the home page unless duplicated. Consolidating this
+should happen before social rendering.
 
-| Breakpoint | What changes |
-|---|---|
-| 860px | Split hero → single column; menu two-col → single-col; section-grid tiles → 2-wide |
-| 768px | Desktop nav links hidden, burger shown, mobile menu enabled |
-| 680px | Story blocks → single column; gallery → 2-col; visit cards → stacked; scroll-section padding reduced |
-| 520px | Section-grid tiles → full-width single column |
+### Responsive/mobile findings from code
 
-**Issues identified from code:**
+| Issue | Evidence | Confidence | Recommended action |
+|---|---|---:|---|
+| Columnar price tables can overflow on narrow screens. | `.cm-col-table` has no mobile wrapper/overflow/stacking rule; price headers and cells use `white-space: nowrap`; item header takes 60%. | High | Add horizontal scroll wrapper or collapse columnar tables below a mobile breakpoint. |
+| Burger tap target is too small. | `.burger` is `26px` by `20px` with no padding. | High | Increase button hit area to at least 44x44 while preserving icon size. |
+| Nav and hero breakpoints are mismatched. | Nav switches at 768px; hero stacks at 860px. | Medium | Screenshot around 800px; likely align burger breakpoint to 860px if nav crowds. |
+| Hero CTA buttons may wrap loosely on small phones. | `.btn` has `14px 30px` padding; two CTAs wrap in `.split__cta`. | Medium | Screenshot around 360px; tighten padding/gap only if needed. |
+| Gallery remains two columns below 680px. | No 1-column gallery breakpoint. | Low | Screenshot very narrow widths; optional 1-column rule if cramped. |
+| Carousel has fixed mobile height. | At <=860px `.carousel { height: 380px; }`. | Low/visual | Screenshot short landscape and small portrait. |
 
-1. **Nav breakpoint mismatch (768px) vs content breakpoint (860px):** Between 768-860px
-   the nav still shows desktop links but the hero is already single-column. The nav
-   links may crowd on tablets at this width. **Suspect — needs screenshot to confirm.**
-
-2. **`.btn` padding (14px 30px):** On narrow screens, two side-by-side CTA buttons
-   ("View Menu" + "Book a Table") may overflow or wrap awkwardly. `flex-wrap: wrap` is
-   set on `.split__cta` which helps, but the individual buttons are fairly wide.
-   **Suspect — needs screenshot to confirm.**
-
-3. **Columnar price table on mobile:** No mobile-specific styling for `.cm-col-table`.
-   A table with 3+ variant columns will overflow horizontally or cramp on narrow
-   screens. **Likely issue — needs screenshot of a columnar section on mobile.**
-
-4. **Gallery grid:** Goes to 2-col at 680px but never to 1-col. On very narrow screens
-   (<400px) the 2-col grid may feel cramped. Minor — the images have aspect-ratio
-   constraints so they won't break, just get small.
-
-5. **Visit cards (3-col → 1-col at 680px):** Clean collapse, no issues expected.
-
-6. **Footer:** No responsive issues — it's just centred text, works at any width.
-
-7. **Carousel height (380px on mobile):** Fixed pixel height. On very short
-   landscape phones this may consume too much viewport. Minor.
-
-8. **Burger tap target:** 26x20px is below the recommended 44x44px minimum for
-   touch targets (WCAG). The clickable area should be larger.
+Footer itself has low overflow risk because it is centered text with modest padding.
 
 ---
 
-## 5. Tags vs Images — Menu Item Audit
+## 5. Tags vs images
 
-### Current implementation
+### Current menu item behaviour
 
-The `_menu_item.html` partial renders **text-only items** — there is no per-item
-image support:
+`_menu_item.html` renders a text-first menu row:
 
-```
-ITEM NAME  V, GF                    $22.00
-Description text here
-extras line (inline or stacked)
-variants (if multi/labelled)
-```
+- item name
+- dietary tags inline after the name, joined by comma
+- single unlabelled price at the right
+- description if present
+- extras either inline or stacked depending on `section.extras_display`
+- labelled variants as a small text row
 
-- **Dietary tags** render inline after the item name in sage-green uppercase
-  (`.cm-item__tags`). Always shown when present. Looks intentional and clean.
-- **No item image** field or rendering exists. The menu data model (`MenuItem`)
-  does not have a photo/image field — items are text-only by design.
-- **Section-level photos** exist (thumbnail in panel header), but per-item photos
-  are not part of the data model.
+The columnar menu table in `menu.html` also renders tags beside the item name. There
+is no per-item image slot and no menu item photo FK in the data model. Crema only uses
+section photos, such as section panel thumbnails and home menu-section tiles.
 
 ### Assessment
 
-The text+tags presentation **already looks intentional** — it reads like a proper
-typeset cafe menu. This is not a broken fallback; it's the design. The clean
-two-column layout, balanced spacing, and consistent tag styling make it work.
+The current text+tags presentation looks intentional in code. It does not read like a
+broken fallback because no empty image frame is rendered. This is a good fit for
+venues without strong dish photography.
 
-### Recommendations
+### Recommendation
 
-**Option A (recommended for v1): Stay text-only, tags always visible.**
-No changes needed. The current approach suits the concierge-first model — most
-venues being onboarded won't have per-dish photography. The text menu with tags
-is the Crema identity: warm typography, scannable. Adding per-item images would
-require a new data model field and would clutter the two-column balance layout.
+**Recommended v1: keep item images out of Crema item rows.** Treat item images as a
+future enhancement, keep tags always available, and make the text menu the intentional
+default. Section-level photos already provide visual interest without requiring a
+photo for every dish.
 
-**Option B (future): Optional per-item hero image for featured items.**
-If/when `MenuItem` gains an optional `photo_id` FK, featured items with photos
-could render as a wider "hero item" card (spanning both columns, image left,
-text right). Non-photo items stay as text rows. This would require:
-- Migration: add `photo_id` FK to `menu_items` table
-- Model: add relationship
-- Admin: photo picker on item edit
-- Template: conditional image rendering with `break-inside: avoid` and
-  `column-span: all` for the hero variant
-- CSS: new `.cm-item--hero` class
+Future options:
 
-**Option C (future): Image grid/tile mode per section.**
-A section-level setting (`item_display: "list" | "tiles"`) where tiles show
-item photo + name + price in a grid. Requires per-item photos (Option B
-prerequisite) plus significant template/CSS work. Parked.
+| Option | Behaviour | Required changes |
+|---|---|---|
+| A. Text-only items, tags always | Current model; tags render whenever present; no item image slots. | No item-image work. Optional polish only. |
+| B. Optional hero image for featured items | Items with photos render as larger feature rows; normal items stay text-only. | Add `photo_id`/relationship to menu item, migration, admin photo picker, `_menu_item.html` conditional layout, CSS for feature row. |
+| C. Section tile/grid mode | A section can render photo-led dish tiles. | Depends on item photos plus a real per-template/settings display-mode mechanism. Larger template and admin change. |
 
-**Recommendation:** Ship v1 as-is (Option A). The text menu is the right call
-for concierge-first. Revisit Options B/C when self-serve owners with good
-photography become the primary user.
+Do not add an always-on image placeholder to every item. That would make photo-light
+venues look unfinished.
 
 ---
 
-## 6. Ordered Task List
+## 6. Ordered task list for approval
 
-Dependencies mapped. Config/data work comes first since templates consume it.
+### Must come first
 
-### Phase 1: Data & config foundation
+The data/config work underpins both social links and CTA cleanup, but there are two
+separate foundations:
 
-| # | Task | Touches | Depends on | Notes |
-|---|---|---|---|---|
-| 1 | **Add `social_links` JSONB to Location model** | migration, `location.py` | — | `[{platform, url}]`, nullable, default `[]` |
-| 2 | **Resolve social_links in visit area** | `resolver.py` | 1 | New field in `_resolve_visit()`, `never_sample=True` |
-| 3 | **Admin form for social links** | admin templates, `admin.py`, schemas | 1 | Add to Visit/Location edit form. One input per platform (instagram, facebook, tiktok, twitter, youtube, tripadvisor, google) |
-| 4 | **Add eyebrow text to settings** | `settings` JSONB or new Site column | — | Default: `None` (template falls back to restaurant type or omits). Crema currently hardcodes "Neighbourhood Cafe" |
-| 5 | **Admin form for eyebrow text** | admin templates | 4 | Simple text input on front-page or site-details form |
+- Social links belong on `Location` and flow through the existing Visit resolver/admin
+  path.
+- Booking URL already has a `Site` column, but needs an owner-facing edit path.
+- The hardcoded Crema eyebrow should not use `Site.settings` until the settings
+  reader/default pattern exists. Use an existing `Site` column or add an explicit
+  field through the established site/front-page path.
 
-### Phase 2: Template fixes (independent of each other, depend on Phase 1)
+### Phase 0: audit-confirmed quick fixes
 
-| # | Task | Touches | Depends on | Notes |
-|---|---|---|---|---|
-| 6 | **Render social links in footer** | `_footer.html`, `home.html` (inline footer), `crema.css` | 2 | SVG icons per platform, conditional on non-blank URL |
-| 7 | **Consolidate home footer with shared footer** | `home.html`, `_footer.html` | — | Eliminate duplicate footer. Either include shared partial with modifier, or extract to single source |
-| 8 | **Fix `site.name` → `site.restaurant_name`** | `home.html:27` | — | Bug: blank alt text on carousel images |
-| 9 | **Replace hardcoded eyebrow** | `home.html:58` | 4,5 | Read from settings/config, fall back gracefully |
-| 10 | **Add email to footer** | `_footer.html`, `home.html` | — | Resolver already provides it; footer just doesn't render it |
+| Order | Task | Touches | Dependency |
+|---:|---|---|---|
+| 1 | Fix hero alt text from `site.name` to `site.restaurant_name`. | `app/templates/public/crema/home.html` | None. |
+| 2 | Consolidate home footer and shared footer into one Crema footer partial. | `home.html`, `_footer.html`, maybe `crema.css` modifier class | None; should precede social footer rendering. |
+| 3 | Add email to the consolidated footer. | `_footer.html` | Task 2. |
+| 4 | Fix burger tap target. | `crema.css` | None. |
+| 5 | Protect columnar menu tables on mobile. | `menu.html`, `crema.css` | None. |
 
-### Phase 3: Mobile/responsive polish
+### Phase 1: data/config foundation
 
-| # | Task | Touches | Depends on | Notes |
-|---|---|---|---|---|
-| 11 | **Columnar table mobile overflow** | `crema.css` | — | Add `overflow-x: auto` wrapper or responsive table collapse for `.cm-col-table` |
-| 12 | **Align nav breakpoint with content** | `crema.css` | — | Consider moving burger breakpoint from 768px to 860px to match hero collapse |
-| 13 | **Increase burger tap target** | `crema.css` | — | Pad to >=44x44px clickable area |
-| 14 | **Verify CTA button wrapping on mobile** | manual test | — | Screenshot needed at ~400px — `.split__cta` flex-wrap is set but buttons may still be too wide |
+| Order | Task | Touches | Dependency |
+|---:|---|---|---|
+| 6 | Add `Location.social_links` JSONB with default empty list; hand-write migration. | `app/models/location.py`, Alembic migration | None. |
+| 7 | Extend location update/create services and coordinator kwargs to accept scoped social links. | `location_service.py`, `location_coordinator.py`, tests | Task 6. |
+| 8 | Extend `/admin/visit` form and POST handler to edit social links per location. | `admin/visit.html`, `app/web/admin.py` | Tasks 6-7. |
+| 9 | Add `visit.social` to the resolver with no sample data. | `app/content/resolver.py`, resolver tests | Task 6. |
+| 10 | Add owner-facing booking URL editing. | Likely front-page/details admin form, `SiteDetailsForm` or dedicated form, site service/coordinator | None; uses existing `Site.booking_url`. |
+| 11 | Decide and wire the Crema hero eyebrow source. | Likely `Site.hero_subheading` or a new explicit front-page field | Approval needed before implementation. |
 
-### Independent quick fixes (can be done anytime)
+### Phase 2: Crema rendering
 
-| # | Task | Touches | Depends on | Notes |
-|---|---|---|---|---|
-| 8 | Fix `site.name` bug | `home.html` | — | One-line fix |
-| 10 | Add email to footer | `_footer.html` + `home.html` | — | Small template change |
-| 13 | Burger tap target | `crema.css` | — | CSS-only |
+| Order | Task | Touches | Dependency |
+|---:|---|---|---|
+| 12 | Render footer social links, skipping blank/unknown URLs gracefully. | `_footer.html`, `crema.css`, tests if practical | Tasks 2 and 9. |
+| 13 | Optionally render social links in the Find Us contact card. | `home.html`, `crema.css` | Task 9. |
+| 14 | Replace hardcoded `Neighbourhood Cafe` eyebrow with the approved config field or omit when blank. | `home.html` | Task 11. |
 
-### Execution order recommendation
+### Phase 3: screenshot-gated responsive polish
 
-1. **Task 8** (site.name bug — one-line, zero risk)
-2. **Tasks 1-3** (social_links: migration → resolver → admin form)
-3. **Tasks 4-5** (eyebrow config)
-4. **Tasks 6-7** (footer consolidation + social rendering)
-5. **Tasks 9-10** (eyebrow + email in footer)
-6. **Tasks 11-14** (mobile polish — can be batched)
+| Order | Task | Touches | Dependency |
+|---:|---|---|---|
+| 15 | Screenshot around 800px and align nav breakpoint if crowded. | `crema.css` | Browser verification. |
+| 16 | Screenshot around 360px and adjust hero CTA spacing only if awkward. | `crema.css` | Browser verification. |
+| 17 | Screenshot narrow gallery and short landscape carousel; adjust only if visibly poor. | `crema.css` | Browser verification. |
 
-Tasks 8, 10, 11, 12, 13 are all independent and can be done in any order or
-parallelised. The social links chain (1→2→3→6) is the longest dependency path
-and should start first.
+### Independent work
+
+- Tasks 1, 4, and 5 can be done immediately and independently.
+- Task 2 should happen before Task 12.
+- Tasks 6-9 form the social-link chain.
+- Task 10 is independent of social links but needed to make existing booking CTAs truly owner-configurable.
+- Task 11/14 is independent of social links and booking, but should be approved because it decides the source of venue-specific hero copy.
+
