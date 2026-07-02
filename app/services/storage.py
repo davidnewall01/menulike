@@ -59,6 +59,41 @@ def public_url(key: str) -> str:
     return f"{base}/{key}"
 
 
+# Variant name → Photo column holding that variant's S3 key.
+_VARIANT_ATTRS: dict[str, str] = {
+    "thumb": "s3_key_thumb",
+    "medium": "s3_key_medium",
+    "large": "s3_key_large",
+    "original": "s3_key",  # s3_key = original_webp after pipeline
+}
+
+# Fallback chain: if the requested variant is missing, try the next larger.
+_FALLBACK_ORDER = ("thumb", "medium", "large", "original")
+
+
+def pick_variant_key(photo: object, variant: str) -> str:
+    """Pick the best S3 key for the requested variant, with fallback.
+
+    If the requested variant key is None (pre-pipeline photo), walks up the
+    fallback chain (thumb → medium → large → original) to the first populated
+    key. Returns a raw S3 key — caller applies public_url().
+    """
+    try:
+        start = _FALLBACK_ORDER.index(variant)
+    except ValueError:
+        start = 0
+    for v in _FALLBACK_ORDER[start:]:
+        key = getattr(photo, _VARIANT_ATTRS[v], None)
+        if key:
+            return key
+    return photo.s3_key
+
+
+def photo_variant_url(photo: object, variant: str) -> str:
+    """Public URL for a specific image variant with graceful fallback."""
+    return public_url(pick_variant_key(photo, variant))
+
+
 def _session() -> aioboto3.Session:
     return aioboto3.Session(
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -77,6 +112,27 @@ async def upload(data: bytes, key: str, content_type: str) -> None:
             Key=key,
             Body=data,
             ContentType=content_type,
+        )
+
+
+async def download(key: str) -> bytes:
+    """Download an object's bytes from S3."""
+    _require_config()
+    session = _session()
+    async with session.client("s3") as s3:
+        resp = await s3.get_object(Bucket=settings.S3_BUCKET, Key=key)
+        return await resp["Body"].read()
+
+
+async def copy(src_key: str, dst_key: str) -> None:
+    """Copy an object within the same bucket."""
+    _require_config()
+    session = _session()
+    async with session.client("s3") as s3:
+        await s3.copy_object(
+            Bucket=settings.S3_BUCKET,
+            CopySource={"Bucket": settings.S3_BUCKET, "Key": src_key},
+            Key=dst_key,
         )
 
 
