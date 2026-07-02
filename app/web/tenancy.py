@@ -89,6 +89,7 @@ async def resolve_tenant(
     host = normalise_host(raw_host)
 
     site: Site | None = None
+    is_custom_domain = False
 
     # Stage 1: custom domain lookup
     result = await db.execute(
@@ -98,6 +99,7 @@ async def resolve_tenant(
     custom_site_id = result.scalar_one_or_none()
     if custom_site_id is not None:
         site = await site_service.get_site_by_id_public(db, custom_site_id)
+        is_custom_domain = True
 
     # Stage 2: subdomain parse
     if site is None:
@@ -112,5 +114,24 @@ async def resolve_tenant(
     # Published gate — same for both resolution paths
     if not site.is_published:
         raise SiteNotPublished(site.restaurant_name)
+
+    # SEO context: canonical URL + custom-domain flag for templates.
+    # Query the site's primary custom domain (first runtime use of is_primary).
+    primary_result = await db.execute(
+        select(CustomDomain.domain)
+        .where(
+            CustomDomain.site_id == site.site_id,
+            CustomDomain.is_primary.is_(True),
+            CustomDomain.status == "active",
+        )
+    )
+    primary_domain = primary_result.scalar_one_or_none()
+    if primary_domain:
+        canonical_base = f"https://{primary_domain}"
+    else:
+        canonical_base = f"https://{site.slug}.{settings.PLATFORM_BASE_DOMAIN}"
+
+    request.state.is_custom_domain = is_custom_domain
+    request.state.canonical_base_url = canonical_base
 
     return site

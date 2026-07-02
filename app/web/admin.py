@@ -556,10 +556,14 @@ _PREVIEW_CTX = {
 }
 
 
-async def _load_preview(db: AsyncSession, auth: AuthContext):
+async def _load_preview(request: Request, db: AsyncSession, auth: AuthContext):
     """Load site + role_images for preview. Shared by all preview routes."""
     site = await site_service.get_owner_site_preview(db, auth)
     role_images = await image_role_service.load_role_images(db, site.site_id)
+    # Preview always noindexed, no canonical — set safe defaults so public
+    # base templates (which read request.state) don't error.
+    request.state.is_custom_domain = False
+    request.state.canonical_base_url = ""
     return site, role_images
 
 
@@ -572,7 +576,7 @@ async def preview_home(
     """Preview the owner's home page (real content + samples for gaps)."""
     from app.content.resolver import resolve_site_view
 
-    site, role_images = await _load_preview(db, auth)
+    site, role_images = await _load_preview(request, db, auth)
     view = resolve_site_view(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
@@ -604,7 +608,7 @@ async def preview_menu(
     """Preview the owner's menu (including drafts)."""
     from app.content.resolver import resolve_site_view
 
-    site, role_images = await _load_preview(db, auth)
+    site, role_images = await _load_preview(request, db, auth)
     view = resolve_site_view(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
@@ -631,7 +635,7 @@ async def preview_our_story(
     """Preview the owner's Our Story page."""
     from app.content.resolver import resolve_site_view
 
-    site, role_images = await _load_preview(db, auth)
+    site, role_images = await _load_preview(request, db, auth)
     view = resolve_site_view(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
@@ -658,7 +662,7 @@ async def preview_gallery(
     """Preview the owner's gallery."""
     from app.content.resolver import resolve_site_view
 
-    site, role_images = await _load_preview(db, auth)
+    site, role_images = await _load_preview(request, db, auth)
     view = resolve_site_view(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
@@ -686,7 +690,7 @@ async def preview_visit(
     from app.content.resolver import resolve_site_view
     from app.web.public import _build_hours_context
 
-    site, role_images = await _load_preview(db, auth)
+    site, role_images = await _load_preview(request, db, auth)
     view = resolve_site_view(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,
@@ -714,7 +718,7 @@ async def preview_events(
     """Preview the owner's Events / What's On page."""
     from app.content.resolver import resolve_site_view
 
-    site, role_images = await _load_preview(db, auth)
+    site, role_images = await _load_preview(request, db, auth)
     view = resolve_site_view(
         site=site, role_images=role_images, mode="preview",
         storage_url=storage_public_url,

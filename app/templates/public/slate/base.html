@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex">
+  {% if not request.state.is_custom_domain %}<meta name="robots" content="noindex">{% endif %}
+  <link rel="canonical" href="{{ request.state.canonical_base_url }}{{ request.url.path }}">
+  <meta property="og:url" content="{{ request.state.canonical_base_url }}{{ request.url.path }}">
   <title>{{ view.seo.fields.meta_title.value or site.restaurant_name }}</title>
   {% if view.seo.fields.meta_description.value %}
   <meta name="description" content="{{ view.seo.fields.meta_description.value }}">
