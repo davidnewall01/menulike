@@ -3,7 +3,7 @@
 from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,13 +14,14 @@ from app.content.resolver import resolve_site_view
 from app.db.session import get_db
 from app.models.site import Site
 from app.services import image_role_service
-from app.services.storage import public_url as storage_public_url
+from app.services.storage import photo_variant_url, public_url as storage_public_url
 from app.web.template_resolver import page_path, resolve_template
 from app.web.tenancy import resolve_tenant
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 # Current year for footer copyright — evaluated per render, never hardcoded.
 templates.env.globals["current_year"] = lambda: date.today().year
+templates.env.globals["photo_variant_url"] = photo_variant_url
 
 router = APIRouter()
 
@@ -188,4 +189,59 @@ async def visit(request: Request, site: Site = Depends(resolve_tenant), db: Asyn
             "storage_url": storage_public_url,
             "render_mode": "public",
         },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Known-alias redirects + branded 404
+# ---------------------------------------------------------------------------
+
+# Paths that are real public routes (used for .html/.htm/.php alias matching).
+_PUBLIC_PATHS = {"/menu", "/gallery", "/our-story", "/events", "/visit"}
+
+# Stale-link aliases that map to the homepage.
+_HOME_ALIASES = {"/index.html", "/index.htm", "/index.php", "/index", "/home"}
+
+
+def _resolve_alias(path: str) -> str | None:
+    """Return the clean redirect target for a known alias, or None."""
+    clean = path.rstrip("/") if path != "/" else path
+
+    if clean in _HOME_ALIASES:
+        return "/"
+
+    # .html/.htm/.php version of a real route → clean path
+    for ext in (".html", ".htm", ".php"):
+        if clean.endswith(ext):
+            base = clean[: -len(ext)]
+            if base in _PUBLIC_PATHS:
+                return base
+
+    # Trailing-slash normalisation: /menu/ → /menu
+    if path.endswith("/") and path != "/" and clean in _PUBLIC_PATHS:
+        return clean
+
+    return None
+
+
+@router.get("/{path:path}", response_class=HTMLResponse)
+async def catch_all(
+    request: Request,
+    path: str,
+    site: Site = Depends(resolve_tenant),
+):
+    """Handle unknown public paths: alias redirects or branded 404."""
+    # Don't intercept admin/auth/setup/static paths that fell through.
+    if path.startswith(("admin", "setup", "auth", "static", "health")):
+        raise HTTPException(status_code=404)
+
+    full_path = f"/{path}"
+    redirect_to = _resolve_alias(full_path)
+    if redirect_to is not None:
+        return RedirectResponse(url=redirect_to, status_code=301)
+
+    return templates.TemplateResponse(
+        "public/404.html",
+        {"request": request, "site": site},
+        status_code=404,
     )

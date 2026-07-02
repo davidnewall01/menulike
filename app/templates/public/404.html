@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Page not found — {{ site.restaurant_name }}</title>
+  <style>
+    :root {
+      --cream: #f5f0e8;
+      --ink: #3e3528;
+      --ink-3: #6e665b;
+      --accent: #8b7355;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: Georgia, 'Times New Roman', serif;
+    }
+    .not-found {
+      text-align: center;
+      padding: 2rem;
+    }
+    .not-found__code {
+      font-size: 4rem;
+      font-weight: 300;
+      margin: 0 0 0.5rem;
+      letter-spacing: 0.08em;
+      color: var(--ink-3);
+    }
+    .not-found__heading {
+      font-size: clamp(1.5rem, 4vw, 2.25rem);
+      font-weight: 500;
+      margin: 0 0 0.75rem;
+      letter-spacing: 0.02em;
+    }
+    .not-found__message {
+      font-size: 1rem;
+      color: var(--ink-3);
+      margin: 0 0 2rem;
+    }
+    .not-found__links {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .not-found__links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 0.5em 0;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .not-found__links a:hover {
+      border-bottom-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="not-found">
+    <p class="not-found__code">404</p>
+    <h1 class="not-found__heading">{{ site.restaurant_name }}</h1>
+    <p class="not-found__message">Sorry, this page doesn't exist.</p>
+    <div class="not-found__links">
+      <a href="/">Home</a>
+      <a href="/menu">Menu</a>
+    </div>
+  </div>
+</body>
+</html>
