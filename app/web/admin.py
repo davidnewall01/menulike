@@ -3309,6 +3309,42 @@ def _hours_by_day(hours_list):
     return out
 
 
+# Social platforms shown on the Visit form, in the footer's canonical order:
+# (form/storage key, human label).
+_SOCIAL_PLATFORMS = [
+    ("instagram", "Instagram"),
+    ("facebook", "Facebook"),
+    ("tiktok", "TikTok"),
+    ("youtube", "YouTube"),
+    ("tripadvisor", "TripAdvisor"),
+    ("google", "Google"),
+    ("x", "X"),
+]
+
+
+def _read_social_links(form_data) -> list[dict]:
+    """Build social_links from the seven fixed inputs. Normalisation at write
+    time: trim, drop blanks, prepend https:// when no scheme. Canonical order."""
+    out: list[dict] = []
+    for key, _label in _SOCIAL_PLATFORMS:
+        url = form_data.get(f"social_{key}", "").strip()
+        if not url:
+            continue
+        if not url.lower().startswith(("http://", "https://")):
+            url = "https://" + url
+        out.append({"platform": key, "url": url})
+    return out
+
+
+def _social_lookup(location) -> dict:
+    """{platform: url} from a Location's social_links, for form pre-fill."""
+    return {
+        s.get("platform"): s.get("url", "")
+        for s in (location.social_links or [])
+        if s.get("platform")
+    }
+
+
 @router.get("/visit", response_class=HTMLResponse)
 async def visit_page(
     request: Request,
@@ -3345,6 +3381,7 @@ async def visit_page(
             "location": loc,
             "hours_by_day": _hours_by_day(hours),
             "exceptions": exceptions,
+            "social_lookup": _social_lookup(loc),
         })
 
     return _render(
@@ -3352,6 +3389,7 @@ async def visit_page(
         locations=loc_data,
         is_internal_admin=False,
         day_names=_DAY_NAMES,
+        social_platforms=_SOCIAL_PLATFORMS,
         google_places_key=settings.GOOGLE_MAPS_API_KEY,
         multi_location_enabled=settings.MULTI_LOCATION_ENABLED,
     )
@@ -3380,6 +3418,9 @@ async def visit_save_location(
         "address_postcode": form_data.get("address_postcode", "").strip() or None,
         "phone": form_data.get("phone", "").strip() or None,
         "email": form_data.get("email", "").strip() or None,
+        # Always pass the list (even []) so clearing a field removes it — the
+        # service sets social_links conditionally on non-None.
+        "social_links": _read_social_links(form_data),
     }
 
     # Lat/lng from Places autocomplete (coords stored when user selects a suggestion)

@@ -127,7 +127,16 @@
       {% for section in all_sections %}
       <a href="{{ nav_prefix }}/menu#section-{{ section.section_id }}" class="tile">
         {% if section.photo and section.photo.s3_key %}
-        <div class="tile__img" style="background-image:url('{{ storage_url(section.photo.s3_key) }}')"></div>
+        <div class="tile__img">
+          <img class="tile__photo"
+               src="{{ storage_url(section.photo.s3_key) }}"
+               alt="{{ section.name }}"
+               width="{{ section.photo.width or 400 }}"
+               height="{{ section.photo.height or 300 }}"
+               loading="eager"
+               decoding="async"
+               fetchpriority="low">
+        </div>
         {% else %}
         <div class="tile__img tile__img--placeholder"></div>
         {% endif %}
@@ -207,7 +216,11 @@
     <div class="gallery-grid">
       {% for photo in gallery_photos %}
       <img src="{{ photo.url }}" alt="{{ photo.alt_text }}"
-           loading="{{ 'eager' if loop.index <= 4 else 'lazy' }}">
+           width="{{ photo.width or 400 }}"
+           height="{{ photo.height or 300 }}"
+           loading="eager"
+           decoding="async"
+           fetchpriority="low">
       {% endfor %}
     </div>
     {% endif %}

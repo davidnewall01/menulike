@@ -14,11 +14,26 @@
   .loc-block h2 { font-size: 16px; font-weight: 700; margin: 0 0 14px; }
   .loc-block .field { margin-bottom: 12px; }
   .loc-block label { display: block; font-size: 13px; font-weight: 600; color: #3E3528; margin-bottom: 4px; }
-  .loc-block input[type="text"], .loc-block input[type="email"], .loc-block input[type="tel"] {
+  .loc-block input[type="text"], .loc-block input[type="email"], .loc-block input[type="tel"], .loc-block input[type="url"] {
     width: 100%; padding: 8px 10px; font-size: 14px;
     border: 1px solid #D9C9AE; border-radius: 7px; background: #fff;
   }
   .loc-block input:focus { outline: none; border-color: #1E5B52; box-shadow: 0 0 0 2px rgba(30,91,82,.15); }
+  /* Collapsible sections (native <details>) */
+  .visit-section { border-top: 1px solid #E5DCCD; }
+  .visit-section > summary {
+    cursor: pointer; list-style: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 2px; font-size: 15px; font-weight: 700; color: #3E3528;
+  }
+  .visit-section > summary::-webkit-details-marker { display: none; }
+  .visit-section > summary::after {
+    content: "⌄"; color: #9A8F7E; font-size: 18px; line-height: 1;
+    transform: translateY(-3px); transition: transform .15s;
+  }
+  .visit-section[open] > summary::after { transform: translateY(2px) rotate(180deg); }
+  .visit-section__body { padding: 2px 2px 18px; }
+  .visit-section .loc-hours { margin-top: 0; padding-top: 0; border-top: none; }
   .loc-block .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .loc-submit {
     display: inline-block; padding: 9px 18px;
@@ -108,55 +123,77 @@
       <input type="hidden" name="latitude" x-model="lat">
       <input type="hidden" name="longitude" x-model="lng">
 
-      {% if multi %}
-      <div class="field">
-        <label>Location name</label>
-        <input type="text" name="label" value="{{ loc.label or '' }}" placeholder="e.g. Gordon, Manly">
-      </div>
-      {% endif %}
+      <details class="visit-section">
+        <summary>Address &amp; contact</summary>
+        <div class="visit-section__body">
+          {% if multi %}
+          <div class="field">
+            <label>Location name</label>
+            <input type="text" name="label" value="{{ loc.label or '' }}" placeholder="e.g. Gordon, Manly">
+          </div>
+          {% endif %}
 
-      <div class="field">
-        <label>Street address</label>
-        <input type="text" name="address_street" id="addr-street-{{ loop.index0 }}"
-               value="{{ loc.address_street or '' }}" placeholder="Start typing for suggestions..."
-               autocomplete="off" x-ref="streetInput">
-      </div>
-      <div class="row-2">
-        <div class="field">
-          <label>Suburb</label>
-          <input type="text" name="address_suburb" value="{{ loc.address_suburb or '' }}" x-ref="suburb">
-        </div>
-        <div class="field">
-          <label>State</label>
-          <input type="text" name="address_state" value="{{ loc.address_state or '' }}" x-ref="state">
-        </div>
-      </div>
-      <div class="field" style="max-width:200px">
-        <label>Postcode</label>
-        <input type="text" name="address_postcode" value="{{ loc.address_postcode or '' }}" x-ref="postcode">
-      </div>
+          <div class="field">
+            <label>Street address</label>
+            <input type="text" name="address_street" id="addr-street-{{ loop.index0 }}"
+                   value="{{ loc.address_street or '' }}" placeholder="Start typing for suggestions..."
+                   autocomplete="off" x-ref="streetInput">
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Suburb</label>
+              <input type="text" name="address_suburb" value="{{ loc.address_suburb or '' }}" x-ref="suburb">
+            </div>
+            <div class="field">
+              <label>State</label>
+              <input type="text" name="address_state" value="{{ loc.address_state or '' }}" x-ref="state">
+            </div>
+          </div>
+          <div class="field" style="max-width:200px">
+            <label>Postcode</label>
+            <input type="text" name="address_postcode" value="{{ loc.address_postcode or '' }}" x-ref="postcode">
+          </div>
 
-      <hr class="visit-divider" style="margin:16px 0">
+          <hr class="visit-divider" style="margin:16px 0">
 
-      <div class="row-2">
-        <div class="field">
-          <label>Phone</label>
-          <input type="tel" name="phone" value="{{ loc.phone or '' }}">
+          <div class="row-2">
+            <div class="field">
+              <label>Phone</label>
+              <input type="tel" name="phone" value="{{ loc.phone or '' }}">
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <input type="email" name="email" value="{{ loc.email or '' }}">
+            </div>
+          </div>
+          <button type="submit" class="loc-submit">Save</button>
         </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" name="email" value="{{ loc.email or '' }}">
-        </div>
-      </div>
+      </details>
 
-      <button type="submit" class="loc-submit">Save</button>
+      <details class="visit-section">
+        <summary>Social links</summary>
+        <div class="visit-section__body">
+          <p class="sub" style="margin:0 0 12px;">Paste the full link (or just the handle) for the platforms you use. Leave the rest blank.</p>
+          {% for key, plabel in social_platforms %}
+          <div class="field">
+            <label>{{ plabel }}</label>
+            <input type="url" name="social_{{ key }}"
+                   value="{{ loc_item.social_lookup.get(key, '') }}"
+                   placeholder="{{ plabel }} link">
+          </div>
+          {% endfor %}
+          <button type="submit" class="loc-submit">Save</button>
+        </div>
+      </details>
     </form>
 
     {# --- Inline hours editor --- #}
     {% set loc_prefix = loc.location_id | string %}
-    <div class="loc-hours">
+    <details class="visit-section">
+      <summary>Opening hours</summary>
+      <div class="visit-section__body">
+      <div class="loc-hours">
       <div class="loc-hours__head">
-        <h3>Opening hours</h3>
         <form class="hours-display-toggle"
               hx-post="/admin/visit/hours-display"
               hx-trigger="change"
@@ -229,7 +266,9 @@
           </div>
         </div>
       </details>
-    </div>
+      </div>
+      </div>
+    </details>
   </div>
   {% endfor %}
 
