@@ -78,13 +78,14 @@ class TestCanPublish:
     def test_mode_independent(self):
         """can_publish keys on status/source, which are mode-independent."""
         site = SimpleNamespace(
-            restaurant_name="Test", tagline=None, address_street=None,
+            restaurant_name="Test", tagline=None, service_info=None,
+            address_street=None,
             address_suburb=None, phone=None, email=None,
             regular_hours=[], content_blocks=[],
             menus=[SimpleNamespace(name="Food")],
             meta_title=None, meta_description=None,
         )
-        photo = SimpleNamespace(s3_key="test.jpg", alt_text="", width=800, height=600)
+        photo = SimpleNamespace(s3_key="test.jpg", s3_key_raw=None, s3_key_large=None, s3_key_medium=None, s3_key_thumb=None, alt_text="", width=800, height=600)
         role_images = {"feature_images": [photo]}
         _url = lambda key: f"https://cdn/{key}"
 

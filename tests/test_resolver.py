@@ -72,6 +72,7 @@ def make_site(
     menus: list | None = None,
     meta_title: str | None = None,
     meta_description: str | None = None,
+    service_info: str | None = None,
 ) -> SimpleNamespace:
     # Build a default location from address/phone/email/hours params
     # so the resolver (which reads site.locations[0]) works correctly.
@@ -92,6 +93,7 @@ def make_site(
     return SimpleNamespace(
         restaurant_name=restaurant_name,
         tagline=tagline,
+        service_info=service_info,
         content_blocks=content_blocks or [],
         menus=menus or [],
         meta_title=meta_title,
@@ -119,6 +121,10 @@ def make_role_images(
 def make_photo(**kwargs) -> SimpleNamespace:
     return SimpleNamespace(
         s3_key=kwargs.get("s3_key", "photos/test.jpg"),
+        s3_key_raw=kwargs.get("s3_key_raw", None),
+        s3_key_large=kwargs.get("s3_key_large", None),
+        s3_key_medium=kwargs.get("s3_key_medium", None),
+        s3_key_thumb=kwargs.get("s3_key_thumb", None),
         alt_text=kwargs.get("alt_text", ""),
         width=kwargs.get("width", 800),
         height=kwargs.get("height", 600),
@@ -468,7 +474,7 @@ class TestUniformShapes:
         assert items[0] == {"heading": "About", "body": "We cook.", "image_url": None, "image_alt": ""}
 
     def test_real_block_with_image(self):
-        img = SimpleNamespace(s3_key="photos/story.jpg", alt_text="Kitchen")
+        img = SimpleNamespace(s3_key="photos/story.jpg", s3_key_raw=None, s3_key_large=None, s3_key_medium=None, s3_key_thumb=None, alt_text="Kitchen")
         block = SimpleNamespace(
             page_key="our_story", heading="Our Kitchen", body="Fresh.",
             image_photo_id="abc", image=img, is_visible=True,

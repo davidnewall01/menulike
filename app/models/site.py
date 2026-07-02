@@ -33,6 +33,7 @@ class Site(TimestampMixin, Base):
         String, nullable=False, server_default="linen"
     )
     tagline: Mapped[str | None] = mapped_column(String, nullable=True)
+    service_info: Mapped[str | None] = mapped_column(String, nullable=True)
     hero_heading: Mapped[str | None] = mapped_column(String, nullable=True)
     hero_subheading: Mapped[str | None] = mapped_column(String, nullable=True)
     about_story: Mapped[str | None] = mapped_column(Text, nullable=True)

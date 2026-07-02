@@ -33,7 +33,7 @@
   <p class="sub">Your hero image, logo, and tagline &mdash; what visitors see first.</p>
 
   {% if saved %}
-  <div class="fp-saved">Tagline saved.</div>
+  <div class="fp-saved">Saved.</div>
   {% endif %}
 
   {# --- Tagline --- #}
@@ -46,7 +46,12 @@
         <label for="tagline">Tagline</label>
         <input type="text" id="tagline" name="tagline" value="{{ site.tagline or '' }}" placeholder="e.g. Fresh Mediterranean flavours, harbourside">
       </div>
-      <button type="submit" class="fp-submit">Save tagline</button>
+      <div class="fp-field">
+        <label for="service_info">Service info</label>
+        <input type="text" id="service_info" name="service_info" value="{{ site.service_info or '' }}" placeholder="e.g. Dine-in or take away | Fully licensed | BYO wine only">
+        <p class="hint" style="margin-top:4px">Separate items with a pipe <code>|</code> &mdash; they display with a dot between them above the footer.</p>
+      </div>
+      <button type="submit" class="fp-submit">Save</button>
     </form>
   </div>
 

@@ -227,6 +227,13 @@ body.home .burger span { background: var(--cream); }
 }
 .hero__nav a:hover::after { transform: scaleX(1); }
 
+.hero__service {
+  margin-top: 36px; color: rgba(247,242,232,.55);
+  font-family: var(--sans); font-size: .7rem;
+  letter-spacing: .18em; text-transform: uppercase;
+}
+.hero__dot { margin: 0 .6em; }
+
 .hero__contact {
   position: absolute; bottom: 28px; left: 0; right: 0;
   text-align: center; z-index: 2;
@@ -248,6 +255,19 @@ body.home .burger span { background: var(--cream); }
 .btn--light:hover { background: rgba(247,242,232,.14); }
 .btn--ghost { border-color: var(--line); color: var(--ink); }
 .btn--ghost:hover { border-color: var(--azure); color: var(--azure); }
+
+/* === Service band (above footer) === */
+.service-band {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 6px 0; padding: 18px 26px;
+  border-top: 1px solid var(--line-2);
+  font-family: var(--sans); font-size: .68rem;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.service-band__item + .service-band__item::before {
+  content: "\00b7"; margin: 0 .75em;
+}
 
 /* === Footer === */
 .foot {

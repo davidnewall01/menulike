@@ -46,6 +46,17 @@ async def update_tagline(
     return site
 
 
+async def update_service_info(
+    db: AsyncSession,
+    auth_ctx: AuthContext,
+    service_info: str | None,
+) -> Site:
+    """Apply service_info update and commit."""
+    site = await site_service.update_service_info(db, auth_ctx, service_info)
+    await db.commit()
+    return site
+
+
 async def create_site(
     db: AsyncSession,
     auth_ctx: AuthContext,

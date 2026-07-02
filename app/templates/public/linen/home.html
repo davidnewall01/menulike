@@ -38,6 +38,18 @@
       <a href="{{ nav_prefix }}/menu">Eat</a>
       <a href="{{ nav_prefix }}/menu#drinks">Drink</a>
     </div>
+    {% set service_info_raw = home.fields.service_info.value %}
+    {% if service_info_raw %}
+      {% set items = service_info_raw.split("|") | map("trim") | reject("eq", "") | list %}
+      {% if items %}
+      <p class="hero__service">
+        {% for item in items %}
+          {% if not loop.first %}<span class="hero__dot">&middot;</span>{% endif %}
+          {{ item }}
+        {% endfor %}
+      </p>
+      {% endif %}
+    {% endif %}
     {% if render_mode == "preview" and hero.source != "real" %}
     <a href="/admin/front-page" class="preview-prompt" style="margin-top:16px">Add your hero image &rarr;</a>
     {% endif %}

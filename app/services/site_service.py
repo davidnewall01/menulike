@@ -267,6 +267,25 @@ async def update_tagline(
     return site
 
 
+async def update_service_info(
+    db: AsyncSession, auth_ctx: AuthContext, service_info: str | None,
+) -> Site:
+    """Set the site service_info. Flush only."""
+    if auth_ctx.scoped_site_id is None:
+        raise NoSiteInScope()
+
+    result = await db.execute(
+        select(Site).where(Site.site_id == auth_ctx.scoped_site_id)
+    )
+    site = result.scalar_one_or_none()
+    if site is None:
+        raise SiteNotFound(f"site_id={auth_ctx.scoped_site_id}")
+
+    site.service_info = service_info
+    await db.flush()
+    return site
+
+
 async def update_site_details(
     db: AsyncSession,
     auth_ctx: AuthContext,

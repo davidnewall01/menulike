@@ -27,7 +27,7 @@ from app.services import auth_service, content_block_service, hours_exception_se
 from app.services.hours_service import HoursRangeNotFound, InvalidHoursLabel
 from app.services.location_service import InvalidHoursDisplayMode
 from app.services.hours_exception_service import HoursExceptionNotFound, InvalidDateRange
-from app.services.storage import public_url as storage_public_url
+from app.services.storage import photo_variant_url, public_url as storage_public_url
 from app.services.exceptions import (
     CannotDeleteLastLocation,
     ContentBlockNotFound,
@@ -59,6 +59,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent
 # Current year for footer copyright — evaluated per render, never hardcoded.
 # Preview renders crema templates through this env (public.py has its own copy).
 templates.env.globals["current_year"] = lambda: date.today().year
+templates.env.globals["photo_variant_url"] = photo_variant_url
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -885,9 +886,12 @@ async def front_page_save(
     form_data = await request.form()
     tagline_raw = form_data.get("tagline", "")
     tagline = tagline_raw.strip() or None
+    service_info_raw = form_data.get("service_info", "")
+    service_info = service_info_raw.strip() or None
 
     try:
-        site = await site_coordinator.update_tagline(db, auth, tagline)
+        await site_coordinator.update_tagline(db, auth, tagline)
+        site = await site_coordinator.update_service_info(db, auth, service_info)
     except NoSiteInScope:
         raise HTTPException(status_code=400, detail="No site in scope")
     except SiteNotFound:

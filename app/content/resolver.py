@@ -20,6 +20,7 @@ from datetime import date
 from typing import Any, Callable, Literal
 
 from app.content import samples
+from app.services.storage import pick_variant_key
 
 Source = Literal["real", "sample", "derived", "empty"]
 Status = Literal["yours", "partial", "sample"]
@@ -189,7 +190,7 @@ def _resolve_home(
         # Uniform shape: URL string in both real and sample
         "hero": _resolve_field(
             has_real=len(feature_images) > 0,
-            real_value=storage_url(feature_images[0].s3_key) if feature_images else None,
+            real_value=storage_url(pick_variant_key(feature_images[0], "large")) if feature_images else None,
             sample_value=samples.HERO_IMAGE_URL,
             mode=mode,
         ),
@@ -198,7 +199,7 @@ def _resolve_home(
         # NOT status-bearing (hero field covers status).
         "hero_images": _resolve_field(
             has_real=len(feature_images) > 0,
-            real_value=[storage_url(p.s3_key) for p in feature_images],
+            real_value=[storage_url(pick_variant_key(p, "large")) for p in feature_images],
             sample_value=[samples.HERO_IMAGE_URL],
             mode=mode,
         ),
@@ -208,12 +209,19 @@ def _resolve_home(
             sample_value=samples.TAGLINE,
             mode=mode,
         ),
+        "service_info": _resolve_field(
+            has_real=bool(site.service_info),
+            real_value=site.service_info,
+            sample_value=None,
+            mode=mode,
+            never_sample=True,
+        ),
         # Logo: resolved for value but NOT status-bearing (excluded from
         # _STATUS_FIELDS["home"]). Present/absent does not change home status.
         # Uniform shape: URL string
         "logo": _resolve_field(
             has_real=len(logo_images) > 0,
-            real_value=storage_url(logo_images[0].s3_key) if logo_images else None,
+            real_value=storage_url(pick_variant_key(logo_images[0], "thumb")) if logo_images else None,
             sample_value=samples.LOGO_IMAGE_URL,
             mode=mode,
         ),
@@ -236,7 +244,7 @@ def _resolve_our_story(
         {
             "heading": b.heading,
             "body": b.body,
-            "image_url": storage_url(b.image.s3_key) if b.image else None,
+            "image_url": storage_url(pick_variant_key(b.image, "large")) if b.image else None,
             "image_alt": (b.image.alt_text or "") if b.image else "",
         }
         for b in story_blocks
@@ -288,7 +296,7 @@ def _resolve_events(
             "heading": b.heading,
             "body": b.body,
             "event_date": b.event_date,
-            "image_url": storage_url(b.image.s3_key) if b.image else None,
+            "image_url": storage_url(pick_variant_key(b.image, "large")) if b.image else None,
             "image_alt": (b.image.alt_text or "") if b.image else "",
         }
 
@@ -415,7 +423,7 @@ def _resolve_gallery(
     # Uniform shape: list of {url, alt_text, width, height}
     real_list = [
         {
-            "url": storage_url(p.s3_key),
+            "url": storage_url(pick_variant_key(p, "medium")),
             "alt_text": p.alt_text or "",
             "width": p.width,
             "height": p.height,
