@@ -69,10 +69,15 @@ class TestPhotoUpload:
             data={"csrf_token": token},
         )
         assert resp.status_code == 303
-        mock_upload.assert_called_once()
-        call_args = mock_upload.call_args
-        assert call_args[0][0] == jpeg_data  # data bytes
-        assert call_args[0][2] == "image/jpeg"  # content_type
+        # 5 uploads: raw original + 4 WebP variants (original_webp, large, medium, thumb)
+        assert mock_upload.call_count == 5
+        # First call is the raw original
+        raw_call = mock_upload.call_args_list[0]
+        assert raw_call[0][0] == jpeg_data  # data bytes
+        assert raw_call[0][2] == "image/jpeg"  # content_type
+        # Remaining 4 calls are WebP variants
+        for call in mock_upload.call_args_list[1:]:
+            assert call[0][2] == "image/webp"
 
     @patch("app.services.photo_service.storage.upload", new_callable=AsyncMock)
     async def test_upload_disallowed_type_rejected(self, mock_upload, client, db_session):

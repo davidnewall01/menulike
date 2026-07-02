@@ -14,7 +14,8 @@ Rules:
     that tier is generated at the source's own width (cap-to-source).
   - Aspect ratio always preserved (width-constrained resize).
   - EXIF/metadata stripped on output.
-  - Non-RGB inputs (CMYK, palette, RGBA) converted to RGB before WebP save.
+  - Alpha-bearing inputs (RGBA, LA, PA) preserved as RGBA for WebP (transparency safe).
+  - Non-RGB, non-alpha inputs (CMYK, palette) converted to RGB before WebP save.
 """
 
 import io
@@ -40,15 +41,18 @@ class Variant:
     height: int
 
 
-def _to_rgb(img: Image.Image) -> Image.Image:
-    """Convert any mode (CMYK, P, LA, RGBA, etc.) to RGB for WebP output."""
-    if img.mode == "RGB":
+def _normalise_mode(img: Image.Image) -> Image.Image:
+    """Normalise to RGB or RGBA for WebP output.
+
+    Alpha-bearing modes (RGBA, LA, PA, P with transparency) → RGBA (preserves
+    transparency).  Everything else (CMYK, L, etc.) → RGB.
+    """
+    if img.mode in ("RGB", "RGBA"):
         return img
-    if img.mode in ("RGBA", "LA", "PA"):
-        background = Image.new("RGB", img.size, (255, 255, 255))
-        # Use alpha channel to composite onto white
-        background.paste(img, mask=img.split()[-1])
-        return background
+    if img.mode in ("LA", "PA"):
+        return img.convert("RGBA")
+    if img.mode == "P" and img.info.get("transparency") is not None:
+        return img.convert("RGBA")
     return img.convert("RGB")
 
 
@@ -61,7 +65,7 @@ def generate_variants(source_data: bytes) -> list[Variant]:
     img = Image.open(io.BytesIO(source_data))
     # Honour EXIF orientation before any processing
     img = _apply_exif_orientation(img)
-    img = _to_rgb(img)
+    img = _normalise_mode(img)
     src_w, src_h = img.size
 
     # Step 1: produce original_webp (long-edge capped at 2560)
