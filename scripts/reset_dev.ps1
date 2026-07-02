@@ -6,16 +6,12 @@ $env:PGPASSWORD = "menulike"
 $pgArgs = @("-U", "menulike", "-h", "localhost", "-p", "5433")
 
 # --- Stop server ---
-$ps = netstat -ano | Select-String ":$port\s" |
-    ForEach-Object { ($_ -split '\s+')[-1] } |
-    Sort-Object -Unique |
-    Where-Object { $_ -ne '0' }
-
-foreach ($p in $ps) {
-    Write-Host "Killing PID $p (holding port $port)"
-    taskkill /F /PID $p 2>$null | Out-Null
+$procs = Get-Process python* -ErrorAction SilentlyContinue
+if ($procs) {
+    Write-Host "Killing $($procs.Count) python process(es)..."
+    $procs | Stop-Process -Force
+    Start-Sleep -Milliseconds 500
 }
-Start-Sleep -Seconds 2
 
 # --- Drop & recreate DB ---
 Write-Host ""

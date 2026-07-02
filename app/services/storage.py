@@ -35,8 +35,21 @@ def _require_config() -> None:
 
 
 def photo_key(site_id: uuid.UUID, photo_id: uuid.UUID, ext: str) -> str:
-    """Build the S3 object key for a photo: sites/{site_id}/photos/{photo_id}.{ext}"""
+    """Build the S3 object key for a photo: sites/{site_id}/photos/{photo_id}.{ext}
+
+    Legacy flat key — kept for reference but new uploads use variant_key().
+    """
     return f"sites/{site_id}/photos/{photo_id}.{ext}"
+
+
+def variant_key(
+    site_id: uuid.UUID, photo_id: uuid.UUID, variant: str, ext: str
+) -> str:
+    """Build S3 key for an image variant.
+
+    Layout: sites/{site_id}/photos/{photo_id}/{variant}.{ext}
+    """
+    return f"sites/{site_id}/photos/{photo_id}/{variant}.{ext}"
 
 
 def public_url(key: str) -> str:

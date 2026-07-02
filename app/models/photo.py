@@ -23,6 +23,10 @@ class Photo(TimestampMixin, Base):
         index=True,
     )
     s3_key: Mapped[str] = mapped_column(String, nullable=False)
+    s3_key_raw: Mapped[str | None] = mapped_column(String, nullable=True)
+    s3_key_large: Mapped[str | None] = mapped_column(String, nullable=True)
+    s3_key_medium: Mapped[str | None] = mapped_column(String, nullable=True)
+    s3_key_thumb: Mapped[str | None] = mapped_column(String, nullable=True)
     original_filename: Mapped[str | None] = mapped_column(String, nullable=True)
     content_type: Mapped[str] = mapped_column(String, nullable=False)
     width: Mapped[int | None] = mapped_column(Integer, nullable=True)

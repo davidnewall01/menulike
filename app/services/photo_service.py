@@ -1,9 +1,7 @@
 """Photo library queries and mutations — scoped to the owner's site."""
 
-import io
 import uuid
 
-from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +9,7 @@ from app.auth.context import AuthContext
 from app.models.photo import Photo
 from app.services import storage
 from app.services.exceptions import InvalidImage, NoSiteInScope, PhotoNotFound
+from app.services.image_variants import generate_variants
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -66,9 +65,13 @@ async def create_photo(
     db: AsyncSession, auth_ctx: AuthContext,
     file_data: bytes, filename: str | None, content_type: str
 ) -> Photo:
-    """Validate, upload to S3, create the DB row. Flush only.
+    """Validate, generate WebP variants, upload all to S3, create DB row.
 
-    Order: S3 upload THEN row creation. A failed upload writes nothing.
+    Uploads the raw original plus four WebP variants (original_webp, large,
+    medium, thumb).  s3_key points at the original_webp (the primary serve
+    target); s3_key_raw holds the untouched upload for future reprocessing.
+
+    Order: S3 uploads THEN row creation. A failed upload writes nothing.
     An orphaned S3 object on a later commit failure is acceptable for now.
     """
     if auth_ctx.scoped_site_id is None:
@@ -87,32 +90,49 @@ async def create_photo(
             f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit."
         )
 
-    # Read dimensions via Pillow (no resize)
-    width, height = None, None
+    # Generate WebP variants (also validates the image is readable)
     try:
-        img = Image.open(io.BytesIO(file_data))
-        width, height = img.size
-    except Exception:
-        pass  # dimensions are optional; a corrupt header doesn't block upload
+        variants = generate_variants(file_data)
+    except Exception as exc:
+        raise InvalidImage(f"Could not process image: {exc}") from exc
 
-    # Determine extension from content type
+    # Determine extension from content type (for the raw original)
     ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
-    ext = ext_map.get(content_type, "bin")
+    raw_ext = ext_map.get(content_type, "bin")
 
     photo_id = uuid.uuid4()
-    key = storage.photo_key(auth_ctx.scoped_site_id, photo_id, ext)
+    site_id = auth_ctx.scoped_site_id
 
-    # S3 upload first — if this fails, no DB row is written
-    await storage.upload(file_data, key, content_type)
+    # Build S3 keys
+    raw_key = storage.variant_key(site_id, photo_id, "raw", raw_ext)
+    variant_keys: dict[str, str] = {}
+    for v in variants:
+        variant_keys[v.name] = storage.variant_key(
+            site_id, photo_id, v.name, "webp"
+        )
+
+    # Upload raw original first
+    await storage.upload(file_data, raw_key, content_type)
+
+    # Upload WebP variants
+    for v in variants:
+        await storage.upload(v.data, variant_keys[v.name], "image/webp")
+
+    # Dimensions from the original_webp variant (post-orientation-fix)
+    original_v = next(v for v in variants if v.name == "original_webp")
 
     photo = Photo(
         photo_id=photo_id,
-        site_id=auth_ctx.scoped_site_id,
-        s3_key=key,
+        site_id=site_id,
+        s3_key=variant_keys["original_webp"],
+        s3_key_raw=raw_key,
+        s3_key_large=variant_keys["large"],
+        s3_key_medium=variant_keys["medium"],
+        s3_key_thumb=variant_keys["thumb"],
         original_filename=filename,
         content_type=content_type,
-        width=width,
-        height=height,
+        width=original_v.width,
+        height=original_v.height,
     )
     db.add(photo)
     await db.flush()
@@ -133,9 +153,18 @@ async def update_photo_alt(
 async def delete_photo(
     db: AsyncSession, auth_ctx: AuthContext, photo_id: uuid.UUID
 ) -> None:
-    """Delete a photo from S3 and the DB. Scoped-load first."""
+    """Delete a photo and all its S3 variants from storage + DB."""
     photo = await get_owner_photo(db, auth_ctx, photo_id)
-    # Delete from S3 first
-    await storage.delete(photo.s3_key)
+    # Delete all S3 objects for this photo
+    keys_to_delete = [
+        photo.s3_key,
+        photo.s3_key_raw,
+        photo.s3_key_large,
+        photo.s3_key_medium,
+        photo.s3_key_thumb,
+    ]
+    for key in keys_to_delete:
+        if key:
+            await storage.delete(key)
     await db.delete(photo)
     await db.flush()
